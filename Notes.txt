@@ -27,3 +27,13 @@ JOP Model (rough idea, for now put everything in Runnables):
   TelecommandExecutionTask: SwEvent (MailBox)
   AquisitionTask: SwEvent (MailBox)
   HealthMonitoringTask: RtThread (periodic)
+
+Mailbox implementation:
+  * public abstract class debie.support.Mailbox
+  	* sendTaskMail(message, timeout)
+	  * Changes to C implementation: mailbox id is implicit
+	* waitMail()
+	  * Changes to C implementation: fields from incoming_mail_t *message are implicit
+	* fields from incoming_mail_t
+  * public class debie.harness.HarnessMailbox extends Mailbox
+    * uses same (static) mechanisms as C implementation
