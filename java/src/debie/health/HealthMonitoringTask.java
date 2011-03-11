@@ -152,4 +152,41 @@ public class HealthMonitoringTask implements Runnable {
 		//		   /* Wait for next activation */
 	}
 
+	/* Purpose        : This function will be called always when               */
+	/*                  error bit(s) in the mode status register are set.      */
+	/* Interface      : inputs      - mode status register                     */
+	/*                              - mode_status_error, which specifies what  */
+	/*                                bit(s) are to be set in                  */
+	/*                                mode status register. Value is one of    */
+	/*                                the following,                           */
+	/*                                           									   */
+	/*                                  SUPPLY_ERROR                           */
+	/*                                  DATA_MEMORY_ERROR                      */
+	/*                                  PROGRAM_MEMORY_ERROR                   */
+	/*                                  MEMORY_WRITE_ERROR                     */
+	/*                                  ADC_ERROR                              */
+	/*                                           									   */
+	/*                  outputs     - mode status register                     */
+	/*                  subroutines - none                                     */
+	/* Preconditions  : none                                                   */
+	/* Postconditions : none                                                   */
+	/* Algorithm      : - Disable interrupts                                   */
+	/*                  - Write to Mode Status register                        */
+	/*                  - Enable interrupts                                    */
+	public void setModeStatusError(int mode_status_error) {
+//		   DISABLE_INTERRUPT_MASTER;
+//
+//		   telemetry_data.mode_status |= (mode_status_error & (~MODE_BITS_MASK));
+//		   /* The mode bits are secured against unintended modification by */
+//		   /* clearing those bits in 'mode_status_error' before "or":ing   */
+//		   /* its value to 'telemetry_data.mode_status'.                   */
+//
+//
+//		   ENABLE_INTERRUPT_MASTER;
+    }
+
+	public Dpu.Time getInternalTime() {
+		return internal_time;
+	}
+
 }

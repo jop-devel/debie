@@ -1,5 +1,30 @@
+/*------------------------------------------------------------------------------
+ *
+ *    Copyright (C) 1998 : Space Systems Finland Ltd.
+ *
+ * Space Systems Finland Ltd (SSF) allows you to use this version of
+ * the DEBIE-I DPU software for the specific purpose and under the
+ * specific conditions set forth in the Terms Of Use document enclosed
+ * with or attached to this software. In particular, the software
+ * remains the property of SSF and you must not distribute the software
+ * to third parties without written and signed authorization from SSF.
+ *
+ *   Ported to Java
+ *   Based on the SSF DHI file msg_ctrl.h, rev 1.11, Mon May 17 22:50:44 1999.
+ *   (C) 2011 : Wolfgang Puffitsch, Benedikt Huber, Martin Schoeberl 
+ *
+ *    System Name:   DEBIE DPU SW
+ *    Module     :   Based on 'msg_ctrl.h'
+ *      
+ *- * --------------------------------------------------------------------------
+ */
 package debie.support;
 
+/**
+ * This class is a port of the interface 'msg_ctrl' of the DEBIE benchmark
+ * @author Benedikt Huber <benedikt.huber@gmail.com>
+ *
+ */
 public abstract class Mailbox {
 
 	/** The value of execution_result in incoming_mail_t that
@@ -28,6 +53,10 @@ public abstract class Mailbox {
 
 	/** Actual message */
 	/* XXX: why the hell is this a pointer in the C implementation? */
+	/* bh: In the C code, 'message' usually points to a static variable
+	 *     inside the recipients module, which would then be update by the
+	 *     mailbox handler. I think there is no need to simulate this
+	 */
 	/* XXX: was uint16_t* */
 	public char message;
 
