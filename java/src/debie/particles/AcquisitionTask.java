@@ -120,7 +120,11 @@ public class AcquisitionTask {
 	private char ADC_result[] = new char[SensorUnit.NUM_CH]; /* XXX: was unsigned short int */
 	/*Used to temporarily store AD conversion results.                           */
 
-	private SuState suState[] = { SuState.off_e, SuState.off_e, SuState.off_e, SuState.off_e };
+	private static SuState suState[] = { SuState.off_e, SuState.off_e, SuState.off_e, SuState.off_e };
+
+	public static SuState [] getSuState() {
+		return suState;
+	}
 
 	private HealthMonitoringTask healthMonitor;
 

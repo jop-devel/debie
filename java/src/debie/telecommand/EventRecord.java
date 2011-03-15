@@ -1,8 +1,10 @@
 package debie.telecommand;
 
 public class EventRecord {
-	byte      quality_number;    /* byte  0  XXX: was unsigned char    */
-	byte      classification;    /* byte  1  XXX: was unsigned char    */
+	public int       quality_number;    /* byte  0  XXX: was unsigned char
+										            XXX: extended to int to avoid loss of precision 
+                                                         following offsets are wrong now */
+	public byte      classification;    /* byte  1  XXX: was unsigned char    */
 	public byte      SU_number;         /* byte  2  XXX: was unsigned char    */
 	public int       hit_time;          /* byte  3 -  6 XXX: was tm_dpu_time_t */
 	public byte      SU_temperature_1;  /* byte  7  XXX: was unsigned char        */
