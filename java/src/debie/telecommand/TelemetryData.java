@@ -2,31 +2,14 @@ package debie.telecommand;
 
 import static debie.telecommand.TelecommandExecutionTask.*;
 import static debie.target.SensorUnit.NUM_SU;
+import debie.particles.EventRecord;
+import debie.particles.SensorUnitSettings;
 public class TelemetryData {
 	/* Modes */
 	public static final int DPU_SELF_TEST =  0;
 	public static final int STAND_BY =       1;
 	public static final int ACQUISITION =    2;
 	public static final int MODE_BITS_MASK = 3;
-
-	/* Sensor Unit low power and TC settings : */
-	public static class SensorUnitSettings {
-		/* unsigned char */ byte plus_5_voltage;                    /* byte  1 */
-		/* unsigned char */ byte minus_5_voltage;                   /* byte  2 */
-		/* unsigned char */ byte plasma_1_plus_threshold;           /* byte  3 */
-		/* unsigned char */ byte plasma_1_minus_threshold;          /* byte  4 */
-		/* unsigned char */ byte piezo_threshold;                   /* byte  5 */
-		/* unsigned char */ byte plasma_1_plus_classification;      /* byte  6 */
-		/* unsigned char */ byte plasma_1_minus_classification;     /* byte  7 */
-		/* unsigned char */ byte piezo_1_classification;            /* byte  8 */
-		/* unsigned char */ byte piezo_2_classification;            /* byte  9 */
-		/* unsigned char */ byte plasma_2_plus_classification;      /* byte 10 */
-		/* unsigned char */ byte plasma_1_plus_to_minus_max_time;   /* byte 11 */
-		/* unsigned char */ byte plasma_1_plus_to_piezo_min_time;   /* byte 12 */
-		/* unsigned char */ byte plasma_1_plus_to_piezo_max_time;   /* byte 13 */
-		/* unsigned char */ byte plasma_1_minus_to_piezo_min_time;  /* byte 14 */
-		/* unsigned char */ byte plasma_1_minus_to_piezo_max_time;  /* byte 15 */
-	};	
 
 	/* unsigned char */ byte        error_status;                      /* reg   0       */
 	/* unsigned char */ byte        mode_status;                       /* reg   1       */
@@ -45,7 +28,7 @@ public class TelemetryData {
 	/* unsigned char */ byte        SU_minus_50;                       /* reg  28       */
 	/* unsigned char */ byte        os_disable_isr_error;              /* reg  29       */
 	/* unsigned char */ byte        not_used_1;                        /* reg  30       */
-	SensorUnitSettings              sensor_unit_1; /* reg  31 -  45 */
+	SensorUnitSettings              sensor_unit_1;                     /* reg  31 -  45 */
 	/* unsigned char */ byte        os_wait_error;                     /* reg  46       */
 	SensorUnitSettings              sensor_unit_2;                     /* reg  47 -  61 */
 	/* unsigned char */ byte        os_attach_interrupt_error;         /* reg  62       */
@@ -64,7 +47,7 @@ public class TelemetryData {
 	/* This is necessary for correct operation of telemetry        */
 	/* retrieving TCs i.e. number of bytes should be even.         */
 
-	public byte getSensorUnitTemperatur(int sensorUnit, int tempIx) {
+	public byte getSensorUnitTemperature(int sensorUnit, int tempIx) {
 		return SU_temperature[(sensorUnit << 1) + (tempIx & 0x01)];
 	}
 
@@ -76,4 +59,29 @@ public class TelemetryData {
 	public int getMode() {
 		return mode_status & MODE_BITS_MASK;
 	}
+	
+	/* getter/setter for coefficient array */
+	public void initCoefficients() {
+		for (int i=0; i<NUM_QCOEFF; i++) {
+			coefficient[i] = EventRecord.DEFAULT_COEFF;
+		}
+	}	
+	public byte[] getCoefficients() {
+		return coefficient;
+	}
+
+	/* getters for sensor unit settings */
+	public SensorUnitSettings getSensorUnit1() {
+		return sensor_unit_1;
+	}
+	public SensorUnitSettings getSensorUnit2() {
+		return sensor_unit_2;
+	}
+	public SensorUnitSettings getSensorUnit3() {
+		return sensor_unit_3;
+	}
+	public SensorUnitSettings getSensorUnit4() {
+		return sensor_unit_4;
+	}
+	
 }

@@ -27,7 +27,6 @@ import debie.target.HwIf;
 import debie.target.SensorUnit;
 import debie.target.SensorUnit.Delays;
 import debie.target.SensorUnit.SensorUnitTestLevel;
-import debie.telecommand.EventRecord;
 import debie.telecommand.TelecommandExecutionTask;
 import joprt.SwEvent;
 
@@ -132,7 +131,8 @@ public class AcquisitionTask {
 	private SensorUnitTestLevel /* SU_test_level_t */ test_level;
 
 	/* Test level being used in SU Self Test. */
-	public SuState suState[] = { SuState.off_e, SuState.off_e, SuState.off_e, SuState.off_e };
+	/* FIXME: Made static because of the code in EventRecord */
+	public static SuState suState[] = { SuState.off_e, SuState.off_e, SuState.off_e, SuState.off_e };
 
 	private char ADC_result[] = new char[SensorUnit.NUM_CH]; /* XXX: was unsigned short int */
 	/*Used to temporarily store AD conversion results.                           */
@@ -243,7 +243,7 @@ public class AcquisitionTask {
 				/* Get pointer to the new event record.
 				 *Number of the Sensor Unit, which has been hit, is stored into
 				 *Event Record.                                                  */
-		       event.SU_number = (byte) (trigger_unit & 0xFF);
+		        event.SU_number = (byte) (trigger_unit & 0xFF);
 
 				/*Contents of a temporary buffer is stored into Event Record.    */
 				event.plasma_1_plus = ADC_result[0];
@@ -298,10 +298,10 @@ public class AcquisitionTask {
 		         /*Unit temperatures are stored into Event Record.                */
 
 		         event.SU_temperature_1 = 
-		            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperatur(trigger_unit - SU1, 0);
+		            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperature(trigger_unit - SU1, 0);
 
 		         event.SU_temperature_2 = 
-			            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperatur(trigger_unit - SU1, 1);
+			            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperature(trigger_unit - SU1, 1);
 
 		         event.classify();
 		         /* New event is classified. */

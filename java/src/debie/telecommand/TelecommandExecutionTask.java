@@ -1,5 +1,7 @@
 package debie.telecommand;
 
+import debie.health.HealthMonitoringTask;
+import debie.particles.EventRecord;
 import debie.target.HwIf;
 import debie.target.SensorUnit;
 
@@ -469,7 +471,7 @@ public class TelecommandExecutionTask {
 	{
 	   /*dpu_time_t INDIRECT_INTERNAL*/ int hit_time;
 	   /* Hit time. */
-	   hit_time = science_data.event[event_number].hit_time;
+	   hit_time = science_data.event[event_number].getHitTime();
 	   //COPY (hit_time, science_data.event[event_number].hit_time);
 
 	   return hit_time;
@@ -548,20 +550,20 @@ public class TelecommandExecutionTask {
 		 /* Science Data memory was not full */
 
 	         record_index = free_slot_index;
-	         science_data.event[record_index].quality_number = 0;
+	         science_data.event[record_index].setQualityNumber(0);
 	         free_slot_index++;
 	      }
 
 
 	      /* Increment event counters. */
 	      incrementCounters(
-	         event_queue[0].SU_number - 1,
-	         event_queue[0].classification);
+	         event_queue[0].getSUNumber() - 1,
+	         event_queue[0].getClassification());
 
 	      // ENABLE_INTERRUPT_MASTER;
 
-	      if (event_queue[0].quality_number >=
-	          science_data.event[record_index].quality_number)
+	      if (event_queue[0].getQualityNumber() >=
+	          science_data.event[record_index].getQualityNumber())
 
 	      {
 	         
@@ -613,7 +615,7 @@ public class TelecommandExecutionTask {
 	   
 
 	   min_time             = GetElapsedTime(0);
-	   min_quality_number   = science_data.event[0].quality_number;
+	   min_quality_number   = science_data.event[0].getQualityNumber();
 	   min_quality_location = 0;
 	   /* First event is selected and compared against */
 	   /* the following events in the science_data.    */
@@ -622,17 +624,17 @@ public class TelecommandExecutionTask {
 	   {
 	      time = GetElapsedTime(i);
 
-	      if(science_data.event[i].quality_number < min_quality_number)
+	      if(science_data.event[i].getQualityNumber() < min_quality_number)
 	      {
 	         min_time = time;
-	         min_quality_number = science_data.event[i].quality_number;
+	         min_quality_number = science_data.event[i].getQualityNumber();
 	         min_quality_location = i;
 	         /* If an event in the science_data has a lower quality number than  */
 	         /* any of the previous events, its quality_number and location is   */
 	         /* stored into variables.                                           */
 	      }
 
-	      else if(   (science_data.event[i].quality_number == min_quality_number)
+	      else if(   (science_data.event[i].getQualityNumber() == min_quality_number)
 	              && (time < min_time))
 	      {
 	         min_time = time;
@@ -747,8 +749,8 @@ public class TelecommandExecutionTask {
 //	         event_record_t);
 
 	      incrementCounters(
-	         event_queue[i].SU_number - 1,
-	         event_queue[i].classification);
+	         event_queue[i].getSUNumber() - 1,
+	         event_queue[i].getClassification());
 
 	      /* One more event is stored in the Science Data memory. */
 	      /* NOTE that the event queue should always be smaller   */
