@@ -20,11 +20,6 @@ public class HwIf {
 		return 0;
 	}
 
-	public static void readDelayCounters(Delays delay_counters) {
-		// TODO Auto-generated method stub
-		return;
-	}
-
 	public static void enableInterruptMaster() {
 		// TODO Auto-generated method stub		
 	}
@@ -38,6 +33,13 @@ public class HwIf {
 		// TODO Auto-generated method stub
 		
 	}
+	
+	/* Delay and rise time counters */
+	public static void readDelayCounters(Delays delay_counters) {
+		// TODO Auto-generated method stub
+		
+	}
+	
 
 	public static void resetDelayCounters() {
 		// TODO Auto-generated method stub

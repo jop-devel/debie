@@ -26,6 +26,7 @@ import debie.support.TaskControl;
 import debie.target.HwIf;
 import debie.target.SensorUnit;
 import debie.target.SensorUnit.Delays;
+import debie.target.SensorUnit.SensorUnitTestLevel;
 import debie.telecommand.EventRecord;
 import debie.telecommand.TelecommandExecutionTask;
 import joprt.SwEvent;
@@ -83,7 +84,7 @@ public class AcquisitionTask {
 		
 		@Override
 		public void handle() {
-			task.handle(ACQ_mailbox.message);
+			task.handleAcquisition(ACQ_mailbox.message);
 		}
 	}
 
@@ -117,10 +118,46 @@ public class AcquisitionTask {
 	public static final int SU_NUMBER_MASK =         0x07;
 
 	/*--- Instance Variables ---*/
+	public int /* sensor_number_t */ self_test_SU_number = SensorUnit.NO_SU;
+
+	/* By default this variable indicates that no SU self test   */
+	/* sequence is running.                                      */
+	/* Number of SU being self tested (SU_1, SU_2, SU_3 or SU_4) */
+	/* or NO_SU if no SU is being self tested.                   */
+
+	private int /* unsigned char */ test_channel;
+	/* Channel being tested in SU Self Test. Valid only if triggering SU */
+	/* (indicated by self_test_SU) is in Self Test state.                */
+
+	private SensorUnitTestLevel /* SU_test_level_t */ test_level;
+
+	/* Test level being used in SU Self Test. */
+	public SuState suState[] = { SuState.off_e, SuState.off_e, SuState.off_e, SuState.off_e };
+
 	private char ADC_result[] = new char[SensorUnit.NUM_CH]; /* XXX: was unsigned short int */
 	/*Used to temporarily store AD conversion results.                           */
 
-	private SuState suState[] = { SuState.off_e, SuState.off_e, SuState.off_e, SuState.off_e };
+	private /* unsigned char */ int confirm_hit_result;
+	/*This variable indicates a hit with a high value.                           */
+
+	private /* uint_least8_t */ int hit_budget       = HIT_BUDGET_DEFAULT;
+	private  /* uint_least8_t */ int hit_budget_left  = HIT_BUDGET_DEFAULT;
+	
+
+	/*-- getter/setter --*/
+	public int getHitBudgetLeft() {
+		return this.hit_budget_left;
+	}
+	
+	public void setHitBudgetLeft(int value) {
+		this.hit_budget_left = value;
+	}
+	
+	
+	public SuState getSensorUnitState(int sen) {
+		return suState[sen];
+	}
+
 
 	private HealthMonitoringTask healthMonitor;
 
@@ -134,6 +171,12 @@ public class AcquisitionTask {
 	public AcquisitionTask(HealthMonitoringTask healthMonitor)
 	{
 		this.healthMonitor = healthMonitor;
+	}
+	
+	// FIXME: stub
+	public void handelHitTrigger() {
+		// TODO Auto-generated method stub
+		
 	}
 
 	/**
@@ -159,7 +202,7 @@ public class AcquisitionTask {
 	 *                      Plasma1+ trigger signals
 	 *                    - calculate quality number
 	 *                    - call RecordEvent()                                   */
-	public void handle(int trigger_unit) {
+	public void handleAcquisition(int trigger_unit) {
 
 		EventRecord event;
 		/* Pointer to the new event record.                                       */
@@ -295,5 +338,7 @@ public class AcquisitionTask {
 		   HwIf.resetDelayCounters();
 		   /*The Delay Counters are reset. */		
 	}
+
+
 
 }

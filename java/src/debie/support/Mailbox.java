@@ -44,9 +44,13 @@ public abstract class Mailbox {
 	/* Fields of struct incoming_mail_t of the C implementation */
 	/* XXX: should rethink access rules (public vs private+getters/setters, final) */
 
-	/** Id for this mailbox. Probably could be final */
+	public Mailbox(byte mailbox_number) {
+		this.mailbox_number = mailbox_number;
+	}
+	
+	/** Id for this mailbox, initialized in the constructor */
 	/* XXX: was unsigned char */
-	public byte mailbox_number;
+	public final byte mailbox_number;
 
 	/* XXX: was unsigned char */
 	public byte timeout;

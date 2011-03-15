@@ -1,20 +1,14 @@
 package debie.telecommand;
 
-import debie.health.HealthMonitoringTask;
 import debie.target.HwIf;
 import debie.target.SensorUnit;
 
 public class TelecommandExecutionTask {
+	
 	/*--- [1] Definitions from tm_data.h:33 ---*/
 	public static final int NUM_CLASSES =  10;
 	public static final int NUM_TEMP =     2;
 	public static final int NUM_NOT_USED = (4 + 0x70 - 0x6A);
-
-	public static final int DPU_SELF_TEST = 0;
-	public static final int STAND_BY =      1;
-	public static final int ACQUISITION =   2;
-
-	public static final int MODE_BITS_MASK = 3;
 
 	/* Definitions related to error indicating bits in mode status register: */
 	public static final int SUPPLY_ERROR =                0x80;
@@ -57,24 +51,23 @@ public class TelecommandExecutionTask {
 	public static final int NUM_QCOEFF = 5;
 	/* Number of Quality Coefficients. */
 
-	private static final int MAX_QUEUE_LENGTH = 10;
+	public static final int MAX_QUEUE_LENGTH = 10;
 
 	/*--- [1]            until tm_data.h:83 ---*/
 	/*--- [2] Ported from tm_data.h:169-177 ---*/
 	/* Science Data File : */
 
-	private static class ScienceDataFile {
+	public static class ScienceDataFile {
 	   /*unsigned short int*/ char length;
-	   /*unsigned char*/ char[]  event_counter = new char[SensorUnit.NUM_SU * NUM_CLASSES];
+	   /*unsigned char*/ char[][]  event_counter = new char[SensorUnit.NUM_SU][NUM_CLASSES];
 	   /*unsigned char*/ char  not_used;
 	   /*unsigned char*/ char  counter_checksum;
 	   EventRecord[] event = new EventRecord[HwIf.MAX_EVENTS];
 
-	   /* XXX: encapsulating multi-dim array access */
-	   public char getEventCounter(int sensor_unit, byte classification) {
+	   public int getEventCounter(int sensor_unit, int classification) {
 		   if(classification >= NUM_CLASSES) throw new RuntimeException("Bad classification value");
 
-		   return event_counter[sensor_unit*NUM_CLASSES+classification];
+		   return event_counter[sensor_unit][classification];
 	   }
 
 	   /* XXX: encapsulating multi-dim array access */
@@ -82,7 +75,7 @@ public class TelecommandExecutionTask {
 			   char counter) {
 		   if(classification >= NUM_CLASSES) throw new RuntimeException("Bad classification value");
 		   
-		   event_counter[sensor_unit*NUM_CLASSES + classification] = counter;
+		   event_counter[sensor_unit][classification] = counter;
 	   }
 
 	   public void resetEventCounters(int i) {
@@ -92,19 +85,19 @@ public class TelecommandExecutionTask {
 
 		   for(j=0;j<NUM_CLASSES;j++)
 		   {
-			   event_counter[i * NUM_CLASSES + j] = 0;
+			   event_counter[i][j] = 0;
 		   }
 	   }
 	}
 	
 	/*--- [2] Definitions from   telem.c:36 ---*/
 	
-	private static TelemetryData telemetry_data;
+	private static TelemetryData telemetry_data = new TelemetryData();
 	/* aggregates telemetry data */
 
 	// FIXME: this should be on in external memory (I suppose)
 	//EXTERNAL science_data_file_t LOCATION(SCIENCE_DATA_START_ADDRESS)
-	private static ScienceDataFile science_data;
+	public static ScienceDataFile science_data = new ScienceDataFile();
 
 	private static int /* uint_least16_t */ max_events;
 	/* This variable is used to speed up certain    */
@@ -150,124 +143,6 @@ public class TelecommandExecutionTask {
 
 	/*--- [2]            until   telem.c: 73 ---*/
 
-	/*--- Ported from tc_hand.h:30-159*/
-	/* Valid telecommand address codes:                 */
-	/* NOTE that all codes are not yet defined, because */
-	/* all telecommands are not implemented in the      */
-	/* Prototype SW.                                    */
-
-	public static final int UNUSED_TC_ADDRESS =                      0x00;
-
-	public static final int START_ACQUISITION =                      0x01;
-	public static final int STOP_ACQUISITION =                       0x02;
-
-	public static final int ERROR_STATUS_CLEAR =                     0x03;
-
-	public static final int SEND_STATUS_REGISTER =                   0x05;
-	public static final int SEND_SCIENCE_DATA_FILE =                 0x06;
-
-	public static final int SET_TIME_BYTE_0 =                        0x0C;
-	public static final int SET_TIME_BYTE_1 =                        0x0D;
-	public static final int SET_TIME_BYTE_2 =                        0x0E;
-	public static final int SET_TIME_BYTE_3 =                        0x0F;
-
-	public static final int SOFT_RESET =                             0x09;
-
-	public static final int CLEAR_WATCHDOG_FAILURES =                0x0A;
-	public static final int CLEAR_CHECKSUM_FAILURES =                0x0B;
-
-	public static final int WRITE_CODE_MEMORY_MSB =                  0x10;
-	public static final int WRITE_CODE_MEMORY_LSB =                  0x6F;
-	public static final int WRITE_DATA_MEMORY_MSB =                  0x15;
-	public static final int WRITE_DATA_MEMORY_LSB =                  0x6A;
-	public static final int READ_DATA_MEMORY_MSB =                   0x1F;
-	public static final int READ_DATA_MEMORY_LSB =                   0x60;
-
-	public static final int SWITCH_SU_1 =                            0x20;
-	public static final int SWITCH_SU_2 =                            0x30;
-	public static final int SWITCH_SU_3 =                            0x40;
-	public static final int SWITCH_SU_4 =                            0x50;
-
-	public static final int SET_SU_1_PLASMA_1P_THRESHOLD =           0x21;
-	public static final int SET_SU_2_PLASMA_1P_THRESHOLD =           0x31;
-	public static final int SET_SU_3_PLASMA_1P_THRESHOLD =           0x41;
-	public static final int SET_SU_4_PLASMA_1P_THRESHOLD =           0x51;
-
-	public static final int SET_SU_1_PLASMA_1M_THRESHOLD =           0x22;
-	public static final int SET_SU_2_PLASMA_1M_THRESHOLD =           0x32;
-	public static final int SET_SU_3_PLASMA_1M_THRESHOLD =           0x42;
-	public static final int SET_SU_4_PLASMA_1M_THRESHOLD =           0x52;
-
-	public static final int SET_SU_1_PIEZO_THRESHOLD =               0x23;
-	public static final int SET_SU_2_PIEZO_THRESHOLD =               0x33;
-	public static final int SET_SU_3_PIEZO_THRESHOLD =               0x43;
-	public static final int SET_SU_4_PIEZO_THRESHOLD =               0x53;
-
-	public static final int SET_SU_1_PLASMA_1P_CLASS_LEVEL =         0x24;
-	public static final int SET_SU_2_PLASMA_1P_CLASS_LEVEL =         0x34;
-	public static final int SET_SU_3_PLASMA_1P_CLASS_LEVEL =         0x44;
-	public static final int SET_SU_4_PLASMA_1P_CLASS_LEVEL =         0x54;
-
-	public static final int SET_SU_1_PLASMA_1M_CLASS_LEVEL =         0x25;
-	public static final int SET_SU_2_PLASMA_1M_CLASS_LEVEL =         0x35;
-	public static final int SET_SU_3_PLASMA_1M_CLASS_LEVEL =         0x45;
-	public static final int SET_SU_4_PLASMA_1M_CLASS_LEVEL =         0x55;
-
-	public static final int SET_SU_1_PLASMA_2P_CLASS_LEVEL =         0x28;
-	public static final int SET_SU_2_PLASMA_2P_CLASS_LEVEL =         0x38;
-	public static final int SET_SU_3_PLASMA_2P_CLASS_LEVEL =         0x48;
-	public static final int SET_SU_4_PLASMA_2P_CLASS_LEVEL =         0x58;
-
-	public static final int SET_SU_1_PIEZO_1_CLASS_LEVEL =           0x26;
-	public static final int SET_SU_2_PIEZO_1_CLASS_LEVEL =           0x36;
-	public static final int SET_SU_3_PIEZO_1_CLASS_LEVEL =           0x46;
-	public static final int SET_SU_4_PIEZO_1_CLASS_LEVEL =           0x56;
-
-	public static final int SET_SU_1_PIEZO_2_CLASS_LEVEL =           0x27;
-	public static final int SET_SU_2_PIEZO_2_CLASS_LEVEL =           0x37;
-	public static final int SET_SU_3_PIEZO_2_CLASS_LEVEL =           0x47;
-	public static final int SET_SU_4_PIEZO_2_CLASS_LEVEL =           0x57 ;
-
-	public static final int SET_SU_1_PLASMA_1E_1I_MAX_TIME =         0x29;
-	public static final int SET_SU_2_PLASMA_1E_1I_MAX_TIME =         0x39;
-	public static final int SET_SU_3_PLASMA_1E_1I_MAX_TIME =         0x49;
-	public static final int SET_SU_4_PLASMA_1E_1I_MAX_TIME =         0x59;
-
-	public static final int SET_SU_1_PLASMA_1E_PZT_MIN_TIME =        0x2A;
-	public static final int SET_SU_2_PLASMA_1E_PZT_MIN_TIME =        0x3A;
-	public static final int SET_SU_3_PLASMA_1E_PZT_MIN_TIME =        0x4A;
-	public static final int SET_SU_4_PLASMA_1E_PZT_MIN_TIME =        0x5A;
-
-	public static final int SET_SU_1_PLASMA_1E_PZT_MAX_TIME =        0x2B;
-	public static final int SET_SU_2_PLASMA_1E_PZT_MAX_TIME =        0x3B;
-	public static final int SET_SU_3_PLASMA_1E_PZT_MAX_TIME =        0x4B;
-	public static final int SET_SU_4_PLASMA_1E_PZT_MAX_TIME =        0x5B;
-
-	public static final int SET_SU_1_PLASMA_1I_PZT_MIN_TIME =        0x2C;
-	public static final int SET_SU_2_PLASMA_1I_PZT_MIN_TIME =        0x3C;
-	public static final int SET_SU_3_PLASMA_1I_PZT_MIN_TIME =        0x4C;
-	public static final int SET_SU_4_PLASMA_1I_PZT_MIN_TIME =        0x5C;
-
-	public static final int SET_SU_1_PLASMA_1I_PZT_MAX_TIME =        0x2D;
-	public static final int SET_SU_2_PLASMA_1I_PZT_MAX_TIME =        0x3D;
-	public static final int SET_SU_3_PLASMA_1I_PZT_MAX_TIME =        0x4D;
-	public static final int SET_SU_4_PLASMA_1I_PZT_MAX_TIME =        0x5D;
-
-	public static final int SET_COEFFICIENT_1 =                      0x70;
-	public static final int SET_COEFFICIENT_2 =                      0x71;
-	public static final int SET_COEFFICIENT_3 =                      0x72;
-	public static final int SET_COEFFICIENT_4 =                      0x73;
-	public static final int SET_COEFFICIENT_5 =                      0x74;
-
-	/* TC codes for SWITCH_SU_x: */
-
-	public static final int ON_VALUE =  0x55;
-	public static final int OFF_VALUE = 0x73;
-	public static final int SELF_TEST = 0x99;
-
-	/* Last TC code for SEND_STATUS_REGISTER: */
-
-	public static final int LAST_EVEN = 0x74;
 
 	/* State of Telecommand Execution task */
 
@@ -336,7 +211,7 @@ public class TelecommandExecutionTask {
 	/*unsigned char EXTERNAL*/ private static byte[] TC_look_up = new byte[128];
 	/* Look-up table for all possible 128 TC address values (domain: ALL_INVALID(0) - ONLY_EVEN(4) ) */
 
-	private static TC_State TC_state;
+	private static TC_State TC_state = TC_State.TC_handling_e; /* 0 ~ TC_handling_e */
 	/* internal state of the Telecommand Execution task */
 
 	private static  MemoryType memory_type;
@@ -388,6 +263,118 @@ public class TelecommandExecutionTask {
 		{
 			return event_queue[MAX_QUEUE_LENGTH - 1];
 		}
+	}
+
+	public void handleTelecommand ()
+
+	/* Purpose        : Waits for and handles one Telecommand from the TC ISR    */
+	/* Interface      : inputs      - Telecommand Execution task mailbox         */
+	/*                                TC state                                   */
+	/*                  outputs     - TC state                                   */
+	/*                  subroutines - ReadMemory                                 */
+	/*                                WriteMemory                                */
+	/*                                ExecuteCommand                             */
+	/* Preconditions  : none                                                     */
+	/* Postconditions : one message removed from the TC mailbox                  */
+	/* Algorithm      : - wait for mail to Telecommand Execution task mailbox    */
+	/*                  - if mail is "TM_READY" and TC state is either           */
+	/*                    "SC_TM_e" or "memory_dump_e".                          */
+	/*                    - if TC state is "SC_TM_e"                             */
+	/*                       - call ClearEvents function                         */
+	/*                    - set TC state to TC handling                          */
+	/*                  - else switch TC state                                   */
+	/*                    - case ReadMemory_e  : Check received TC's address     */
+	/*                    - case WriteMemory_e : call WriteMemory function       */
+	/*                    - case MemoryPatch_e : call MemoryPatch function       */
+	/*                    - case TC_Handling : call ExecuteCommand               */
+	/*                NOTE:   case register_TM_e is left out because             */
+	/*                        operation of SEND_STATUS_REGISTER TC does not      */
+	/*                        require any functionalites of this task.           */  
+
+	{
+//	   TC_mail.timeout = TC_timeout;
+//
+//	   WaitMail(&TC_mail);
+//
+//	   TC_timeout = 0;
+//	   /* Default value */
+//
+//	   if (TC_mail.execution_result == TIMEOUT_OCCURRED)
+//	   {
+//	      previous_TC.TC_word    = 0;
+//	      previous_TC.TC_address = UNUSED_TC_ADDRESS;
+//	      previous_TC.TC_code    = 0;
+//	      /* Forget previous telecommand. */
+//
+//	      if (TC_state != TC_handling_e)
+//	      {
+//	         /* Memory R/W time-out. */
+//	         Set_TC_Error();
+//	      }
+//
+//	      TC_state = TC_handling_e; 
+//	   }
+//
+//	   else if (TC_mail.execution_result == MSG_RECEIVED)
+//	   {
+//	      received_command.TC_address = TC_ADDRESS (received_command.TC_word);
+//	      received_command.TC_code    = TC_CODE    (received_command.TC_word);
+//
+//	      if (((TC_state == SC_TM_e) || (TC_state == memory_dump_e)) &&
+//	          (received_command.TC_word == TM_READY))
+//
+//	      /* Note that in order to this condition to be sufficient, only */
+//	      /* TM interrupt service should be allowed to send mail to this */
+//	      /* task in the TC states mentioned.                            */
+//
+//	      {
+//	         DisableInterrupt(TM_ISR_SOURCE);
+//
+//	         if (TC_state == SC_TM_e)
+//	         {
+//	           ClearEvents();
+//	         }
+//
+//	         TC_state = TC_handling_e;
+//	      }
+//	      else
+//	      {
+//	         switch (TC_state)
+//	         {
+//
+//	            case read_memory_e:
+//
+//	               if (received_command.TC_address != READ_DATA_MEMORY_LSB)
+//	               {
+//	                  Set_TC_Error();
+//	                  TC_state = TC_handling_e;
+//	               }
+//
+//	               break;
+//
+//	            case write_memory_e:
+//	               WriteMemory (&received_command);
+//	               break;
+//
+//	            case memory_patch_e:
+//	               MemoryPatch (&received_command);
+//	               break;
+//
+//	            case TC_handling_e:
+//	               ExecuteCommand (&received_command);
+//	               break;
+//
+//	         }
+//
+//	      }
+//
+//	      STRUCT_ASSIGN (previous_TC, received_command, telecommand_t);
+//	   }
+//
+//	   else
+//	   {
+//	      /* Nothing is done if WaitMail returns an error message. */
+//	   }
 	}
 
 //	void TM_InterruptService (void) INTERRUPT(TM_ISR_SOURCE) USED_REG_BANK(2)
@@ -467,7 +454,7 @@ public class TelecommandExecutionTask {
 //	   }
 //	}
 	
-	/*dpu_time_t*/ static  int GetElapsedTime(/*unsigned int*/int event_number)
+	/*dpu_time_t*/ static int GetElapsedTime(/*unsigned int*/int event_number)
 	/* Purpose        : Returns the hit time of a given event.                   */
 	/* Interface      : inputs      - event_number (parameter)                   */
 	/*                                science_data[event_number].hit_time, hit   */
@@ -694,7 +681,7 @@ public class TelecommandExecutionTask {
 
 
 	{
-	   /* unsigned char EXTERNAL */ char counter;
+	   /* unsigned char EXTERNAL */ int counter;
 	   /* unsigned char EXTERNAL */ char new_checksum;
 
 
@@ -718,7 +705,7 @@ public class TelecommandExecutionTask {
 	      new_checksum ^= counter;
 	      /* Add effect of new counter value to the checksum. */
 
-	      science_data.setEventCounter(sensor_unit,classification,counter);
+	      science_data.setEventCounter(sensor_unit,classification,(char) counter);
 	      /* The event counter is incremented. */
 
 	      science_data.counter_checksum = new_checksum;
@@ -789,5 +776,46 @@ public class TelecommandExecutionTask {
 	{
 	      event_queue_length = 0;
 	}
+	
+	/** get length of event queue */
+	public int getEventQueueLength() {
+		return event_queue_length;
+	}
+
+	/** check whether there is a free slot for events */
+	public boolean hasFreeSlot() {
+		return free_slot_index < max_events;
+	}
+	
+	/** get free slot index (debugging/testing) */
+	public int getFreeSlotIndex() {
+		return free_slot_index;
+	}
+
+	
+	public void tcInterruptService() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void tmInterruptService() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	/** delegator */
+	public int getErrorStatus() {
+		return telemetry_data.getErrorStatus();
+	}
+	
+	/** get telecommand state */
+	public TC_State getTC_State() {
+		return this.TC_state;
+	}
+
+	public int getMaxEvents() {
+		return max_events;
+	}
+	
 
 }

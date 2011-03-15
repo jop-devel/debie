@@ -3,6 +3,11 @@ package debie.telecommand;
 import static debie.telecommand.TelecommandExecutionTask.*;
 import static debie.target.SensorUnit.NUM_SU;
 public class TelemetryData {
+	/* Modes */
+	public static final int DPU_SELF_TEST =  0;
+	public static final int STAND_BY =       1;
+	public static final int ACQUISITION =    2;
+	public static final int MODE_BITS_MASK = 3;
 
 	/* Sensor Unit low power and TC settings : */
 	public static class SensorUnitSettings {
@@ -61,5 +66,14 @@ public class TelemetryData {
 
 	public byte getSensorUnitTemperatur(int sensorUnit, int tempIx) {
 		return SU_temperature[(sensorUnit << 1) + (tempIx & 0x01)];
+	}
+
+	public byte getErrorStatus() {
+		return error_status;
+	}
+
+	/** {@code telemetry_data.mode_status & MODE_BITS_MASK) } */
+	public int getMode() {
+		return mode_status & MODE_BITS_MASK;
 	}
 }

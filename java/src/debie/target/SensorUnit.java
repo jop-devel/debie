@@ -1,6 +1,9 @@
 package debie.target;
 
 public interface SensorUnit {
+	
+	public static enum SensorUnitTestLevel {high_e, low_e};
+
 	public static class Delays {
 		   public char FromPlasma1Plus; /* XXX: was unsigned short int  */
 		   public char FromPlasma1Minus; /* XXX: was unsigned short int  */
@@ -107,4 +110,55 @@ public interface SensorUnit {
 	public static final int HV_STATUS =       0xFF70;
 	
 	public static final int NUM_SU = 4;
+	
+	/*--- ported from su_ctrl.h:171-219 */
+	/* Function prototypes */
+
+	/* Sensor Unit status */
+
+	/* read delay counters --> HwIf.java */
+	
+//	void readDelayCounters (delays_t delay);
+//	extern unsigned char ReadRiseTimeCounter(void) COMPACT REENTRANT_FUNC;
+//	extern void ResetDelayCounters(void) COMPACT REENTRANT_FUNC;
+//	extern void ResetPeakDetector(sensor_number_t unit);
+//	extern void SignalPeakDetectorReset(
+//	   unsigned char low_reset_value,
+//	   unsigned char high_reset_value);
+//
+//
+//	/* Trigger levels */
+//	extern void SetTriggerLevel(trigger_set_t EXTERNAL *setting)
+//	   COMPACT REENTRANT_FUNC;
+//
+//	/* Test pulse level */
+//	extern void SetTestPulseLevel(unsigned char level)
+//	   COMPACT REENTRANT_FUNC;
+//
+//	extern void GetVoltageStatus(voltage_status_t EXTERNAL *v_status) 
+//	   COMPACT REENTRANT_FUNC;
+//
+//
+//	/* Sensor Unit power control */
+//	extern void Switch_SU_On  (
+//	   sensor_number_t SU_Number,
+//	   unsigned char EXTERNAL *execution_result)
+//	   COMPACT REENTRANT_FUNC;
+//
+//	extern void Switch_SU_Off (
+//	   sensor_number_t SU_Number,
+//	   unsigned char EXTERNAL *execution_result)
+//	   COMPACT REENTRANT_FUNC;               
+//
+//	/* Sensor Unit calibration */
+//
+//	extern void EnableAnalogSwitch(sensor_index_t self_test_SU_index);
+//	extern void DisableAnalogSwitch(sensor_index_t self_test_SU_index);
+//	extern void SelectSelfTestChannel(unsigned char channel);
+//	extern void SelectTriggerSwitchLevel(
+//	           unsigned char  test_channel,
+//	           sensor_index_t self_test_SU_index);
+//	extern void SelectStartSwitchLevel(
+//	           unsigned char  test_channel,
+//	           sensor_index_t self_test_SU_index);	
 }

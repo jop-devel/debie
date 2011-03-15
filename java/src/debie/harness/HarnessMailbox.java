@@ -4,6 +4,10 @@ import debie.support.Mailbox;
 
 public class HarnessMailbox extends Mailbox {
 
+	public HarnessMailbox(byte mailbox_number) {
+		super(mailbox_number);
+	}
+
 	/** The last message in the mailbox. */
 	private static char mail_message [] = new char[8];
 
@@ -60,5 +64,15 @@ public class HarnessMailbox extends Mailbox {
 
 	void flushMail() {
 		mail_count[mailbox_number] = 0;
+	}
+
+	/* Debugging / Testing interface */
+
+	int getMailCount() {
+		return mail_count[mailbox_number];
+	}
+
+	public int getMessage() {
+		return mail_message[mailbox_number];
 	}
 }

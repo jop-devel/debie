@@ -1,6 +1,7 @@
 package debie.health;
 
 import debie.support.Dpu;
+import debie.support.Dpu.Time;
 import joprt.RtThread;
 
 /**
@@ -63,7 +64,7 @@ public class HealthMonitoringTask implements Runnable {
 	char  code_checksum;
 
 	char confirm_hit_result;  
-	Dpu.Time internal_time;
+	private Time internal_time = new Time();
 
 	public HealthMonitoringTask() {
 		initHealthMonitor();

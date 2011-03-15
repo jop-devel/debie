@@ -50,8 +50,12 @@ public class Dpu {
 	/* that ensures that the checksum of the PROM is zero.         */
 
 	/** representation of time in DEBIE */
-	public class Time {
+	public static class Time {
 		public int tval;
+
+		public void incr() {
+			tval++;
+		}
 	}
 
 	public static int getEventFlag() {
