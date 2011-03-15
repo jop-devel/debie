@@ -26,7 +26,6 @@ import debie.support.TaskControl;
 import debie.target.HwIf;
 import debie.target.SensorUnit;
 import debie.target.SensorUnit.Delays;
-import debie.telecommand.EventRecord;
 import debie.telecommand.TelecommandExecutionTask;
 import joprt.SwEvent;
 
@@ -204,7 +203,7 @@ public class AcquisitionTask {
 				/* Get pointer to the new event record.
 				 *Number of the Sensor Unit, which has been hit, is stored into
 				 *Event Record.                                                  */
-		       event.SU_number = (byte) (trigger_unit & 0xFF);
+		        event.SU_number = (byte) (trigger_unit & 0xFF);
 
 				/*Contents of a temporary buffer is stored into Event Record.    */
 				event.plasma_1_plus = ADC_result[0];
@@ -259,10 +258,10 @@ public class AcquisitionTask {
 		         /*Unit temperatures are stored into Event Record.                */
 
 		         event.SU_temperature_1 = 
-		            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperatur(trigger_unit - SU1, 0);
+		            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperature(trigger_unit - SU1, 0);
 
 		         event.SU_temperature_2 = 
-			            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperatur(trigger_unit - SU1, 1);
+			            TelecommandExecutionTask.getTelemetryData().getSensorUnitTemperature(trigger_unit - SU1, 1);
 
 		         event.classify();
 		         /* New event is classified. */
