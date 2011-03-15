@@ -48,14 +48,12 @@ public interface TcTm {
 	void clearTimerOverflowFlag();
 	void setTimerOverflowFlag();
 
-//	/* TM Interrupt flag */
-//
-//	#define CLEAR_TM_INTERRUPT_FLAG {}
-//
-//	/* TC Interrupt flag*/
-//
-//	#define CLEAR_TC_INTERRUPT_FLAG {}
-//
+	/* TM Interrupt flag */
+	void clearTmInterruptFlag();
+
+	/* TC Interrupt flag*/
+	void clearTcInterruptFlag();
+
 //	/* TM and TC interrupt controls*/
 //
 //	#define SET_INT_TYPE1_EDGE {}
@@ -66,12 +64,13 @@ public interface TcTm {
 //	#define SET_TC_TIMER_MODE  {}
 //	/* Set TC timer (0) mode : Mode 1, counter operation, SW control */
 //
-//	#define INIT_TC_TIMER_MSB  {}
-//	#define INIT_TC_TIMER_LSB  {}
-//	/* TC timer initialization macros */ 
-//
-//	#define START_TC_TIMER     {}
-//	#define STOP_TC_TIMER      {}
-//	/* TC timer run control macros    */
+
+	void initTcTimerMsb();
+	void initTcTimerLsb();
+	/* TC timer initialization macros */ 
+
+	void startTcTimer();
+	void stopTcTimer();
+	/* TC timer run control macros    */
 
 }

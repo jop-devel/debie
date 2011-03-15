@@ -56,6 +56,10 @@ public class Dpu {
 		public void incr() {
 			tval++;
 		}
+
+		public int getTag() {
+			return tval;
+		}
 	}
 
 	public static int getEventFlag() {

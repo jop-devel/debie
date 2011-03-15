@@ -79,6 +79,11 @@ public class EventRecord {
 	char      delay_3;           /* byte 23 - 24 XXX: was tm_ushort_t */
 	byte      checksum;          /* byte 25 XXX: was unsigned char */
 
+	private static final int SIZE_IN_BYTES = 26;
+	public static int sizeInBytes() {
+		return SIZE_IN_BYTES;
+	}
+
 	/* getters/setters to provide access for TelecommandExecutionTask */
 	public int getQualityNumber() {
 		return quality_number;
@@ -638,5 +643,6 @@ public class EventRecord {
 		2,   /*  1    1    1   1   1   INSIDE   INSIDE   OUTSIDE    */
 		9    /*  1    1    1   1   1   INSIDE   INSIDE   INSIDE     */
 	};
+
 
 }

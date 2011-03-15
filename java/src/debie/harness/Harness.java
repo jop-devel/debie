@@ -76,10 +76,7 @@ public class Harness {
 
 	/** Test harness */
 	public static void main(String[] argv) {
-		HealthMonitoringTask hmTask = new HealthMonitoringTask();
-		AcquisitionTask acqTask = new AcquisitionTask(hmTask);
-		TelecommandExecutionTask tctmTask = new TelecommandExecutionTask();
-		HarnessSystem system = new HarnessSystem(acqTask, hmTask, tctmTask);
+		HarnessSystem system = new HarnessSystem();
 		TestLogger defaultLogger = new TestLogger();
 		
 		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);

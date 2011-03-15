@@ -21,19 +21,17 @@ public class HarnessSystem {
 	SensorUnitSim suSim;
 	TcTmSim tctmSim;
 	
-	public HarnessSystem(AcquisitionTask acqTask, 
-						 HealthMonitoringTask hmTask,
-						 TelecommandExecutionTask tctmTask) {
-		this.acqTask = acqTask;
-		this.hmTask = hmTask;
-		this.tctmTask = tctmTask;
-
-		this.acqMailbox = new HarnessMailbox(ACQUISITION_MAILBOX);
-		this.tctmMailbox = new HarnessMailbox(TCTM_MAILBOX);
-		
+	public HarnessSystem() {
 		this.tctmSim = new TcTmSim();
 		this.suSim = new SensorUnitSim(this);
 		this.adcSim = new AdcSim();
+
+		this.acqMailbox = new HarnessMailbox(ACQUISITION_MAILBOX);
+		this.tctmMailbox = new HarnessMailbox(TCTM_MAILBOX);		
+
+		this.hmTask = new HealthMonitoringTask();
+		this.acqTask = new AcquisitionTask(hmTask);
+		this.tctmTask = new TelecommandExecutionTask(tctmSim, hmTask.getInternalTime());
 	}
 	
 

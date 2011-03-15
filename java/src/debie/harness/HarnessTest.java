@@ -2,7 +2,7 @@ package debie.harness;
 
 import static debie.harness.Harness.Prob1;
 import static debie.harness.Harness.Prob4a;
-import static debie.telecommand.TelecommandAddressCodes.ERROR_STATUS_CLEAR;
+import static debie.telecommand.TcAddress.ERROR_STATUS_CLEAR;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.telecommand.TelecommandExecutionTask;

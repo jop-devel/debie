@@ -4,38 +4,38 @@ import debie.target.TcTm;
 
 public class TcTmSim implements TcTm {
 	
-	/* char */ int tc_msb, tc_lsb;
+	private int /* char */ tc_msb, tc_lsb;
 	/* Simulated TC interface registers. */
 
-	/* uint16_t */ char tc_word;
+	private char /* uint16_t */ tc_word;
 	/* The simulated TC word, composed of tc_msb and tc_lsb. */
 
 
-    /* unsigned char*/ int tm_msb, tm_lsb;
+    private int /* unsigned char*/ tm_msb, tm_lsb;
 	/* Simulated TM interface registers. */
 
 
 	@Override
 	public int readTcLsb() {
-		if(Harness.TRACE) Harness.trace("Read_TC_LSB");			
+		if(Harness.TRACE) Harness.trace("[TcTmSim] Read_TC_LSB");			
 		return tc_lsb;
 	}
 
 	@Override
 	public int readTcMsb() {
-		if(Harness.TRACE) Harness.trace("Read_TC_MSB");			
+		if(Harness.TRACE) Harness.trace("[TcTmSim] Read_TC_MSB");			
 		return tc_msb;
 	}
 
 	@Override
 	public void writeTmLsb(int value) {
-		if(Harness.TRACE) Harness.trace(String.format("Write_TM_LSB %d = 0x%x\n", value, value));			
+		if(Harness.TRACE) Harness.trace(String.format("[TcTmSim] Write_TM_LSB %d = 0x%x", value, value));			
 		tm_lsb = value;
 	}
 
 	@Override
 	public void writeTmMsb(int value) {
-		if(Harness.TRACE) Harness.trace(String.format("Write_TM_MSB %d = 0x%x\n", value, value));			
+		if(Harness.TRACE) Harness.trace(String.format("[TcTmSim] Write_TM_MSB %d = 0x%x", value, value));			
 		tm_msb = value;
 	}
 
@@ -85,6 +85,42 @@ public class TcTmSim implements TcTm {
 	public void setTimerOverflowFlag() {
 		if(Harness.TRACE) Harness.trace("[TcTmSim] Set_TC_Timer_Overflow_Flag");			
 		tc_timer_overflow = 1;
+	}
+
+	@Override
+	public void clearTcInterruptFlag() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void clearTmInterruptFlag() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void initTcTimerLsb() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void initTcTimerMsb() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void startTcTimer() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void stopTcTimer() {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

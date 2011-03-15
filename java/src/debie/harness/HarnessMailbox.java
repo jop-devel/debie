@@ -47,6 +47,7 @@ public class HarnessMailbox extends Mailbox {
 	 *                    telemetry as an error indication and error bit is set   
 	 *                    in software_error register.
 	 * XXX: Description of algorithm makes no sense, maybe a bug in the original comment?
+	 * FIXME: at most one mail is stored in the mailbox?
 	 */
 	public void waitMail() {
 		if (mail_count[mailbox_number] > 0) {
@@ -74,5 +75,13 @@ public class HarnessMailbox extends Mailbox {
 
 	public int getMessage() {
 		return mail_message[mailbox_number];
+	}
+
+	// FIXME: Hackish way to receive mail. Also, just saves one mail per mailbox?
+	public static boolean sendMessageTo(int mailbox, int message) {
+		if(mail_count[mailbox] != 0) return false;
+		mail_count[mailbox]++;
+		mail_message[mailbox] = (char) message;
+		return true;
 	}
 }

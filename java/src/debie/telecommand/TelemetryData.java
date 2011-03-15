@@ -4,7 +4,9 @@ import static debie.telecommand.TelecommandExecutionTask.*;
 import static debie.target.SensorUnit.NUM_SU;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnitSettings;
-public class TelemetryData {
+import debie.support.TelemetryObject;
+public class TelemetryData implements TelemetryObject {
+
 	/* Modes */
 	public static final int DPU_SELF_TEST =  0;
 	public static final int STAND_BY =       1;
@@ -46,7 +48,14 @@ public class TelemetryData {
 	/* The last register of telemetry data should be 'not_used'.   */
 	/* This is necessary for correct operation of telemetry        */
 	/* retrieving TCs i.e. number of bytes should be even.         */
-
+	
+	/** FIXME: this is just a stub */
+	public int getByte(int index) {
+		if(index == 0) return error_status;
+		/* and so on, can't we use some internal magic for this ?? */
+		return not_used;		
+	}
+	
 	public byte getSensorUnitTemperature(int sensorUnit, int tempIx) {
 		return SU_temperature[(sensorUnit << 1) + (tempIx & 0x01)];
 	}

@@ -1,12 +1,14 @@
 package debie.harness;
 
+import debie.health.HealthMonitoringTask;
+import debie.particles.AcquisitionTask;
 import debie.particles.AcquisitionTask.SuState;
 import debie.support.Dpu;
 import debie.target.SensorUnit;
 
 import static debie.harness.Harness.*;
 import static debie.target.TcTm.*;
-import static debie.telecommand.TelecommandAddressCodes.*;
+import static debie.telecommand.TcAddress.*;
 import static debie.target.SensorUnit.NUM_SU;
 import static debie.telecommand.TelecommandExecutionTask.MAX_QUEUE_LENGTH;
 
@@ -32,6 +34,10 @@ import debie.telecommand.TelecommandExecutionTask.TC_State;
  */
 public class AcquisitionTest extends HarnessTest {
 
+	private AcquisitionTask acqTask;
+	private TelecommandExecutionTask tctmTask;
+	private HealthMonitoringTask hmTask;
+
 	private final int[] switchSUCmd = {			   
 			SWITCH_SU_1,
 			SWITCH_SU_2,
@@ -39,7 +45,7 @@ public class AcquisitionTest extends HarnessTest {
 			SWITCH_SU_4};
 	/* The commands to switch Sensor Units ON or OFF. */
 
-	// XXX: Move to SuSim, I think
+
 	private int max_adc_hits;
 	private int ad_random_failures;
 	private int check_current_errors;
@@ -47,7 +53,10 @@ public class AcquisitionTest extends HarnessTest {
 
 
 	public AcquisitionTest(HarnessSystem sys, TestLogger tl) {
-		super(sys, tl);
+		super(sys, tl);		
+		this.acqTask = sys.acqTask;
+		this.tctmTask = sys.tctmTask;
+		this.hmTask = sys.hmTask;
 	}
 
 	@Override
@@ -68,7 +77,7 @@ public class AcquisitionTest extends HarnessTest {
 			Harness.trace("[AcquisitionTest] Finished");
 			Harness.trace("[AcquisitionTest] Checks: "+this.getChecks());
 			Harness.trace("[AcquisitionTest] Failures: "+this.getCheckErrors());
-		}		
+		}  		
 	}
 
 	private void testTurnSensorUnitsOn() {
@@ -222,10 +231,9 @@ public class AcquisitionTest extends HarnessTest {
 		checkZero (tctmTask.getEventQueueLength());
 
 		int octets = 0;
-		int runs = 0;
-		while (system.tctmMailbox.getMailCount() == 0 && /* Ensure termination */ (runs++) < 1024)
+		while (system.tctmMailbox.getMailCount() == 0)
 		{
-			if (/* FIXME: How to realize this??? */ 1+1==2 /*telemetry_pointer < telemetry_end_pointer*/)
+			if (! tctmTask.telemetryIndexAtEnd())
 			{
 				if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(Prob2a);
 				tctmTask.tmInterruptService() ;
@@ -233,9 +241,9 @@ public class AcquisitionTest extends HarnessTest {
 			}
 			else
 			{
-				if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(Prob2c);
+				if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(Prob2a);
 				tctmTask.tmInterruptService() ;
-				if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(Prob2c);
+				if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(Prob2a);
 			}
 
 			octets += 2;
