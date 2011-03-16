@@ -423,33 +423,36 @@ public class TelecommandExecutionTask {
 			}
 			else
 			{
-				switch (TC_state)
-				{
-
-				case read_memory_e:
-
-					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB)
-					{
+				/* XXX: work around ticket #9 for JOP, broken switch/case for enums */
+//				switch (TC_state) {
+//				case read_memory_e:
+//					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
+//						setTCError();
+//						TC_state = TC_State.TC_handling_e;
+//					}
+//					break;
+//				case write_memory_e:
+//					//WriteMemory (&received_command);
+//					break;
+//				case memory_patch_e:
+//					//MemoryPatch (&received_command);
+//					break;
+//				case TC_handling_e:
+//					executeCommand(received_command);
+//					break;
+//				}
+				if (TC_state == TC_State.read_memory_e) {
+					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
 						setTCError();
 						TC_state = TC_State.TC_handling_e;
-					}
-
-					break;
-
-				case write_memory_e:
-					//WriteMemory (&received_command);
-					break;
-
-				case memory_patch_e:
+					}					
+				} else if (TC_state == TC_State.write_memory_e) {
+					//WriteMemory (&received_command);					
+				} else if (TC_state == TC_State.memory_patch_e) {
 					//MemoryPatch (&received_command);
-					break;
-
-				case TC_handling_e:
-					executeCommand(received_command);
-					break;
-
+				} else if (TC_state == TC_State.TC_handling_e) {
+					executeCommand(received_command);			
 				}
-
 			}
 			previous_TC.copyFrom(received_command);
 		}
@@ -2235,12 +2238,12 @@ public class TelecommandExecutionTask {
 
 	/** get telecommand state */
 	public TC_State getTC_State() {
-		return this.TC_state;
+		return TC_state;
 	}
 
 	/** set telecommand state */
 	public void setTC_State(TC_State state) {
-		this.TC_state = state;
+		TC_state = state;
 	}
 
 	public int getMaxEvents() {
