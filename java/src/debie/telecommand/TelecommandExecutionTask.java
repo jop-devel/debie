@@ -2238,6 +2238,11 @@ public class TelecommandExecutionTask {
 		return this.TC_state;
 	}
 
+	/** set telecommand state */
+	public void setTC_State(TC_State state) {
+		this.TC_state = state;
+	}
+
 	public int getMaxEvents() {
 		return max_events;
 	}

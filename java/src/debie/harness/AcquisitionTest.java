@@ -241,9 +241,9 @@ public class AcquisitionTest extends HarnessTest {
 			}
 			else
 			{
-				if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2a);
+				if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2c);
 				tctmTask.tmInterruptService() ;
-				if(Harness.INSTRUMENTATION) Harness.endProblem(Prob2a);
+				if(Harness.INSTRUMENTATION) Harness.endProblem(Prob2c);
 			}
 
 			octets += 2;

@@ -11,9 +11,9 @@ import debie.telecommand.TelecommandExecutionTask.TC_State;
 public abstract class HarnessTest extends TestSuite {
 
 	protected HarnessSystem system;
-	protected  AcquisitionTask acqTask;
-	protected  TelecommandExecutionTask tctmTask;
-	protected  HealthMonitoringTask hmTask;
+	protected AcquisitionTask acqTask;
+	protected TelecommandExecutionTask tctmTask;
+	protected HealthMonitoringTask hmTask;
 
 	public HarnessTest(HarnessSystem sys, TestLogger td) {
 		super(td);
@@ -50,7 +50,7 @@ public abstract class HarnessTest extends TestSuite {
 	   tcInterrupt ();
 	}
 	
-	private void tcInterrupt ()
+	protected void tcInterrupt ()
 	/* Runs the TC Interrupt Service. */	
 	{
 	   /* Analysis Problem (1) */

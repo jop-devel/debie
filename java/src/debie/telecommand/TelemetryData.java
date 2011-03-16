@@ -71,6 +71,10 @@ public class TelemetryData implements TelemetryObject {
 		return error_status;
 	}
 
+	public void setErrorStatus(byte val) {
+		error_status = val;
+	}
+
 	/** {@code telemetry_data.mode_status & MODE_BITS_MASK) } */
 	public int getMode() {
 		return mode_status & MODE_BITS_MASK;
@@ -109,6 +113,5 @@ public class TelemetryData implements TelemetryObject {
 		default: throw new RuntimeException("getSuConfig: invalid index");
 		}
 	}
-
 	
 }
