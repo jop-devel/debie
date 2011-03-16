@@ -116,8 +116,7 @@ public class AdcSim implements AdConverter {
 
 	@Override
 	public void updateADC_ChannelReg(int channel) {
-		// TODO Auto-generated method stub
-
+		if (Harness.TRACE) Harness.trace(String.format("UpdateADC_ChannelReg %x", channel));
 	}
 	
 	public void setAD_Nominal ()

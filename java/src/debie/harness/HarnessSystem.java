@@ -19,7 +19,7 @@ public class HarnessSystem {
 	HarnessMailbox acqMailbox;
 	HarnessMailbox tctmMailbox;
 
-	AdcSim adcSim;
+	public AdcSim adcSim;
 	SensorUnitSim suSim;
 	TcTmSim tctmSim;
 	
@@ -33,7 +33,7 @@ public class HarnessSystem {
 		this.tctmMailbox = new HarnessMailbox(TCTM_MAILBOX);
 		TaskControl.setMailbox(TCTM_MAILBOX, tctmMailbox);
 
-		this.hmTask = new HealthMonitoringTask();
+		this.hmTask = new HealthMonitoringTask(this);
 		this.acqTask = new AcquisitionTask(hmTask);
 		this.tctmTask = new TelecommandExecutionTask(TaskControl.getMailbox(TCTM_MAILBOX), tctmSim, hmTask.getInternalTime());
 	}

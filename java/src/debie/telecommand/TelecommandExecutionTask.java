@@ -176,7 +176,7 @@ public class TelecommandExecutionTask {
 	//EXTERNAL science_data_file_t LOCATION(SCIENCE_DATA_START_ADDRESS)
 	public static ScienceDataFile science_data = new ScienceDataFile();
 
-	private static int /* uint_least16_t */ max_events;
+	public static int /* uint_least16_t */ max_events;
 	/* This variable is used to speed up certain    */
 	/* Functional Test by adding the possibility    */
 	/* to restrict the amount of events.            */
@@ -1916,7 +1916,7 @@ public class TelecommandExecutionTask {
 
 	}
 
-	void clearEvents()
+	public static void clearEvents()
 	/* Clears the event counters and the quality numbers of                     */
 	/* the event records in the science data memory                              */
 
@@ -1967,7 +1967,7 @@ public class TelecommandExecutionTask {
 		science_data.not_used         = 0;
 	}   
 
-	void resetEventQueueLength()
+	public static void resetEventQueueLength()
 	/* Purpose        : Empty the event queue length.                            */
 	/* Interface      : inputs      - none                                       */
 	/*                  outputs     - none                                       */
@@ -2115,7 +2115,7 @@ public class TelecommandExecutionTask {
 		//		   }   
 	}
 
-	private void setSensorUnitOff(int su_index, SensorUnit su_setting)
+	public static void setSensorUnitOff(int su_index, SensorUnit su_setting)
 	//
 	//		void SetSensorUnitOff(
 	//		         sensor_index_t SU,

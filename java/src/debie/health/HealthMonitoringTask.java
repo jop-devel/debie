@@ -1,12 +1,20 @@
 package debie.health;
 
+import debie.Version;
+import debie.harness.HarnessSystem;
+import debie.particles.EventClassifier;
+import debie.particles.SensorUnit;
 import debie.support.Dpu;
+import debie.support.Dpu.ResetClass;
 import debie.support.Dpu.Time;
+import debie.target.HwIf;
+import debie.target.SensorUnitDev;
 import debie.telecommand.TelecommandExecutionTask;
 import debie.telecommand.TelemetryData;
 import joprt.RtThread;
 
 import static debie.telecommand.TelemetryData.MODE_BITS_MASK;
+import static debie.target.SensorUnitDev.*;
 
 /**
  * Health monitoring, invoked periodically.
@@ -148,13 +156,17 @@ public class HealthMonitoringTask implements Runnable {
 	int  temp_meas_count;
 	int  voltage_meas_count;
 	int  checksum_count;
-	char  code_checksum;
+	static int code_checksum;
 
 	char confirm_hit_result;  
 	private Time internal_time = new Time();
 
-	public HealthMonitoringTask() {
-		initHealthMonitoring();
+	private HarnessSystem system;
+
+	private int ADCChannelRegister;
+	
+	public HealthMonitoringTask(HarnessSystem system) {
+		this.system = system;
 	}
 
 	@Override
@@ -184,7 +196,7 @@ public class HealthMonitoringTask implements Runnable {
 	 * 
 	 * {@see debie1-c, health#InitHealthMonitoring}
 	 */
-	private void initHealthMonitoring() {
+	public void initHealthMonitoring() {
 		/* Initializes the system.    */ 
 		initSystem();
 		
@@ -209,6 +221,175 @@ public class HealthMonitoringTask implements Runnable {
 		monitorDPUVoltage();
 	}
 
+	/**
+	 * Purpose        : Executes Boot sequence
+	 * Interface      : inputs      - failed_code_address
+	 *                              - failed_data_address
+	 *                  outputs     - intialized state of all variables
+	 *                  subroutines - SetSensorUnitOff
+	 *                                GetResetClass
+	 *                                SignalMemoryErros
+	 *                                ResetDelayCounters
+	 *                                InitClassification
+	 *                                ClearErrorStatus
+	 *                                ClearSoftwareError
+	 *                                Set_SU_TriggerLevels
+	 * Preconditions  : Init_DPU called earlier, after reset.
+	 *                  Keil C startup code executed; xdata RAM initialised.
+	 *                  Tasks are not yet running.
+	 * Postconditions : DAS variables initialised.
+	 *                  All Sensor Units are in off state
+	 *                  If boot was caused by power-up reset, TM data registers
+	 *                  and Science Data File are initialized
+	 *                  If boot was not caused by watchdog-reset, error counters
+	 *                  are cleared
+	 *                  DEBIE mode is DPU_SELF_TEST
+	 * Algorithm      : see below.
+	 */
+	public void boot() {
+		
+		HwIf.SUCtrlRegister |= 0x0F;
+		Dpu.setDataByte(SU_CONTROL, (byte)HwIf.SUCtrlRegister);
+		/* Set all Peak detector reset signals to high */
+
+		TelecommandExecutionTask.max_events = HwIf.MAX_EVENTS;
+		
+		HwIf.resetDelayCounters();
+		
+		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_1, new SensorUnit());
+		/* Set Sensor Unit 1 to Off state */
+
+		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_2, new SensorUnit());
+		/* Set Sensor Unit 2 to Off state */
+
+		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_3, new SensorUnit());
+		/* Set Sensor Unit 3 to Off state */
+
+		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_4, new SensorUnit());
+		/* Set Sensor Unit 4 to Off state */
+
+		ADCChannelRegister |= 0x80;
+		system.adcSim.updateADC_ChannelReg(ADCChannelRegister);
+		
+		ResetClass reset_class = HwIf.getResetClass();
+		
+		if (reset_class != ResetClass.warm_reset_e) {
+			/* We are running the PROM code unpatched, either   */
+			/* from PROM or from SRAM.                          */
+
+			HwIf.reference_checksum = Dpu.INITIAL_CHECKSUM_VALUE;
+			/* 'reference_checksum' is used as a reference when */
+			/* the integrity of the code is checked by          */
+			/* HealthMonitoringTask. It is set to  its initial  */
+			/* value here, after program code is copied from    */
+			/* PROM to RAM.                                     */
+		}
+		 
+		if (reset_class == ResetClass.power_up_reset_e) { 
+			/* Data RAM was tested and is therefore garbage. */
+			/* Init TM data registers and Science Data File. */
+
+			internal_time = new Dpu.Time();
+
+// TODO: port
+//		      fill_pointer = (EXTERNAL unsigned char * DIRECT_INTERNAL)&telemetry_data;
+//
+//		      for (i=0; i < sizeof(telemetry_data); i++)
+//		      {
+//		         *fill_pointer = 0;
+//		         fill_pointer++;
+//		      }
+
+			TelecommandExecutionTask.resetEventQueueLength();
+			/* Empty event queue. */
+
+			TelecommandExecutionTask.clearEvents();
+			/* Clears the event counters, quality numbers  */
+			/* and free_slot_index of the event records in */
+			/* the science data memory.                    */
+
+			EventClassifier.initClassification();
+			/* Initializes thresholds, classification levels and */
+			/* min/max times related to classification.          */
+
+// TODO: port
+// 			Clear_RTX_Errors();
+			/* RTX error indicating registers are initialized. */
+
+		} else if (reset_class == ResetClass.watchdog_reset_e) {
+			/* Record watchdog failure in telemetry. */
+
+			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+			tmData.setErrorStatus((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.WATCHDOG_ERROR));
+
+			tmData.incrementWatchdogFailures();
+		} else if (reset_class == ResetClass.checksum_reset_e) {
+			/* Record checksum failure in telemetry. */	
+			
+			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+			tmData.setErrorStatus((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.CHECKSUM_ERROR));
+
+			tmData.incrementChecksumFailures();
+	   } else {
+		   /* Soft or Warm reset. */
+		   /* Preserve most of telemetry_data; clear some parts. */
+		 			
+		   TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+		 
+// TODO: port
+//		      ClearErrorStatus();  
+//		      Clear_SU_Error();
+//		      Clear_RTX_Errors();
+//		      ClearSoftwareError();
+		   
+		   tmData.clearModeBits(~MODE_BITS_MASK);
+		   tmData.resetWatchdogFailures();
+		   tmData.resetChecksumFailures();
+		   tmData.resetTCWord();
+		   
+		   /* Clear error status bits, error status counters */
+		   /* and Command Status register.                   */
+
+		   TelecommandExecutionTask.resetEventQueueLength();
+		   /* Empty event queue. */
+
+		   TelecommandExecutionTask.clearEvents();
+		   /* Clears the event counters, quality numbers  */
+		   /* and free_slot_index of the event records in */
+		   /* the science data memory.                    */
+
+		   EventClassifier.initClassification();
+		   /* Initializes thresholds, classification levels and */
+		   /* min/max times related to classification.          */
+
+// TODO: port
+//		   self_test_SU_number = NO_SU;
+		   /* Self test SU number indicating parameter */
+		   /* is set to its default value.             */                       
+	   }
+		
+		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+		tmData.clearModeBits(MODE_BITS_MASK);
+		tmData.setModeBits(TelemetryData.DPU_SELF_TEST);
+		/* Enter DPU self test mode. */
+	
+		/* Software version information is stored in the telemetry data. */
+		tmData.setSWVersion(Version.SW_VERSION);
+		
+		HwIf.signalMemoryErrors();
+		/* Copy results of RAM tests to telemetry_data. */
+
+// TODO: port
+//		   SetTestPulseLevel(DEFAULT_TEST_PULSE_LEVEL);
+//		   /* Initializes test pulse level. */
+//
+//		   Set_SU_TriggerLevels (SU_1, &telemetry_data.sensor_unit_1);
+//		   Set_SU_TriggerLevels (SU_2, &telemetry_data.sensor_unit_2);
+//		   Set_SU_TriggerLevels (SU_3, &telemetry_data.sensor_unit_3);
+//		   Set_SU_TriggerLevels (SU_4, &telemetry_data.sensor_unit_4);	
+	}
+	
+	
 	/**
 	 * Purpose        : Monitors DPU voltages
 	 * Interface      : inputs      - telemetry_data, DPU voltages
@@ -453,6 +634,10 @@ public class HealthMonitoringTask implements Runnable {
 	
 	public Dpu.Time getInternalTime() {
 		return internal_time;
+	}
+
+	public static int getCodeChecksum() {
+		return code_checksum;
 	}
 	
 }
