@@ -169,6 +169,7 @@ public class TelecommandExecutionTask {
 
 	/*--- [2] Definitions from   telem.c:36-73 ---*/
 
+	/* FIXME: currently static */
 	private static TelemetryData telemetry_data = new TelemetryData();
 	/* aggregates telemetry data */
 
@@ -2052,7 +2053,8 @@ public class TelecommandExecutionTask {
 		}
 	}
 
-	private void startSensorUnitSwitchingOn(int su_index, SensorUnit su_setting)
+	private void startSensorUnitSwitchingOn(int sensorUnitIndex, SensorUnit sensorUnit)
+	// Note: exec_result was a pointer to sensorUnit.execution_result
 	//	void Start_SU_SwitchingOn(
 	//		      sensor_index_t SU,
 	//		      unsigned char EXTERNAL *exec_result) COMPACT_DATA REENTRANT_FUNC
@@ -2076,48 +2078,52 @@ public class TelecommandExecutionTask {
 	/*                      indication of this transition is recorded.           */
 	/*                    - Enable interrupts                                    */
 	{
-		//		   *exec_result  = SU_STATE_TRANSITION_OK;
-		//		   /* Default value, may be changed below. */ 
-		//
-		//		   if (SU_state[SU] != off_e)
-		//		   {
-		//		      /* The original SU state is wrong. */
-		//
-		//		      *exec_result = SU_STATE_TRANSITION_FAILED;
-		//		   }
-		//
-		//		   else
-		//		   {
-		//		      /* The original SU state is correct. */
-		//
-		//		      DISABLE_INTERRUPT_MASTER;
-		//
-		//		      /* SU state is still off_e, because there is only one task  */
-		//		      /* which can switch SU state from off_e to any other state. */
-		//
-		//		      Switch_SU_On(
-		//		         SU + SU_1, 
-		//		         exec_result);
-		//
-		//		      if (*exec_result == SU + SU_1)
-		//		      {
-		//		         /* Transition succeeds. */
-		//
-		//		         SU_state[SU] = start_switching_e;
-		//		      }
-		//
-		//		      else
-		//		      {
-		//		         /* Transition fails. */
-		//
-		//		         *exec_result = SU_STATE_TRANSITION_FAILED;
-		//		      }
-		//
-		//		      ENABLE_INTERRUPT_MASTER;
-		//		   }   
+		sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
+		/* Default value, may be changed below. */ 
+
+		if (AcquisitionTask.sensorUnitState[sensorUnitIndex] != SenorUnitState.off_e)
+		{
+			/* The original SU state is wrong. */
+
+			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
+		}
+
+		else
+		{
+			/* The original SU state is correct. */
+			// TODO: synchronization
+			// DISABLE_INTERRUPT_MASTER;
+
+			/* SU state is still off_e, because there is only one task  */
+			/* which can switch SU state from off_e to any other state. */
+
+			// FIXME: static call
+			SensorUnitDev.switchSensorUnitOn(sensorUnitIndex + SensorUnitDev.SU_1, sensorUnit);
+			// Moved from switchSensorUnitOn (unconditionally executed) to here
+			
+			telemetry_data.SU_status[sensorUnitIndex] |= SensorUnitDev.SU_ONOFF_MASK;
+			/* SU_status register is updated to indicate that SU is switched on. */
+			/* Other bits in this register are preserved.                        */
+
+			if (sensorUnit.execution_result == sensorUnitIndex + SensorUnitDev.SU_1)
+			{
+				/* Transition succeeds. */
+
+				AcquisitionTask.sensorUnitState[sensorUnitIndex] = SenorUnitState.start_switching_e;
+			}
+
+			else
+			{
+				/* Transition fails. */
+
+				sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
+			}
+
+			// ENABLE_INTERRUPT_MASTER;
+		}   
 	}
 
-	private void setSensorUnitOff(int su_index, SensorUnit su_setting)
+	private void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//
 	//		void SetSensorUnitOff(
 	//		         sensor_index_t SU,
@@ -2143,36 +2149,41 @@ public class TelecommandExecutionTask {
 	/*                    - Indication of this is recorded to 'exec_result'.     */
 	/*                  - Enable interrupts                                      */
 	{
-		//		   static sensor_unit_t EXTERNAL SU_setting;
-		//		   /* Holds parameters for "Switch_SU_State" operation                  */
-		//		   /* Must be in external memory, because the parameter to the function */
-		//		   /* is pointer to external memory                                     */
-		//
-		//		   DISABLE_INTERRUPT_MASTER;
-		//
-		//		   Switch_SU_Off(
-		//		      SU + SU_1, 
-		//		      exec_result);
-		//
-		//		   if (*exec_result == SU + SU_1)
-		//		   {
-		//		      /* Transition succeeds. */
-		//		  
-		//		      SU_setting.SU_number = SU + SU_1;
-		//		      SU_setting.expected_source_state = SU_state[SU]; 
-		//		      SU_setting.SU_state = off_e;
-		//		      Switch_SU_State (&SU_setting);
-		//		      *exec_result = SU_STATE_TRANSITION_OK;
-		//		   }
-		//
-		//		   else
-		//		   {
-		//		      /* Transition fails. */
-		//
-		//		      *exec_result = SU_STATE_TRANSITION_FAILED;
-		//		   }
-		//
-		//		   ENABLE_INTERRUPT_MASTER;
+		//				   static sensor_unit_t EXTERNAL SU_setting;
+		// FIXME: allocates memory
+		SensorUnit sensorUnitSetting = new SensorUnit();
+		/* Holds parameters for "Switch_SU_State" operation                  */
+		/* Must be in external memory, because the parameter to the function */
+		/* is pointer to external memory                                     */
+
+		// TODO: synchronization
+		// DISABLE_INTERRUPT_MASTER;
+
+		SensorUnitDev.switchSensorUnitOff(index + SensorUnitDev.SU_1, sensorUnit);
+		telemetry_data.SU_status[index] &= (~SensorUnitDev.SU_ONOFF_MASK);
+
+		/* SU_status register is updated to indicate that SU is switched off. */
+		/* Other bits in this register are preserved.                         */
+
+		if (sensorUnit.execution_result == index + SensorUnitDev.SU_1)
+		{
+			/* Transition succeeds. */
+
+			sensorUnitSetting.number = index + SensorUnitDev.SU_1;
+			sensorUnitSetting.expected_source_state = AcquisitionTask.sensorUnitState[index]; 
+			sensorUnitSetting.state = SenorUnitState.off_e;
+			switchSensorUnitState (sensorUnitSetting);
+			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
+		}
+
+		else
+		{
+			/* Transition fails. */
+
+			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
+		}
+
+		//				   ENABLE_INTERRUPT_MASTER;
 	}
 
 	//		SU_state_t  ReadSensorUnit(unsigned char SU_number) COMPACT_DATA REENTRANT_FUNC

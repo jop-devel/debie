@@ -6,7 +6,7 @@ import debie.support.Dpu;
 import debie.target.SensorUnitDev;
 
 /** ported from harness.c:1182-1415 */
-public class SensorUnitSim implements SensorUnitDev {
+public class SensorUnitSim extends SensorUnitDev {
 
 	/* Variables simulating the event sensors: */
 

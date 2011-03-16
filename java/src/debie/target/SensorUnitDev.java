@@ -1,25 +1,28 @@
 package debie.target;
 
-public interface SensorUnitDev {
-	
+import debie.particles.SensorUnit;
+import debie.telecommand.TelecommandExecutionTask;
+
+public class SensorUnitDev {
+
 	public static enum SensorUnitTestLevel {high_e, low_e};
 
 	public static class Delays {
-		   public char FromPlasma1Plus; /* XXX: was unsigned short int  */
-		   public char FromPlasma1Minus; /* XXX: was unsigned short int  */
+		public char FromPlasma1Plus; /* XXX: was unsigned short int  */
+		public char FromPlasma1Minus; /* XXX: was unsigned short int  */
 	}
-	
+
 	public static class TriggerSet {
-		   public int /* sensor_number_t */ sensor_unit;
-		   public int /* channel_t */    channel;
-		   public int /* unsigned char */   level;
-		   public int /* unsigned char */   execution_result;
-		   public int /* unsigned int */    base;		
+		public int /* sensor_number_t */ sensor_unit;
+		public int /* channel_t */    channel;
+		public int /* unsigned char */   level;
+		public int /* unsigned char */   execution_result;
+		public int /* unsigned int */    base;		
 	}
 
 	public static class VoltageStatus {
-		   int /* unsigned char */ V_down_bit;
-		   int /* unsigned char */ HV_status;
+		int /* unsigned char */ V_down_bit;
+		int /* unsigned char */ HV_status;
 	};
 
 	/*--- definitions from su_ctrl.h ---*
@@ -121,57 +124,164 @@ public interface SensorUnitDev {
 	public static final int SU_4_PLUS_50 =    128;
 
 	public static final int HV_STATUS =       0xFF70;
-	
+
 	public static final int NUM_SU = 4;
-	
+
 	/*--- ported from su_ctrl.h:171-219 */
 	/* Function prototypes */
+	public static int SU_ctrl_register = 0;
 
 	/* Sensor Unit status */
 
 	/* read delay counters --> HwIf.java */
-	
-//	void readDelayCounters (delays_t delay);
-//	extern unsigned char ReadRiseTimeCounter(void) COMPACT REENTRANT_FUNC;
-//	extern void ResetDelayCounters(void) COMPACT REENTRANT_FUNC;
-//	extern void ResetPeakDetector(sensor_number_t unit);
-//	extern void SignalPeakDetectorReset(
-//	   unsigned char low_reset_value,
-//	   unsigned char high_reset_value);
-//
-//
-//	/* Trigger levels */
-//	extern void SetTriggerLevel(trigger_set_t EXTERNAL *setting)
-//	   COMPACT REENTRANT_FUNC;
-//
-//	/* Test pulse level */
-//	extern void SetTestPulseLevel(unsigned char level)
-//	   COMPACT REENTRANT_FUNC;
-//
-//	extern void GetVoltageStatus(voltage_status_t EXTERNAL *v_status) 
-//	   COMPACT REENTRANT_FUNC;
-//
-//
-//	/* Sensor Unit power control */
-//	extern void Switch_SU_On  (
-//	   sensor_number_t SU_Number,
-//	   int /* unsigned char */ EXTERNAL *execution_result)
-//	   COMPACT REENTRANT_FUNC;
-//
-//	extern void Switch_SU_Off (
-//	   sensor_number_t SU_Number,
-//	   int /* unsigned char */ EXTERNAL *execution_result)
-//	   COMPACT REENTRANT_FUNC;               
-//
-//	/* Sensor Unit calibration */
-//
-//	extern void EnableAnalogSwitch(sensor_index_t self_test_SU_index);
-//	extern void DisableAnalogSwitch(sensor_index_t self_test_SU_index);
-//	extern void SelectSelfTestChannel(int /* unsigned char */ channel);
-//	extern void SelectTriggerSwitchLevel(
-//	           int /* unsigned char */  test_channel,
-//	           sensor_index_t self_test_SU_index);
-//	extern void SelectStartSwitchLevel(
-//	           int /* unsigned char */  test_channel,
-//	           sensor_index_t self_test_SU_index);	
+
+	//	void readDelayCounters (delays_t delay);
+	//	extern unsigned char ReadRiseTimeCounter(void) COMPACT REENTRANT_FUNC;
+	//	extern void ResetDelayCounters(void) COMPACT REENTRANT_FUNC;
+	//	extern void ResetPeakDetector(sensor_number_t unit);
+	//	extern void SignalPeakDetectorReset(
+	//	   unsigned char low_reset_value,
+	//	   unsigned char high_reset_value);
+	//
+	//
+	//	/* Trigger levels */
+	//	extern void SetTriggerLevel(trigger_set_t EXTERNAL *setting)
+	//	   COMPACT REENTRANT_FUNC;
+	//
+	//	/* Test pulse level */
+	//	extern void SetTestPulseLevel(unsigned char level)
+	//	   COMPACT REENTRANT_FUNC;
+	//
+	//	extern void GetVoltageStatus(voltage_status_t EXTERNAL *v_status) 
+	//	   COMPACT REENTRANT_FUNC;
+	//
+	//
+	//	/* Sensor Unit power control */
+
+	public static void switchSensorUnitOn(int number, SensorUnit sensorUnit)
+	//	void Switch_SU_On  (
+	//			   sensor_number_t SU_Number, 
+	//			   unsigned char EXTERNAL *execution_result) COMPACT_DATA REENTRANT_FUNC
+	/* Purpose        :  Given Sensor Unit is switched on.                       */
+	/* Interface      :  Execution result is stored in a variable.               */
+	/* Preconditions  :  SU_Number should be 1,2,3 or 4                          */
+	/* Postconditions :  Given Sensor Unit is switced on.                        */
+	/* Algorithm      :  The respective bit is set high in the SU on/off control */
+	/*                   register with XBYTE.                                    */
+	{
+		switch (number)
+		{
+		case SU_1:
+
+			SU_ctrl_register |= 0x10;
+			sensorUnit.execution_result = SU_1_ON;
+			/* Set high bit 4 in the SU on/off control register,                   */
+			/* preserves other bits.                                               */
+			break;
+
+		case SU_2:
+
+			SU_ctrl_register |= 0x20;
+			sensorUnit.execution_result = SU_2_ON;
+			/* Set high bit 5 in the SU on/off control register,                   */
+			/* preserves other bits.                                               */
+			break;
+
+		case SU_3:
+
+			SU_ctrl_register |= 0x40;
+			sensorUnit.execution_result = SU_3_ON;
+			/* Set high bit 6 in the SU on/off control register,                   */
+			/* preserves other bits.                                               */
+			break;
+
+		case SU_4:
+
+			SU_ctrl_register |= 0x80;
+			sensorUnit.execution_result = SU_4_ON;
+			/* Set high bit 7 in the SU on/off control register,                   */
+			/* preserves other bits.                                               */
+			break;
+
+		default:
+			sensorUnit.execution_result = SU_NOT_ACTIVATED;
+		/*Incorrect SU number has caused an error.                            */
+		break;
+		}
+		// TODO: set data byte
+		//SET_DATA_BYTE(SU_CONTROL,SU_ctrl_register);    
+
+		// NOTE: Moved telemetry_data status update to the only call site 'Start_SU_SwitchingOn' 
+	}
+
+
+	public static void switchSensorUnitOff(int number, SensorUnit sensorUnit)
+	//			void Switch_SU_Off (
+	//			   sensor_number_t SU_Number, 
+	//			   unsigned char EXTERNAL *execution_result) COMPACT_DATA REENTRANT_FUNC
+	/* Purpose        :  Given Sensor Unit is switced off.                       */
+	/* Interface      :  Execution result is stored in a variable.               */
+	/* Preconditions  :  SU_Number should be 1,2,3 or 4.                         */
+	/* Postconditions :  Given Sensor Unit is switced off.                       */
+	/* Algorithm      :  The respective bit is set low with XBYTE.               */
+	{
+		switch (number)
+		{
+		case SU_1:
+
+			SU_ctrl_register &= ~0x10;
+			sensorUnit.execution_result = SU_1_OFF;
+			/* Set low bit 4 in the SU on/off control register,                    */
+			/* preserves other bits.                                               */
+			break;
+
+		case SU_2:
+
+			SU_ctrl_register &= ~0x20;
+			sensorUnit.execution_result = SU_2_OFF;
+			/* Set low bit 5 in the SU on/off control register,                    */
+			/* preserves other bits.                                               */
+			break;
+
+		case SU_3:
+
+			SU_ctrl_register &= ~0x40;
+			sensorUnit.execution_result = SU_3_OFF;
+			/* Set low bit 6 in the SU on/off control register,                    */
+			/* preserves other bits.                                               */
+			break;
+
+		case SU_4:
+
+			SU_ctrl_register &= ~0x80;
+			sensorUnit.execution_result = SU_4_OFF;
+			/* Set low bit 7 in the SU on/off control register,                    */
+			/* preserves other bits.                                               */
+			break;
+
+		default:
+			sensorUnit.execution_result = SU_NOT_DEACTIVATED;
+		/*Incorrect SU number has caused an error.                            */
+		break;
+		}
+
+		// SET_DATA_BYTE(SU_CONTROL,SU_ctrl_register);       
+
+		// NOTE: Moved telemetry_data status update to the only call site 'Start_SU_SwitchingOff' 
+	}
+
+	//
+	//	/* Sensor Unit calibration */
+	//
+	//	extern void EnableAnalogSwitch(sensor_index_t self_test_SU_index);
+	//	extern void DisableAnalogSwitch(sensor_index_t self_test_SU_index);
+	//	extern void SelectSelfTestChannel(int /* unsigned char */ channel);
+	//	extern void SelectTriggerSwitchLevel(
+	//	           int /* unsigned char */  test_channel,
+	//	           sensor_index_t self_test_SU_index);
+	//	extern void SelectStartSwitchLevel(
+	//	           int /* unsigned char */  test_channel,
+	//	           sensor_index_t self_test_SU_index);	
 }
+
+
