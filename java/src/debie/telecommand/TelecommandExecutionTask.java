@@ -424,33 +424,36 @@ public class TelecommandExecutionTask {
 			}
 			else
 			{
-				switch (TC_state)
-				{
-
-				case read_memory_e:
-
-					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB)
-					{
+				/* XXX: work around ticket #9 for JOP, broken switch/case for enums */
+//				switch (TC_state) {
+//				case read_memory_e:
+//					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
+//						setTCError();
+//						TC_state = TC_State.TC_handling_e;
+//					}
+//					break;
+//				case write_memory_e:
+//					//WriteMemory (&received_command);
+//					break;
+//				case memory_patch_e:
+//					//MemoryPatch (&received_command);
+//					break;
+//				case TC_handling_e:
+//					executeCommand(received_command);
+//					break;
+//				}
+				if (TC_state == TC_State.read_memory_e) {
+					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
 						setTCError();
 						TC_state = TC_State.TC_handling_e;
-					}
-
-					break;
-
-				case write_memory_e:
-					//WriteMemory (&received_command);
-					break;
-
-				case memory_patch_e:
+					}					
+				} else if (TC_state == TC_State.write_memory_e) {
+					//WriteMemory (&received_command);					
+				} else if (TC_state == TC_State.memory_patch_e) {
 					//MemoryPatch (&received_command);
-					break;
-
-				case TC_handling_e:
-					executeCommand(received_command);
-					break;
-
+				} else if (TC_state == TC_State.TC_handling_e) {
+					executeCommand(received_command);			
 				}
-
 			}
 			previous_TC.copyFrom(received_command);
 		}
@@ -1189,12 +1192,12 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb(read_memory_checksum);
 			/* Last two bytes of Read Memory sequence. */
 
-			sendISRMail(KernelObjects.TCTM_MAILBOX, TM_READY);
+			TaskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
 		}
 		else
 			/* It is time to stop sending telemetry */
 		{
-			sendISRMail(KernelObjects.TCTM_MAILBOX, TM_READY);
+			TaskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
 		}
 	}
 
@@ -1398,7 +1401,7 @@ public class TelecommandExecutionTask {
 
 		if (TC_state == TC_State.memory_patch_e)
 		{
-			sendISRMail(0, TC_word);
+			TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 			return;
 			/* This is not a normal telecommand, but word containing two bytes */
 			/* of memory block to be written to data or code memory.           */
@@ -1444,7 +1447,7 @@ public class TelecommandExecutionTask {
 
 			case ALL_VALID:
 				/* All TC Codes are valid */
-				sendISRMail(0, TC_word);
+				TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				break;
 
 			case ONLY_EQUAL:
@@ -1456,7 +1459,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					sendISRMail(0, TC_word);
+					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1470,7 +1473,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					sendISRMail(0, TC_word);
+					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1483,7 +1486,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					sendISRMail(0, TC_word);
+					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;  
 			}
@@ -1652,11 +1655,6 @@ public class TelecommandExecutionTask {
 	private void resetInterruptMask(int tmIsrMask) {
 		// TODO Auto-generated method stub
 
-	}
-	private void sendISRMail(int mailbox, int message) {
-		if(TaskControl.isrSendMessage(mailbox, message) == TaskControl.NOT_OK) {
-			telemetry_data.isr_send_message_error = (byte) mailbox;
-		}
 	}
 
 	/*dpu_time_t*/ static int GetElapsedTime(/*unsigned int*/int event_number)
@@ -2246,7 +2244,12 @@ public class TelecommandExecutionTask {
 
 	/** get telecommand state */
 	public TC_State getTC_State() {
-		return this.TC_state;
+		return TC_state;
+	}
+
+	/** set telecommand state */
+	public void setTC_State(TC_State state) {
+		TC_state = state;
 	}
 
 	public int getMaxEvents() {

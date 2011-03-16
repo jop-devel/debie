@@ -4,10 +4,10 @@ import debie.target.TcTmDev;
 
 public class TcTmSim implements TcTmDev {
 	
-	private int /* char */ tc_msb, tc_lsb;
+	int /* char */ tc_msb, tc_lsb;
 	/* Simulated TC interface registers. */
 
-	private char /* uint16_t */ tc_word;
+	char /* uint16_t */ tc_word;
 	/* The simulated TC word, composed of tc_msb and tc_lsb. */
 
 

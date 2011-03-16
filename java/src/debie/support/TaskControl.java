@@ -21,7 +21,7 @@ public class TaskControl {
 
 	public static final int OK =     8;
 	public static final int NOT_OK = 9;
-
+	
 //	typedef struct {
 //	   unsigned char  rtx_task_number;
 //	   void           (*task_main_function)(void);
@@ -47,19 +47,28 @@ public class TaskControl {
 	// extern void SetTimeSlice(unsigned int time_slice);
 
 	// extern void StartSystem(unsigned char task_number);
+	
+	/* XXX: maybe move mailbox handling entirely to Mailbox/HarnessMailbox */
+	private static Mailbox acqMailbox;
+	private static Mailbox tctmMailbox;
 
-//	extern void SendTaskMail (
-//	   unsigned char mailbox, 
-//	   uint16_t      message,
-//	   unsigned char timeout);
-
-
-
-	// FIXME: Need to think about global mailbox access
-	public static /* unsigned char */ int isrSendMessage(int /*unsigned char */ mailbox,
-			int  /* uint16_t */ message) {
-		// FIXME: hack!!
-		if(HarnessMailbox.sendMessageTo(mailbox, message)) return OK;
-		else return NOT_OK;
+	public static Mailbox getMailbox(byte id) {
+		switch (id) {
+		case KernelObjects.ACQUISITION_MAILBOX:
+			return acqMailbox;
+		case KernelObjects.TCTM_MAILBOX:
+			return tctmMailbox;
+		default:
+			return null;
+		}
+	}
+	
+	public static void setMailbox(byte id, Mailbox box) {
+		switch (id) {
+		case KernelObjects.ACQUISITION_MAILBOX:
+			acqMailbox = box;
+		case KernelObjects.TCTM_MAILBOX:
+			tctmMailbox = box;
+		}		
 	}
 }

@@ -38,6 +38,7 @@ public abstract class Mailbox {
 	public static final int TIMEOUT_OCCURRED = 4;
 		
 	public abstract void sendTaskMail(char message, byte timeout);
+	public abstract void sendISRMail(char message);
 
 	public abstract void waitMail();
 
