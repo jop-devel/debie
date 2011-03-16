@@ -79,6 +79,9 @@ public class Harness {
 		HarnessSystem system = new HarnessSystem();
 		TestLogger defaultLogger = new TestLogger();
 		
+		TelecommandISRTest tcISRTest = new TelecommandISRTest(system, defaultLogger);
+		tcISRTest.runTests();
+		
 		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
 		acqTest.runTests();
 	}
