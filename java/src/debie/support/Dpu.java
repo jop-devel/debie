@@ -106,8 +106,6 @@ public class Dpu {
 //
 //	extern reset_class_t GetResetClass(void);
 //
-//	extern void SignalMemoryErrors (void);
-//
 //	extern void SetMemoryConfiguration (memory_configuration_t memory);
 //
 //	extern memory_configuration_t GetMemoryConfiguration(void)

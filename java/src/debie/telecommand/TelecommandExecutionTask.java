@@ -1191,12 +1191,12 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb(read_memory_checksum);
 			/* Last two bytes of Read Memory sequence. */
 
-			sendISRMail(KernelObjects.TCTM_MAILBOX, TM_READY);
+			TaskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
 		}
 		else
 			/* It is time to stop sending telemetry */
 		{
-			sendISRMail(KernelObjects.TCTM_MAILBOX, TM_READY);
+			TaskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
 		}
 	}
 
@@ -1400,7 +1400,7 @@ public class TelecommandExecutionTask {
 
 		if (TC_state == TC_State.memory_patch_e)
 		{
-			sendISRMail(0, TC_word);
+			TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 			return;
 			/* This is not a normal telecommand, but word containing two bytes */
 			/* of memory block to be written to data or code memory.           */
@@ -1446,7 +1446,7 @@ public class TelecommandExecutionTask {
 
 			case ALL_VALID:
 				/* All TC Codes are valid */
-				sendISRMail(0, TC_word);
+				TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				break;
 
 			case ONLY_EQUAL:
@@ -1458,7 +1458,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					sendISRMail(0, TC_word);
+					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1472,7 +1472,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					sendISRMail(0, TC_word);
+					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1485,7 +1485,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					sendISRMail(0, TC_word);
+					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;  
 			}
@@ -1654,11 +1654,6 @@ public class TelecommandExecutionTask {
 	private void resetInterruptMask(int tmIsrMask) {
 		// TODO Auto-generated method stub
 
-	}
-	private void sendISRMail(int mailbox, int message) {
-		if(TaskControl.isrSendMessage(mailbox, message) == TaskControl.NOT_OK) {
-			telemetry_data.isr_send_message_error = (byte) mailbox;
-		}
 	}
 
 	/*dpu_time_t*/ static int GetElapsedTime(/*unsigned int*/int event_number)

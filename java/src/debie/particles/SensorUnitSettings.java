@@ -6,8 +6,8 @@ package debie.particles;
 import static debie.target.SensorUnitDev.*;
 
 public class SensorUnitSettings {
-	/* unsigned char */ int plus_5_voltage;                    /* word  1 */
-	/* unsigned char */ int minus_5_voltage;                   /* word  2 */
+	public /* unsigned char */ int plus_5_voltage;                    /* word  1 */
+	public /* unsigned char */ int minus_5_voltage;                   /* word  2 */
 	/* unsigned char */ public int plasma_1_plus_threshold;           /* word  3 */
 	/* unsigned char */ public int plasma_1_minus_threshold;          /* word  4 */
 	/* unsigned char */ public int piezo_threshold;                   /* word  5 */
