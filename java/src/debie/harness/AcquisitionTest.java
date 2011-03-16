@@ -2,14 +2,14 @@ package debie.harness;
 
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
-import debie.particles.AcquisitionTask.SuState;
+import debie.particles.SensorUnit.SenorUnitState;
 import debie.support.Dpu;
-import debie.target.SensorUnit;
+import debie.target.SensorUnitDev;
 
 import static debie.harness.Harness.*;
-import static debie.target.TcTm.*;
+import static debie.target.TcTmDev.*;
 import static debie.telecommand.TcAddress.*;
-import static debie.target.SensorUnit.NUM_SU;
+import static debie.target.SensorUnitDev.NUM_SU;
 import static debie.telecommand.TelecommandExecutionTask.MAX_QUEUE_LENGTH;
 
 import debie.telecommand.TelecommandExecutionTask;
@@ -85,15 +85,15 @@ public class AcquisitionTest extends HarnessTest {
 
 		/* Send the SWITCH ON commands: */
 
-		for (int sen = 0; sen < SensorUnit.NUM_SU; sen ++)
+		for (int sen = 0; sen < SensorUnitDev.NUM_SU; sen ++)
 		{
-			checkEquals ("state=off", acqTask.getSensorUnitState(sen), SuState.off_e);
+			checkEquals ("state=off", acqTask.getSensorUnitState(sen), SenorUnitState.off_e);
 
 			execTC (switchSUCmd[sen], ON_VALUE, Prob4a);
 
 			checkNoErrors ();
 
-			checkEquals ("state=start-switching", acqTask.getSensorUnitState(sen), SuState.start_switching_e);
+			checkEquals ("state=start-switching", acqTask.getSensorUnitState(sen), SenorUnitState.start_switching_e);
 		}
 
 		/* Prevent all errors in Monitoring: */
@@ -108,13 +108,13 @@ public class AcquisitionTest extends HarnessTest {
 
 		monitorHealth (Prob6a);
 
-		for (int sen = 0; sen < SensorUnit.NUM_SU; sen ++)
-			checkEquals("sensor state sen == switching_e", acqTask.getSensorUnitState(sen), SuState.switching_e);
+		for (int sen = 0; sen < SensorUnitDev.NUM_SU; sen ++)
+			checkEquals("sensor state sen == switching_e", acqTask.getSensorUnitState(sen), SenorUnitState.switching_e);
 
 		monitorHealth (Prob6a);
 
-		for (int sen = 0; sen < SensorUnit.NUM_SU; sen ++)
-			checkEquals("sensor state sen == on_e", acqTask.getSensorUnitState(sen), SuState.on_e);
+		for (int sen = 0; sen < SensorUnitDev.NUM_SU; sen ++)
+			checkEquals("sensor state sen == on_e", acqTask.getSensorUnitState(sen), SenorUnitState.on_e);
 
 	}		
 
@@ -124,7 +124,7 @@ public class AcquisitionTest extends HarnessTest {
 		execTC (SWITCH_SU_2, ON_VALUE, Prob4a);
 
 		checkEquals ("error_status is TC_ERROR", tctmTask.getErrorStatus(), TC_ERROR);
-		checkEquals ("sensor unit 1 is ON", acqTask.getSensorUnitState(1), SuState.on_e);
+		checkEquals ("sensor unit 1 is ON", acqTask.getSensorUnitState(1), SenorUnitState.on_e);
 
 		clearErrors ();
 	}
@@ -139,8 +139,8 @@ public class AcquisitionTest extends HarnessTest {
 		checkNoErrors ();
 		checkMode(TelemetryData.ACQUISITION);
 
-		for (int sen = 0; sen < SensorUnit.NUM_SU; sen ++)
-			checkEquals("sensor state sen == acquisition_e", acqTask.getSensorUnitState(sen), SuState.acquisition_e);
+		for (int sen = 0; sen < SensorUnitDev.NUM_SU; sen ++)
+			checkEquals("sensor state sen == acquisition_e", acqTask.getSensorUnitState(sen), SenorUnitState.acquisition_e);
 	}
 
 	private void testSwitchSuInAcquisitionFail() {
@@ -235,15 +235,15 @@ public class AcquisitionTest extends HarnessTest {
 		{
 			if (! tctmTask.telemetryIndexAtEnd())
 			{
-				if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(Prob2a);
+				if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2a);
 				tctmTask.tmInterruptService() ;
-				if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(Prob2a);
+				if(Harness.INSTRUMENTATION) Harness.endProblem(Prob2a);
 			}
 			else
 			{
-				if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(Prob2a);
+				if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2a);
 				tctmTask.tmInterruptService() ;
-				if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(Prob2a);
+				if(Harness.INSTRUMENTATION) Harness.endProblem(Prob2a);
 			}
 
 			octets += 2;
@@ -316,7 +316,7 @@ public class AcquisitionTest extends HarnessTest {
 		checkMode(TelemetryData.STAND_BY);
 
 		for (int sen = 0; sen < NUM_SU; sen ++)
-			checkEquals("sensor state sen == on_e", acqTask.getSensorUnitState(sen), SuState.on_e);
+			checkEquals("sensor state sen == on_e", acqTask.getSensorUnitState(sen), SenorUnitState.on_e);
 
 	}
 
@@ -325,12 +325,12 @@ public class AcquisitionTest extends HarnessTest {
 
 		/* Send the SWITCH OFF commands: */
 
-		for (int sen = 0; sen < SensorUnit.NUM_SU; sen ++)
+		for (int sen = 0; sen < SensorUnitDev.NUM_SU; sen ++)
 		{
 			execTC (switchSUCmd[sen], OFF_VALUE, Prob4a);
 
 			checkNoErrors ();
-			checkEquals("sensor state sen == off_e", acqTask.getSensorUnitState(sen), SuState.off_e);
+			checkEquals("sensor state sen == off_e", acqTask.getSensorUnitState(sen), SenorUnitState.off_e);
 		}
 	}
 	/*-- Common Tests --*/
@@ -348,9 +348,9 @@ public class AcquisitionTest extends HarnessTest {
 
 		if (system.acqMailbox.getMailCount() > 0)
 		{
-			if(Harness.INSTRUMENTATION) START_PROBLEM(hit_problem);
+			if(Harness.INSTRUMENTATION) startProblem(hit_problem);
 			system.acqTask.handleAcquisition (system.acqMailbox.getMessage());
-			if(Harness.INSTRUMENTATION) END_PROBLEM(hit_problem);
+			if(Harness.INSTRUMENTATION) endProblem(hit_problem);
 		}
 	}
 
@@ -363,11 +363,11 @@ public class AcquisitionTest extends HarnessTest {
 	   checkEquals("no acq mail", system.acqMailbox.getMailCount(), 0);
 	   if(Harness.TRACE) Harness.trace("Hit!\n");
 
-	   if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(problem);
+	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
 
 	   system.acqTask.handelHitTrigger();
 	   
-	   if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(problem);
+	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
 
 	   if(Harness.TRACE) {
 		   if(system.acqMailbox.getMailCount() == 0) {

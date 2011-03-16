@@ -1,7 +1,7 @@
 package debie.telecommand;
 
 import static debie.telecommand.TelecommandExecutionTask.*;
-import static debie.target.SensorUnit.NUM_SU;
+import static debie.target.SensorUnitDev.NUM_SU;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnitSettings;
 import debie.support.TelemetryObject;
@@ -41,19 +41,26 @@ public class TelemetryData implements TelemetryObject {
 	/* data_address_t */ char       failed_data_address;               /* reg  96 -  97 */
 	/* uint16_t */ char  []         SU_hits = new char[NUM_SU];        /* reg  98 - 105 */
 	/* tm_dpu_time_t */ int         time;                              /* reg 106 - 109 */
+
 	/* unsigned char */ byte        software_error;                    /* reg 110       */
 	/* unsigned char */ byte        hit_budget_exceedings;             /* reg 111       */
 	/* unsigned char */ byte[]      coefficient = new byte[NUM_QCOEFF];/* reg 112 - 116 */
 	/* unsigned char */ byte        not_used;                          /* reg 117       */
+
 	/* The last register of telemetry data should be 'not_used'.   */
 	/* This is necessary for correct operation of telemetry        */
 	/* retrieving TCs i.e. number of bytes should be even.         */
-	
-	/** FIXME: this is just a stub */
+
+	public static final int TIME_INDEX = 106;
+
+	/** FIXME: this is just a stub, but is there a good solution for serialization in Java? */
 	public int getByte(int index) {
 		if(index == 0) return error_status;
 		/* and so on, can't we use some internal magic for this ?? */
 		return not_used;		
+	}
+	
+	public TelemetryData() {
 	}
 	
 	public byte getSensorUnitTemperature(int sensorUnit, int tempIx) {
@@ -92,5 +99,16 @@ public class TelemetryData implements TelemetryObject {
 	public SensorUnitSettings getSensorUnit4() {
 		return sensor_unit_4;
 	}
+
+	public SensorUnitSettings getSuConfig(int sensorUnitIndex) {
+		switch(sensorUnitIndex) {
+		case 0: return this.sensor_unit_1;
+		case 1: return this.sensor_unit_1;
+		case 2: return this.sensor_unit_1;
+		case 3: return this.sensor_unit_1;
+		default: throw new RuntimeException("getSuConfig: invalid index");
+		}
+	}
+
 	
 }

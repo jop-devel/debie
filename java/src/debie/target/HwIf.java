@@ -1,6 +1,6 @@
 package debie.target;
 
-import debie.target.SensorUnit.Delays;
+import debie.target.SensorUnitDev.Delays;
 
 public class HwIf {
 	public static final int MAX_EVENTS = 1261;

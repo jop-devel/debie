@@ -26,7 +26,7 @@
 package debie.target;
 
 /** Telecommand / Telemetry target interface */
-public interface TcTm {
+public interface TcTmDev {
 	/* Error Status register bits concerning TM/TC interface */
 	public static final int TC_ERROR = 1;
 	public static final int PARITY_ERROR = 2;

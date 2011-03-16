@@ -20,13 +20,14 @@
 package debie.particles;
 
 import debie.health.HealthMonitoringTask;
+import debie.particles.SensorUnit.SenorUnitState;
 import debie.support.Dpu;
 import debie.support.Mailbox;
 import debie.support.TaskControl;
 import debie.target.HwIf;
-import debie.target.SensorUnit;
-import debie.target.SensorUnit.Delays;
-import debie.target.SensorUnit.SensorUnitTestLevel;
+import debie.target.SensorUnitDev;
+import debie.target.SensorUnitDev.Delays;
+import debie.target.SensorUnitDev.SensorUnitTestLevel;
 import debie.telecommand.TelecommandExecutionTask;
 import joprt.SwEvent;
 
@@ -47,16 +48,10 @@ public class AcquisitionTask {
 //	   ACQ_mail.message        = &trigger_unit;
 //	   ACQ_mail.timeout        = 0;
 
-	public enum SuState {
-		   off_e,               /* SU off state - power is Off.                  */
-		   start_switching_e,   /* Transition to On state is starting.           */
-		   switching_e,         /* Transition to On state is started.            */
-		   on_e,                /* SU on state - power is On.                    */
-		   self_test_mon_e,     /* Selt Test, Voltage and Temperature monitoring */
-		   self_test_e,         /* Selt Test, test pulse setup.                  */
-		   self_test_trigger_e, /* Self test, test pulse handling                */
-		   acquisition_e        /* Power is On and Hit Events are accepted.      */
-	}
+	/* FIXME: Where to initialize the mailbox? */
+//	   ACQ_mail.mailbox_number = ACQUISITION_MAILBOX;
+//	   ACQ_mail.message        = &trigger_unit;
+//	   ACQ_mail.timeout        = 0;
 
 	/* TODO:
 	 * It would be nice if we had an interface for tasks in joprt.
@@ -117,7 +112,9 @@ public class AcquisitionTask {
 	public static final int SU_NUMBER_MASK =         0x07;
 
 	/*--- Instance Variables ---*/
-	public int /* sensor_number_t */ self_test_SU_number = SensorUnit.NO_SU;
+
+	/* FIXME: Static because used in TelecommandExecutionTask */
+	public static int /* sensor_number_t */ self_test_SU_number = SensorUnitDev.NO_SU;
 
 	/* By default this variable indicates that no SU self test   */
 	/* sequence is running.                                      */
@@ -132,9 +129,10 @@ public class AcquisitionTask {
 
 	/* Test level being used in SU Self Test. */
 	/* FIXME: Made static because of the code in EventRecord */
-	public static SuState suState[] = { SuState.off_e, SuState.off_e, SuState.off_e, SuState.off_e };
+	/* FIXME: This does not fit here well */
+	public static SenorUnitState sensorUnitState[] = { SenorUnitState.off_e, SenorUnitState.off_e, SenorUnitState.off_e, SenorUnitState.off_e };
 
-	private char ADC_result[] = new char[SensorUnit.NUM_CH]; /* XXX: was unsigned short int */
+	private char ADC_result[] = new char[SensorUnitDev.NUM_CH]; /* XXX: was unsigned short int */
 	/*Used to temporarily store AD conversion results.                           */
 
 	private /* unsigned char */ int confirm_hit_result;
@@ -154,8 +152,8 @@ public class AcquisitionTask {
 	}
 	
 	
-	public SuState getSensorUnitState(int sen) {
-		return suState[sen];
+	public SenorUnitState getSensorUnitState(int sen) {
+		return sensorUnitState[sen];
 	}
 
 
@@ -213,7 +211,7 @@ public class AcquisitionTask {
 		int time_delay; /* XXX: was signed int */
 		/*This variable is used to store the delay from plasma 1+ to plasma 1-.   */
 
-		SuState state = SuState.off_e;   
+		SenorUnitState state = SenorUnitState.off_e;   
 		/* Used to store sensor unit state. */                                     
 
 		//WaitMail(&ACQ_mail);
@@ -227,15 +225,15 @@ public class AcquisitionTask {
 			healthMonitor.setModeStatusError(TelecommandExecutionTask.ADC_ERROR);
 		}
 
-		if(trigger_unit == SensorUnit.SU_1 || 
-		   trigger_unit == SensorUnit.SU_2 || 
-		   trigger_unit == SensorUnit.SU_3 || 
-		   trigger_unit == SensorUnit.SU_4)
+		if(trigger_unit == SensorUnitDev.SU_1 || 
+		   trigger_unit == SensorUnitDev.SU_2 || 
+		   trigger_unit == SensorUnitDev.SU_3 || 
+		   trigger_unit == SensorUnitDev.SU_4)
 
 		{
-			state = suState[trigger_unit - SensorUnit.SU_1];
+			state = sensorUnitState[trigger_unit - SensorUnitDev.SU_1];
 
-			if ((state == SuState.self_test_e || state == SuState.acquisition_e) 
+			if ((state == SenorUnitState.self_test_e || state == SenorUnitState.acquisition_e) 
 					&& (Dpu.getEventFlag() == Dpu.ACCEPT_EVENT))
 			{
 				// XXX: should this really be a static method of telemetry?

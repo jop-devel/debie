@@ -21,7 +21,8 @@
  
 package debie.particles;
 
-import debie.target.SensorUnit;
+import debie.particles.SensorUnit.SenorUnitState;
+import debie.target.SensorUnitDev;
 import debie.telecommand.TelecommandExecutionTask;
 
 public class EventRecord {
@@ -301,19 +302,19 @@ public class EventRecord {
 		switch (SU_number) {
 			/* Select proper classification thresholds. */
 			
-		case SensorUnit.SU_1:
+		case SensorUnitDev.SU_1:
 			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit1();
 			break;
 	
-		case SensorUnit.SU_2:
+		case SensorUnitDev.SU_2:
 			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit2();
 			break;
 			
-		case SensorUnit.SU_3:
+		case SensorUnitDev.SU_3:
 			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit3();
 			break;
 			
-		case SensorUnit.SU_4:
+		case SensorUnitDev.SU_4:
 			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit4();
 			break;
 		}
@@ -373,8 +374,8 @@ public class EventRecord {
 		classification = EventClass[class_index];
 		/* Store classification number to the event record */
 	
-		if (AcquisitionTask.suState[SU_number - SensorUnit.SU_1] == 
-			AcquisitionTask.SuState.self_test_e) {
+		if (AcquisitionTask.sensorUnitState[SU_number - SensorUnitDev.SU_1] == 
+			SenorUnitState.self_test_e) {
 			quality_number = MAX_QUALITY;
 		} else {
 			calculateQualityNumber();

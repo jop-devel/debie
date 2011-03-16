@@ -1,12 +1,18 @@
 package debie.telecommand;
 
+import debie.particles.AcquisitionTask;
 import debie.particles.EventRecord;
+import debie.particles.SensorUnit;
+import debie.particles.SensorUnit.SenorUnitState;
 import debie.support.Dpu;
+import debie.support.KernelObjects;
+import debie.support.Mailbox;
 import debie.support.TaskControl;
 import debie.support.TelemetryObject;
 import debie.target.HwIf;
-import debie.target.SensorUnit;
-import debie.target.TcTm;
+import debie.target.SensorUnitDev;
+import debie.target.TcTmDev;
+import debie.target.SensorUnitDev.TriggerSet;
 
 public class TelecommandExecutionTask {
 
@@ -56,6 +62,11 @@ public class TelecommandExecutionTask {
 	public static final int NUM_QCOEFF = 5;
 	/* Number of Quality Coefficients. */
 
+	/* Special value for TC/TM mail to be used only     */
+	/* telemetry is ready                               */
+
+	public static final int TM_READY = 0xFFFF;
+
 	public static final int MAX_QUEUE_LENGTH = 10;
 
 	/*--- Ported from tc_hand.c:38-67 */
@@ -88,6 +99,15 @@ public class TelecommandExecutionTask {
 	private static final int WRITE_MEMORY_TIMEOUT = 100;
 	/* Timeout 100 x 10 ms = 1s. */
 
+	/* Array */
+	// use getter in telemetry_data instead
+	//	SensorUnitSettings[] SuConfig = {
+	//	         telemetry_data.sensor_unit_1,
+	//	         telemetry_data.sensor_unit_2,
+	//	         telemetry_data.sensor_unit_3,
+	//	         telemetry_data.sensor_unit_4
+	//	      };
+
 	/*--- Ported from tm_data.h:169-177 ---*/
 	/* Science Data File : */
 
@@ -96,11 +116,11 @@ public class TelecommandExecutionTask {
 	 */
 	public static class ScienceDataFile implements TelemetryObject {
 		private char /*unsigned short int*/ length; /* byte: 0-1 */
-		private char[][] /*unsigned char*/ event_counter = new char[SensorUnit.NUM_SU][NUM_CLASSES]; /* byte: 2-(2+NUM_SU*NUM_CLASSES-1) */
+		private char[][] /*unsigned char*/ event_counter = new char[SensorUnitDev.NUM_SU][NUM_CLASSES]; /* byte: 2-(2+NUM_SU*NUM_CLASSES-1) */
 		private char /*unsigned char*/  not_used;         /* (2+NUM_SU*NUM_CLASSES) */
 		private char /*unsigned char*/  counter_checksum; /* (3+NUM_SU*NUM_CLASSES) */
 		private EventRecord[] event = new EventRecord[HwIf.MAX_EVENTS]; /* (4+NUM_SU*NUM_CLASSES)-(4+NUM_SU*NUM_CLASSES+MAX_EVENTS*26-1) */
-		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (SensorUnit.NUM_SU * NUM_CLASSES);
+		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (SensorUnitDev.NUM_SU * NUM_CLASSES);
 
 		public int getByte(int index) {
 			/* FIXME: just a stub */
@@ -108,7 +128,7 @@ public class TelecommandExecutionTask {
 			else if(index == 1) return (length >>> 8);
 			else return event_counter[0][0];
 		}
-		
+
 		public int getEventCounter(int sensor_unit, int classification) {
 			return event_counter[sensor_unit][classification];
 		}
@@ -164,7 +184,7 @@ public class TelecommandExecutionTask {
 	/* Boot.                                        */
 
 	private TelemetryObject telemetry_object;
-	
+
 	private /* unsigned char* */ int telemetry_index;
 
 	private /* unsigned char* */ int telemetry_end_index;
@@ -211,6 +231,12 @@ public class TelecommandExecutionTask {
 		private /*uint16_t*/ char TC_word;          /* Received telecommand word */
 		private /*unsigned char*/ char TC_address;  /* Telecommand address       */
 		private /*unsigned char*/ char TC_code;     /* Telecommand code          */
+
+		public void copyFrom(TeleCommand cmd) {
+			this.TC_word = cmd.TC_word;
+			this.TC_address = cmd.TC_address;
+			this.TC_code = cmd.TC_code;
+		}
 	}
 
 	public enum MemoryType { Code, Data };
@@ -246,19 +272,21 @@ public class TelecommandExecutionTask {
 	private static /* uint_least8_t */ int memory_buffer_index = 0;
 	/* Index to memory_buffer. */
 
-	private static /* unsigned char */ char write_checksum;
+	private static /* unsigned char */ int write_checksum;
 	/* Checksum for memory write blocks. */
 
 
 	public static TelemetryData getTelemetryData() {
 		return telemetry_data;
 	}
-	
+
 	/*--- References to other parts of the system ---*/
-	
+
 	/* link to tctm hardware */
-	private TcTm tctmDev;
+	private TcTmDev tctmDev;
 	private Dpu.Time internal_time;
+	private Mailbox tcMailbox;
+	private TeleCommand received_command;
 
 	/*--- Constructor ---*/
 
@@ -270,10 +298,11 @@ public class TelecommandExecutionTask {
 	/* Preconditions  : none                                                     */
 	/* Postconditions : TelecommandExecutionTask is operational.                 */
 	/* Algorithm      : - initialize task variables.                             */
-	public TelecommandExecutionTask(TcTm tctmDev, Dpu.Time timeRef) {
+	public TelecommandExecutionTask(Mailbox tcMailbox, TcTmDev tctmDev, Dpu.Time timeRef) {
+		this.tcMailbox = tcMailbox;
 		this.tctmDev = tctmDev;
 		this.internal_time = timeRef;
-
+		this.received_command = new TeleCommand(0,TcAddress.UNUSED_TC_ADDRESS, 0);
 		initTcLookup();
 
 		TC_state            = TC_State.TC_handling_e;
@@ -347,89 +376,751 @@ public class TelecommandExecutionTask {
 	/*                        require any functionalites of this task.           */  
 
 	{
-		//	   TC_mail.timeout = TC_timeout;
-		//
-		//	   WaitMail(&TC_mail);
-		//
-		//	   TC_timeout = 0;
-		//	   /* Default value */
-		//
-		//	   if (TC_mail.execution_result == TIMEOUT_OCCURRED)
-		//	   {
-		//	      previous_TC.TC_word    = 0;
-		//	      previous_TC.TC_address = UNUSED_TC_ADDRESS;
-		//	      previous_TC.TC_code    = 0;
-		//	      /* Forget previous telecommand. */
-		//
-		//	      if (TC_state != TC_handling_e)
-		//	      {
-		//	         /* Memory R/W time-out. */
-		//	         Set_TC_Error();
-		//	      }
-		//
-		//	      TC_state = TC_handling_e; 
-		//	   }
-		//
-		//	   else if (TC_mail.execution_result == MSG_RECEIVED)
-		//	   {
-		//	      received_command.TC_address = TC_ADDRESS (received_command.TC_word);
-		//	      received_command.TC_code    = TC_CODE    (received_command.TC_word);
-		//
-		//	      if (((TC_state == SC_TM_e) || (TC_state == memory_dump_e)) &&
-		//	          (received_command.TC_word == TM_READY))
-		//
-		//	      /* Note that in order to this condition to be sufficient, only */
-		//	      /* TM interrupt service should be allowed to send mail to this */
-		//	      /* task in the TC states mentioned.                            */
-		//
-		//	      {
-		//	         DisableInterrupt(TM_ISR_SOURCE);
-		//
-		//	         if (TC_state == SC_TM_e)
-		//	         {
-		//	           ClearEvents();
-		//	         }
-		//
-		//	         TC_state = TC_handling_e;
-		//	      }
-		//	      else
-		//	      {
-		//	         switch (TC_state)
-		//	         {
-		//
-		//	            case read_memory_e:
-		//
-		//	               if (received_command.TC_address != READ_DATA_MEMORY_LSB)
-		//	               {
-		//	                  Set_TC_Error();
-		//	                  TC_state = TC_handling_e;
-		//	               }
-		//
-		//	               break;
-		//
-		//	            case write_memory_e:
-		//	               WriteMemory (&received_command);
-		//	               break;
-		//
-		//	            case memory_patch_e:
-		//	               MemoryPatch (&received_command);
-		//	               break;
-		//
-		//	            case TC_handling_e:
-		//	               ExecuteCommand (&received_command);
-		//	               break;
-		//
-		//	         }
-		//
-		//	      }
-		//
-		//	      STRUCT_ASSIGN (previous_TC, received_command, telecommand_t);
-		//	   }
-		//
-		//	   else
-		//	   {
-		//	      /* Nothing is done if WaitMail returns an error message. */
-		//	   }
+		this.tcMailbox.setTimeout(TC_timeout);
+		this.tcMailbox.waitMail();
+
+		TC_timeout = 0;
+		/* Default value */
+
+		if (tcMailbox.execution_result == Mailbox.TIMEOUT_OCCURRED)
+		{
+			previous_TC.TC_word    = 0;
+			previous_TC.TC_address = TcAddress.UNUSED_TC_ADDRESS;
+			previous_TC.TC_code    = 0;
+			/* Forget previous telecommand. */
+
+			if (TC_state != TC_State.TC_handling_e)
+			{
+				/* Memory R/W time-out. */
+				// Set_TC_Error();
+			}
+
+			TC_state = TC_State.TC_handling_e; 
+		}
+
+		else if (tcMailbox.execution_result == Mailbox.MSG_RECEIVED)
+		{
+			received_command.TC_word    = tcMailbox.message;
+			received_command.TC_address = (char) TC_ADDRESS (received_command.TC_word);
+			received_command.TC_code    = (char) TC_CODE    (received_command.TC_word);
+
+			if (((TC_state == TC_State.SC_TM_e) || (TC_state == TC_State.memory_dump_e)) &&
+					(received_command.TC_word == TM_READY))
+
+				/* Note that in order to this condition to be sufficient, only */
+				/* TM interrupt service should be allowed to send mail to this */
+				/* task in the TC states mentioned.                            */
+
+			{
+				// disableInterrupt(KernelObjects.TM_ISR_SOURCE);
+
+				if (TC_state == TC_State.SC_TM_e)
+				{
+					clearEvents();
+				}
+
+				TC_state = TC_State.TC_handling_e;
+			}
+			else
+			{
+				switch (TC_state)
+				{
+
+				case read_memory_e:
+
+					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB)
+					{
+						setTCError();
+						TC_state = TC_State.TC_handling_e;
+					}
+
+					break;
+
+				case write_memory_e:
+					//WriteMemory (&received_command);
+					break;
+
+				case memory_patch_e:
+					//MemoryPatch (&received_command);
+					break;
+
+				case TC_handling_e:
+					executeCommand(received_command);
+					break;
+
+				}
+
+			}
+			previous_TC.copyFrom(received_command);
+		}
+
+		else
+		{
+			/* Nothing is done if WaitMail returns an error message. */
+		}
+	}
+
+	void updateTarget(TeleCommand command)
+	/* Purpose         : Updates a HW register or some global variable according */
+	/*                   to the parameter "command"                              */
+	/* Interface       : inputs  - Parameter "command" containing received       */
+	/*                             telecommand                                   */
+	/*                   outputs - telemetry data                                */
+	/* Preconditions  : The parameter "command" contains a valid telecommand     */
+	/* Postconditions  : A HW register or global variable is updated (depend on  */
+	/*                   "command")                                              */
+	/* Algorithm       : - switch "command"                                      */
+	/*                     - case Set Coefficient:                               */
+	/*                          set given quality coefficient value in telemetry */
+	/*                          according to "command"                           */
+	/*                     - case Min/Max Time:                                  */
+	/*                          set Min/Max Time according to "command"          */
+	/*                     - case Classification Level:                          */
+	/*                          set classification level according to "command"  */
+	/*                     - case Error Status Clear:                            */
+	/*                          clear error indicating bits from telemetry       */
+	/*                     - case Set Time Byte:                                 */
+	/*                          set Debie time byte# according to "command"      */
+	/*                     - case Clear Watchdog/Checksum Failure counter        */
+	/*                          clear Watchdog/Checksum Failure counter          */
+	/*                     - case Switch SU # On/Off/SelfTest                    */
+	/*                          switch SU to On/Off/SelfTest according to        */
+	/*                          "command"                                        */
+	/*                     - case Set Threshold                                  */
+	/*                          set Threshold according to "command"             */
+	{
+		SensorUnit SU_setting = new SensorUnit();
+		/* Holds parameters for "SetSensorUnit" operation                    */
+		/* Must be in external memory, because the parameter to the function */
+		/* is pointer to external memory                                     */
+
+		TriggerSet new_threshold = new TriggerSet();
+
+		int /* sensor_index_t */ SU_index;
+
+		SU_index = ((command. TC_address) >> 4) - 2;
+
+
+		switch (command.TC_address)
+		{
+		case TcAddress.SET_COEFFICIENT_1:
+		case TcAddress.SET_COEFFICIENT_2:
+		case TcAddress.SET_COEFFICIENT_3:
+		case TcAddress.SET_COEFFICIENT_4:
+		case TcAddress.SET_COEFFICIENT_5:
+
+			telemetry_data.coefficient[(command. TC_address)&0x07] =
+				(byte) command.TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1E_1I_MAX_TIME:
+		case TcAddress.SET_SU_2_PLASMA_1E_1I_MAX_TIME:
+		case TcAddress.SET_SU_3_PLASMA_1E_1I_MAX_TIME:
+		case TcAddress.SET_SU_4_PLASMA_1E_1I_MAX_TIME:
+
+			telemetry_data.getSuConfig(SU_index). plasma_1_plus_to_minus_max_time =
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1E_PZT_MIN_TIME:
+		case TcAddress.SET_SU_2_PLASMA_1E_PZT_MIN_TIME:
+		case TcAddress.SET_SU_3_PLASMA_1E_PZT_MIN_TIME:
+		case TcAddress.SET_SU_4_PLASMA_1E_PZT_MIN_TIME:
+
+			telemetry_data.getSuConfig(SU_index). plasma_1_plus_to_piezo_min_time =
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1E_PZT_MAX_TIME:
+		case TcAddress.SET_SU_2_PLASMA_1E_PZT_MAX_TIME:
+		case TcAddress.SET_SU_3_PLASMA_1E_PZT_MAX_TIME:
+		case TcAddress.SET_SU_4_PLASMA_1E_PZT_MAX_TIME:
+
+			telemetry_data.getSuConfig(SU_index). plasma_1_plus_to_piezo_max_time =
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1I_PZT_MIN_TIME:
+		case TcAddress.SET_SU_2_PLASMA_1I_PZT_MIN_TIME:
+		case TcAddress.SET_SU_3_PLASMA_1I_PZT_MIN_TIME:
+		case TcAddress.SET_SU_4_PLASMA_1I_PZT_MIN_TIME:
+
+			telemetry_data.getSuConfig(SU_index). plasma_1_minus_to_piezo_min_time =
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1I_PZT_MAX_TIME:
+		case TcAddress.SET_SU_2_PLASMA_1I_PZT_MAX_TIME:
+		case TcAddress.SET_SU_3_PLASMA_1I_PZT_MAX_TIME:
+		case TcAddress.SET_SU_4_PLASMA_1I_PZT_MAX_TIME:
+
+			telemetry_data.getSuConfig(SU_index). plasma_1_minus_to_piezo_max_time =
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1P_CLASS_LEVEL:
+		case TcAddress.SET_SU_2_PLASMA_1P_CLASS_LEVEL:
+		case TcAddress.SET_SU_3_PLASMA_1P_CLASS_LEVEL:
+		case TcAddress.SET_SU_4_PLASMA_1P_CLASS_LEVEL:
+
+			telemetry_data.getSuConfig(SU_index). plasma_1_plus_classification = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1M_CLASS_LEVEL:
+		case TcAddress.SET_SU_2_PLASMA_1M_CLASS_LEVEL:
+		case TcAddress.SET_SU_3_PLASMA_1M_CLASS_LEVEL:
+		case TcAddress.SET_SU_4_PLASMA_1M_CLASS_LEVEL:
+
+			telemetry_data.getSuConfig(SU_index). plasma_1_minus_classification = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_2P_CLASS_LEVEL:
+		case TcAddress.SET_SU_2_PLASMA_2P_CLASS_LEVEL:
+		case TcAddress.SET_SU_3_PLASMA_2P_CLASS_LEVEL:
+		case TcAddress.SET_SU_4_PLASMA_2P_CLASS_LEVEL:
+
+			telemetry_data.getSuConfig(SU_index). plasma_2_plus_classification = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PIEZO_1_CLASS_LEVEL:
+		case TcAddress.SET_SU_2_PIEZO_1_CLASS_LEVEL:
+		case TcAddress.SET_SU_3_PIEZO_1_CLASS_LEVEL:
+		case TcAddress.SET_SU_4_PIEZO_1_CLASS_LEVEL:
+
+			telemetry_data.getSuConfig(SU_index). piezo_1_classification = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PIEZO_2_CLASS_LEVEL:
+		case TcAddress.SET_SU_2_PIEZO_2_CLASS_LEVEL:
+		case TcAddress.SET_SU_3_PIEZO_2_CLASS_LEVEL:
+		case TcAddress.SET_SU_4_PIEZO_2_CLASS_LEVEL:
+
+			telemetry_data.getSuConfig(SU_index). piezo_2_classification = 
+				command. TC_code;
+			break;
+
+		case TcAddress.ERROR_STATUS_CLEAR:
+
+			// FIXME: implement
+			//	         ClearErrorStatus();
+			//	         Clear_RTX_Errors();
+			//	         ClearSoftwareError();
+			//	         ClearModeStatusError();
+			//	         Clear_SU_Error();
+
+			/* Clear Error Status register, RTX and software error indicating bits  */
+			/* and Mode and SU Status registers.                                    */
+
+			break;
+
+
+		case TcAddress.SET_TIME_BYTE_3:
+
+			// new_time = ((dpu_time_t) command. TC_code) << 24;
+			// COPY (internal_time, new_time);
+			internal_time.updateWithMask(0xFFFFFFFF, (int)command.TC_code << 24);
+			TC_timeout = SET_TIME_TC_TIMEOUT;
+
+			break;
+
+		case TcAddress.SET_TIME_BYTE_2:
+
+			if (previous_TC.TC_address == TcAddress.SET_TIME_BYTE_3)
+			{
+				internal_time.updateWithMask(0x00FFFFFF, (int)command.TC_code << 16);
+				TC_timeout = SET_TIME_TC_TIMEOUT;
+			}
+
+			else
+			{
+				setTCError();
+			}
+
+			break;
+
+		case TcAddress.SET_TIME_BYTE_1:
+
+			if (previous_TC.TC_address == TcAddress.SET_TIME_BYTE_2)
+			{
+				internal_time.updateWithMask(0x0000FFFF, (int)command.TC_code << 8);
+				TC_timeout = SET_TIME_TC_TIMEOUT;
+			}
+
+			else
+			{
+				setTCError();
+			}
+
+			break;
+
+		case TcAddress.SET_TIME_BYTE_0:
+
+			if (previous_TC.TC_address == TcAddress.SET_TIME_BYTE_1)
+			{
+				internal_time.updateWithMask(0x000000FF, (int)command.TC_code);
+			}
+
+			else
+			{
+				setTCError();
+			}
+
+			break;
+
+		case TcAddress.CLEAR_WATCHDOG_FAILURES:
+
+			telemetry_data.watchdog_failures = 0;
+			break;
+
+		case TcAddress.CLEAR_CHECKSUM_FAILURES:
+
+			telemetry_data.checksum_failures = 0;
+			break;
+
+		case TcAddress.SWITCH_SU_1:
+		case TcAddress.SWITCH_SU_2:
+		case TcAddress.SWITCH_SU_3:
+		case TcAddress.SWITCH_SU_4:
+
+			if (telemetry_data.getMode() != TelemetryData.ACQUISITION)
+			{
+				SU_setting.number = SU_index + SensorUnitDev.SU_1;
+
+				switch (command.TC_code)
+				{
+				case TcAddress.ON_VALUE:
+					startSensorUnitSwitchingOn(SU_index, SU_setting);
+					break;
+
+				case TcAddress.OFF_VALUE:
+					setSensorUnitOff(SU_index, SU_setting);
+					break;
+
+				case TcAddress.SELF_TEST:
+					SU_setting.state              = SenorUnitState.self_test_mon_e;
+					SU_setting.expected_source_state = SenorUnitState.on_e;
+					switchSensorUnitState (SU_setting);
+					break;
+				}
+
+				if (SU_setting.execution_result == SensorUnitDev.SU_STATE_TRANSITION_FAILED)
+				{
+					/* The requested SU state transition failed. */
+
+					setTCError();
+				}
+
+			}
+
+			else
+
+			{
+				setTCError();
+			}
+
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1P_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_1;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
+			new_threshold.level       = command. TC_code;
+			//SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_1.plasma_1_plus_threshold = 
+				command.TC_code;
+			break;
+
+		case TcAddress.SET_SU_2_PLASMA_1P_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_2;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
+			new_threshold.level       = command. TC_code;
+			//SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_2.plasma_1_plus_threshold = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_3_PLASMA_1P_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_3;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
+			new_threshold.level       = command. TC_code;
+			//SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_3.plasma_1_plus_threshold = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_4_PLASMA_1P_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_4;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
+			new_threshold.level       = command. TC_code;
+			//SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_4.plasma_1_plus_threshold = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PLASMA_1M_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_1;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
+			new_threshold.level       = command. TC_code;
+			//SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_1.plasma_1_minus_threshold = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_2_PLASMA_1M_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_2;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
+			new_threshold.level       = command. TC_code;
+			//SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_2.plasma_1_minus_threshold = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_3_PLASMA_1M_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_3;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
+			new_threshold.level       = command. TC_code;
+			// SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_3.plasma_1_minus_threshold = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_4_PLASMA_1M_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_4;
+			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
+			new_threshold.level       = command. TC_code;
+			// SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_4.plasma_1_minus_threshold = 
+				command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_1_PIEZO_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_1;
+			new_threshold.channel     = SensorUnitDev.PZT_1_2;
+			new_threshold.level       = command. TC_code;
+			// SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_1.piezo_threshold = command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_2_PIEZO_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_2;
+			new_threshold.channel     = SensorUnitDev.PZT_1_2;
+			new_threshold.level       = command. TC_code;
+			// SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_2.piezo_threshold = command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_3_PIEZO_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_3;
+			new_threshold.channel     = SensorUnitDev.PZT_1_2;
+			new_threshold.level       = command. TC_code;
+			// SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_3.piezo_threshold = command. TC_code;
+			break;
+
+		case TcAddress.SET_SU_4_PIEZO_THRESHOLD:
+
+			new_threshold.sensor_unit = SensorUnitDev.SU_4;
+			new_threshold.channel     = SensorUnitDev.PZT_1_2;
+			new_threshold.level       = command. TC_code;
+			// SetTriggerLevel(&new_threshold);
+
+			telemetry_data.sensor_unit_4.piezo_threshold = command. TC_code;
+			break;
+
+		default:
+			/* Telecommands that will not be implemented in the Prototype SW */
+			break;
+		}
+	}
+
+	private void executeCommand(TeleCommand command) {
+		/* Purpose        : Executes telecommand                                     */
+		/* Interface      : inputs      - Parameter "command" containing received    */
+		/*                                telecommand                                */
+		/*                  outputs     - TC_state                                   */
+		/*                                address_MSB                                */
+		/*                                memory_type                                */
+		/*                  subroutines - UpdateTarget                               */
+		/*                                StartAcquisition                           */
+		/*                                StopAcquisition                            */
+		/*                                SoftReset                                  */
+		/*                                Set_TC_Error                               */
+		/*                                Switch_SU_State                            */
+		/*                                Reboot                                     */
+		/*                                SetMode                                    */
+		/*                                UpdateTarget                               */
+		/* Preconditions  : The parameter "command" contains a valid telecommand     */
+		/*                  TC_state is TC_handling                                  */
+		/* Postconditions : Telecommand is executed                                  */
+		/*                  TC_state updated when appropriate (depend on "command")  */
+		/*                  HW registers modified when appropriate (depend on        */
+		/*                  "command")                                               */
+		/*                  Global variables modified when appropriate (depend on    */
+		/*                  "command")                                               */
+		/* Algorithm      : - switch "command"                                       */
+		/*                    - case Send Sciece Data File : set TC_state to SC_TM   */
+		/*                    - case Send Status Register  : set TC_state to         */
+		/*                         RegisterTM                                        */
+		/*                    - case Read Data Memory MSB  : memorize the address    */
+		/*                         MSB given in the TC_code and set TC_state to      */
+		/*                         read_memory                                       */
+		/*                    - case Write Code Memory MSB : memorize the address    */
+		/*                         MSB given in the TC_code, memorize code           */
+		/*                         destination selection and set TC_state to         */
+		/*                         write_memory                                      */
+		/*                    - case Write Data Memory MSB : memorize the address    */
+		/*                         MSB given in the TC_code, memorize data           */
+		/*                         destination selection and set TC_state to         */
+		/*                         write_memory                                      */
+		/*                    - case Read/Write Memory LSB : ignore telecommand      */
+		/*                    - case Soft Reset            : call SoftReset          */
+		/*                    - case Start Acquisition     : call StartAcquisition   */
+		/*                    - case Stop Acquisition      : call StopAcquisition    */
+		/*                    - default : call UpdateTarget                          */
+
+		{
+			SensorUnit SU_setting = new SensorUnit(); /* bad name choice (original from DEBIE) */
+			int /* unsigned char */ error_flag;
+			int /* sensor_number_t */  i;
+
+			switch (command.TC_address)
+			{
+			case TcAddress.SEND_SCIENCE_DATA_FILE:
+				break;
+
+			case TcAddress.SEND_STATUS_REGISTER:
+				break;
+
+			case TcAddress.READ_DATA_MEMORY_MSB:
+				address_MSB = command.TC_code;
+				TC_state    = TC_State.read_memory_e;
+				break;
+
+			case TcAddress.WRITE_CODE_MEMORY_MSB:
+				if (telemetry_data.getMode() == TelemetryData.STAND_BY)
+				{
+					address_MSB    = command.TC_code;
+					memory_type    = MemoryType.Code;
+					TC_timeout     = WRITE_MEMORY_TIMEOUT;
+					write_checksum = ((command.TC_word) >> 8) ^ (command.TC_code);
+					TC_state       = TC_State.write_memory_e;
+				}
+
+				else
+				{
+					setTCError();
+				}
+
+				break;
+
+			case TcAddress.WRITE_DATA_MEMORY_MSB:
+				if (telemetry_data.getMode() == TelemetryData.STAND_BY)
+				{
+					address_MSB = command.TC_code;
+					memory_type = MemoryType.Data;
+					TC_timeout     = WRITE_MEMORY_TIMEOUT;
+					write_checksum = ((command.TC_word) >> 8) ^ (command.TC_code);
+					TC_state    = TC_State.write_memory_e;
+				}
+
+				else
+				{
+					setTCError();
+				}
+
+				break;
+
+			case TcAddress.READ_DATA_MEMORY_LSB:
+				break;
+
+			case TcAddress.WRITE_CODE_MEMORY_LSB:
+			case TcAddress.WRITE_DATA_MEMORY_LSB:
+				if (TC_state != TC_State.write_memory_e)
+				{
+					setTCError();
+				}
+				break;
+
+			case TcAddress.SOFT_RESET:
+				Dpu.reboot(Dpu.ResetClass.soft_reset_e);
+				/* Software is rebooted, no return to this point. */
+
+				break;
+
+			case TcAddress.START_ACQUISITION:
+				error_flag = 0;
+
+				for (i=SensorUnitDev.SU_1; i<=SensorUnitDev.SU_4; i++)
+				{		        	 
+					if ((readSensorUnit(i) == SenorUnitState.start_switching_e) ||
+							(readSensorUnit(i) == SenorUnitState.switching_e))
+					{
+						/* SU is being switched on. */
+
+						error_flag = 1;
+						/* StartAcquisition TC has to be rejected. */
+					}
+				}
+
+				if ((telemetry_data.getMode() == TelemetryData.STAND_BY) && (error_flag == 0))
+				{
+					SU_setting.state              = SenorUnitState.acquisition_e;
+					SU_setting.expected_source_state = SenorUnitState.on_e;
+
+					SU_setting.number = SensorUnitDev.SU_1;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 1 to Acquisition state. */
+
+					SU_setting.number = SensorUnitDev.SU_2;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 2 to Acquisition state. */
+
+					SU_setting.number = SensorUnitDev.SU_3;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 3 to Acquisition state. */
+
+					SU_setting.number = SensorUnitDev.SU_4;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 4 to Acquisition state. */
+
+					// clearHitTriggerISRFlag();
+
+					resetDelayCounters();
+					/* Resets the SU logic that generates Hit Triggers.    */
+					/* Brings T2EX to a high level, making a new falling   */
+					/* edge possible.                                      */
+					/* This statement must come after the above "clear",   */
+					/* because a reversed order could create a deadlock    */
+					/* situation.                                          */
+
+					setMode(TelemetryData.ACQUISITION);
+				}
+
+				else
+				{
+					setTCError();
+				}
+				break;
+
+			case TcAddress.STOP_ACQUISITION:
+				if (telemetry_data.getMode() == TelemetryData.ACQUISITION)
+				{
+					SU_setting.state              = SenorUnitState.on_e;
+					SU_setting.expected_source_state = SenorUnitState.acquisition_e;
+
+					SU_setting.number = SensorUnitDev.SU_1;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 1 to On state. */
+
+					SU_setting.number = SensorUnitDev.SU_2;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 2 to On state. */
+
+					SU_setting.number = SensorUnitDev.SU_3;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 3 to On state. */
+
+					SU_setting.number = SensorUnitDev.SU_4;
+					switchSensorUnitState (SU_setting);
+					/* Try to switch SU 4 to On state. */
+
+					setMode(TelemetryData.STAND_BY);
+				}
+
+				else
+				{
+					setTCError();
+				}
+				break;
+
+			default:
+				updateTarget(command);
+			}
+		}            		
+	}
+
+	private void setMode(int acquisition) {
+		// TODO Auto-generated method stub
+
+	}
+	private void resetDelayCounters() {
+		// TODO Auto-generated method stub
+
+	}
+	private Object readSensorUnit(int i) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* from health.c: 373-398 
+	 * Within TcExecTask, use telemetry_data.getMode() directly */
+	int getMode()
+	/* Purpose        : This function will be called always when                */
+	/*                  mode in the mode status register is checked.            */
+	/* Interface      :                                                         */
+	/*                  inputs      - mode status register                      */
+	/*									                                                 */
+	/*                  outputs     - mode status register                      */
+	/*                              - Mode bits, which specify the mode         */
+	/*                                stored in the ModeStatus register.        */
+	/*                                Value is on one of the following:         */
+	/*                                   DPU self test                          */
+	/*                                   stand by                               */
+	/*                                   acquisition                            */
+	/*   								                                                 */
+	/*                  subroutines - none                                      */
+	/* Preconditions  : none                                                    */
+	/* Postconditions : none                                                    */
+	/* Algorithm      :                					                            */
+	/*                  - Read Mode Status register                             */
+	{
+		return(telemetry_data.getMode());
+		/* Return the value of the two least significant bits in */
+		/* mode status register and return this value.           */    
+	}
+
+	private void setTCError()
+	/* Purpose        : This function will be called always when TC_ERROR bit in */
+	/*                  the ErrorStatus register is set.                         */
+	/* Interface      : inputs      - Error_status register                      */
+	/*                  outputs     - Error_status register                      */
+	/*                  subroutines - none                                       */
+	/* Preconditions  : none                                                     */
+	/* Postconditions : none                                                     */
+	/* Algorithm      : - Disable interrupts                                     */
+	/*                  - Write to Error Status register                         */
+	/*                  - Enable interrupts                                      */
+	{
+		// DISABLE_INTERRUPT_MASTER;
+
+		telemetry_data.error_status |= TcTmDev.TC_ERROR;
+
+		// ENABLE_INTERRUPT_MASTER;
 	}
 
 	public void tmInterruptService () // INTERRUPT(TM_ISR_SOURCE) USED_REG_BANK(2)
@@ -459,54 +1150,51 @@ public class TelecommandExecutionTask {
 	/*                       mailbox                                             */
 
 	{
-		//	   unsigned char EXTERNAL tm_byte;
-		//
-		//	   CLEAR_TM_INTERRUPT_FLAG;
-		//	   /*The interrupt flag is put down by setting high bit 3 'INT1' in port 3.  */
-		//
-		//	   if (telemetry_pointer == (unsigned char *) &telemetry_data.time)
-		//	   {
-		//	      COPY (telemetry_data.time, internal_time);
-		//	   }
-		//
-		//	   if (telemetry_pointer < telemetry_end_pointer)
-		//	   {
-		//	      /* There are bytes left to be sent to TM. */
-		//
-		//	      tm_byte = *telemetry_pointer;
-		//	      WRITE_TM_MSB (tm_byte);
-		//	      read_memory_checksum ^= tm_byte;
-		//
-		//	      telemetry_pointer++;
-		//
-		//	      tm_byte = *telemetry_pointer;
-		//	      WRITE_TM_LSB (tm_byte);
-		//	      read_memory_checksum ^= tm_byte;
-		//
-		//	      telemetry_pointer++;
-		//	   }
-		//	   else if (TC_state == register_TM_e)
-		//	   /* Start to send TM data registers starting from the first ones */
-		//	   {
-		//	      telemetry_pointer = (EXTERNAL unsigned char *)&telemetry_data;
-		//	      WRITE_TM_MSB (*telemetry_pointer);
-		//	      telemetry_pointer++;
-		//	      WRITE_TM_LSB (*telemetry_pointer);
-		//	      telemetry_pointer++;  
-		//	   }
-		//	   else if (TC_state == memory_dump_e)
-		//	   {
-		//	      WRITE_TM_MSB(0);
-		//	      WRITE_TM_LSB(read_memory_checksum);
-		//	      /* Last two bytes of Read Memory sequence. */
-		//
-		//	      Send_ISR_Mail(TCTM_MAILBOX, TM_READY);
-		//	   }
-		//	   else
-		//	   /* It is time to stop sending telemetry */
-		//	   {
-		//	      Send_ISR_Mail (TCTM_MAILBOX, TM_READY);
-		//	   }
+		int /* unsigned char */ tm_byte;
+
+		tctmDev.clearTmInterruptFlag();
+		/*The interrupt flag is put down by setting high bit 3 'INT1' in port 3.  */
+
+		if (telemetry_object == telemetry_data && telemetry_index == TelemetryData.TIME_INDEX)
+		{
+			telemetry_data.time = internal_time.getTag();
+		}
+
+		if (! telemetryIndexAtEnd())
+		{
+			/* There are bytes left to be sent to TM. */
+
+			tm_byte = telemetryPointerNext();
+			tctmDev.writeTmMsb(tm_byte);
+			read_memory_checksum ^= tm_byte;
+
+			tm_byte = telemetryPointerNext();
+			tctmDev.writeTmLsb(tm_byte);
+			read_memory_checksum ^= tm_byte;
+
+		}
+		else if (TC_state == TC_State.register_TM_e)
+			/* Start to send TM data registers starting from the first ones */
+		{
+			//				  telemetry_pointer = (EXTERNAL unsigned char *)&telemetry_data;
+			telemetry_object = telemetry_data;
+			telemetry_index = 0;
+			tctmDev.writeTmMsb (telemetryPointerNext());
+			tctmDev.writeTmLsb (telemetryPointerNext());
+		}
+		else if (TC_state == TC_State.memory_dump_e)
+		{
+			tctmDev.writeTmMsb(0);
+			tctmDev.writeTmLsb(read_memory_checksum);
+			/* Last two bytes of Read Memory sequence. */
+
+			sendISRMail(KernelObjects.TCTM_MAILBOX, TM_READY);
+		}
+		else
+			/* It is time to stop sending telemetry */
+		{
+			sendISRMail(KernelObjects.TCTM_MAILBOX, TM_READY);
+		}
 	}
 
 	void initTcLookup()
@@ -519,112 +1207,112 @@ public class TelecommandExecutionTask {
 	/*                  - set each element corresponding valid TC address    */
 	/*                    to proper value                                    */
 	{
-	   int /* uint_least8_t */ i;
-	   /* Loop variable */
+		int /* uint_least8_t */ i;
+		/* Loop variable */
 
 
-	   for(i=0; i<128; i++) TC_look_up[i] = ALL_INVALID;
+		for(i=0; i<128; i++) TC_look_up[i] = ALL_INVALID;
 
-	   TC_look_up[TcAddress.START_ACQUISITION]            = ONLY_EQUAL;
-	   TC_look_up[TcAddress.STOP_ACQUISITION]             = ONLY_EQUAL;
+		TC_look_up[TcAddress.START_ACQUISITION]            = ONLY_EQUAL;
+		TC_look_up[TcAddress.STOP_ACQUISITION]             = ONLY_EQUAL;
 
-	   TC_look_up[TcAddress.ERROR_STATUS_CLEAR]           = ONLY_EQUAL;
+		TC_look_up[TcAddress.ERROR_STATUS_CLEAR]           = ONLY_EQUAL;
 
-	   TC_look_up[TcAddress.SEND_STATUS_REGISTER]         = ONLY_EVEN;
-	   TC_look_up[TcAddress.SEND_SCIENCE_DATA_FILE]       = ONLY_EQUAL;
+		TC_look_up[TcAddress.SEND_STATUS_REGISTER]         = ONLY_EVEN;
+		TC_look_up[TcAddress.SEND_SCIENCE_DATA_FILE]       = ONLY_EQUAL;
 
-	   TC_look_up[TcAddress.SET_TIME_BYTE_0]              = ALL_VALID;
-	   TC_look_up[TcAddress.SET_TIME_BYTE_1]              = ALL_VALID;
-	   TC_look_up[TcAddress.SET_TIME_BYTE_2]              = ALL_VALID;
-	   TC_look_up[TcAddress.SET_TIME_BYTE_3]              = ALL_VALID;
+		TC_look_up[TcAddress.SET_TIME_BYTE_0]              = ALL_VALID;
+		TC_look_up[TcAddress.SET_TIME_BYTE_1]              = ALL_VALID;
+		TC_look_up[TcAddress.SET_TIME_BYTE_2]              = ALL_VALID;
+		TC_look_up[TcAddress.SET_TIME_BYTE_3]              = ALL_VALID;
 
-	   TC_look_up[TcAddress.SOFT_RESET]                   = ONLY_EQUAL;
+		TC_look_up[TcAddress.SOFT_RESET]                   = ONLY_EQUAL;
 
-	   TC_look_up[TcAddress.CLEAR_WATCHDOG_FAILURES]      = ONLY_EQUAL;
-	   TC_look_up[TcAddress.CLEAR_CHECKSUM_FAILURES]      = ONLY_EQUAL;
+		TC_look_up[TcAddress.CLEAR_WATCHDOG_FAILURES]      = ONLY_EQUAL;
+		TC_look_up[TcAddress.CLEAR_CHECKSUM_FAILURES]      = ONLY_EQUAL;
 
-	   TC_look_up[TcAddress.WRITE_CODE_MEMORY_MSB]        = ALL_VALID;
-	   TC_look_up[TcAddress.WRITE_CODE_MEMORY_LSB]        = ALL_VALID;
-	   TC_look_up[TcAddress.WRITE_DATA_MEMORY_MSB]        = ALL_VALID;
-	   TC_look_up[TcAddress.WRITE_DATA_MEMORY_LSB]        = ALL_VALID;
-	   TC_look_up[TcAddress.READ_DATA_MEMORY_MSB]         = ALL_VALID;
-	   TC_look_up[TcAddress.READ_DATA_MEMORY_LSB]         = ALL_VALID;
+		TC_look_up[TcAddress.WRITE_CODE_MEMORY_MSB]        = ALL_VALID;
+		TC_look_up[TcAddress.WRITE_CODE_MEMORY_LSB]        = ALL_VALID;
+		TC_look_up[TcAddress.WRITE_DATA_MEMORY_MSB]        = ALL_VALID;
+		TC_look_up[TcAddress.WRITE_DATA_MEMORY_LSB]        = ALL_VALID;
+		TC_look_up[TcAddress.READ_DATA_MEMORY_MSB]         = ALL_VALID;
+		TC_look_up[TcAddress.READ_DATA_MEMORY_LSB]         = ALL_VALID;
 
-	   TC_look_up[TcAddress.SWITCH_SU_1]                  = ON_OFF_TC;
-	   TC_look_up[TcAddress.SWITCH_SU_2]                  = ON_OFF_TC;
-	   TC_look_up[TcAddress.SWITCH_SU_3]                  = ON_OFF_TC;
-	   TC_look_up[TcAddress.SWITCH_SU_4]                  = ON_OFF_TC;
+		TC_look_up[TcAddress.SWITCH_SU_1]                  = ON_OFF_TC;
+		TC_look_up[TcAddress.SWITCH_SU_2]                  = ON_OFF_TC;
+		TC_look_up[TcAddress.SWITCH_SU_3]                  = ON_OFF_TC;
+		TC_look_up[TcAddress.SWITCH_SU_4]                  = ON_OFF_TC;
 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1P_THRESHOLD] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1P_THRESHOLD] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1P_THRESHOLD] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1P_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1P_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1P_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1P_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1P_THRESHOLD] = ALL_VALID;
 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1M_THRESHOLD] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1M_THRESHOLD] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1M_THRESHOLD] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1M_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1M_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1M_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1M_THRESHOLD] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1M_THRESHOLD] = ALL_VALID;
 
-	   TC_look_up[TcAddress.SET_SU_1_PIEZO_THRESHOLD]     = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PIEZO_THRESHOLD]     = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PIEZO_THRESHOLD]     = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PIEZO_THRESHOLD]     = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_1_PIEZO_THRESHOLD]     = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PIEZO_THRESHOLD]     = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PIEZO_THRESHOLD]     = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PIEZO_THRESHOLD]     = ALL_VALID;
 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1P_CLASS_LEVEL] = ALL_VALID;
 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
-	 
-	   TC_look_up[TcAddress.SET_SU_1_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_2_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_3_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
-	   TC_look_up[TcAddress.SET_SU_4_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1M_CLASS_LEVEL] = ALL_VALID;
 
-	   TC_look_up[TcAddress.SET_COEFFICIENT_1]               = ALL_VALID;
-	   TC_look_up[TcAddress.SET_COEFFICIENT_2]               = ALL_VALID;
-	   TC_look_up[TcAddress.SET_COEFFICIENT_3]               = ALL_VALID;
-	   TC_look_up[TcAddress.SET_COEFFICIENT_4]               = ALL_VALID;
-	   TC_look_up[TcAddress.SET_COEFFICIENT_5]               = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_2P_CLASS_LEVEL] = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_SU_1_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PIEZO_1_CLASS_LEVEL]   = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_SU_1_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PIEZO_2_CLASS_LEVEL]   = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1E_1I_MAX_TIME]  = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1E_PZT_MIN_TIME] = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1E_PZT_MAX_TIME] = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1I_PZT_MIN_TIME] = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_SU_1_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_2_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_3_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
+		TC_look_up[TcAddress.SET_SU_4_PLASMA_1I_PZT_MAX_TIME] = ALL_VALID;
+
+		TC_look_up[TcAddress.SET_COEFFICIENT_1]               = ALL_VALID;
+		TC_look_up[TcAddress.SET_COEFFICIENT_2]               = ALL_VALID;
+		TC_look_up[TcAddress.SET_COEFFICIENT_3]               = ALL_VALID;
+		TC_look_up[TcAddress.SET_COEFFICIENT_4]               = ALL_VALID;
+		TC_look_up[TcAddress.SET_COEFFICIENT_5]               = ALL_VALID;
 
 	}
 
@@ -683,7 +1371,7 @@ public class TelecommandExecutionTask {
 		{
 			/* TC is rejected. */
 
-			telemetry_data.error_status |= TcTm.TC_ERROR;
+			telemetry_data.error_status |= TcTmDev.TC_ERROR;
 			/* Set TC Error bit. */
 
 			return;
@@ -720,7 +1408,7 @@ public class TelecommandExecutionTask {
 			TC_state = TC_State.TC_handling_e;
 			/* Register TM state is aborted */
 
-			resetInterruptMask(TcTm.TM_ISR_MASK);
+			resetInterruptMask(TcTmDev.TM_ISR_MASK);
 			/* Disable TM interrupt mask. Note that DisableInterrupt */
 			/* cannot be called from the C51 ISR.                    */
 		}
@@ -740,7 +1428,7 @@ public class TelecommandExecutionTask {
 		{
 			/* Parity error. */
 
-			tmp_error_status |= TcTm.PARITY_ERROR;
+			tmp_error_status |= TcTmDev.PARITY_ERROR;
 		}
 
 		else
@@ -750,7 +1438,7 @@ public class TelecommandExecutionTask {
 			{
 			case ALL_INVALID:
 				/* Invalid TC Address */
-				tmp_error_status |= TcTm.TC_ERROR;
+				tmp_error_status |= TcTmDev.TC_ERROR;
 				break;
 
 			case ALL_VALID:
@@ -762,7 +1450,7 @@ public class TelecommandExecutionTask {
 				/* TC Code should be equal to TC Address */
 				if (TC_address != TC_code)
 				{
-					tmp_error_status |= TcTm.TC_ERROR;
+					tmp_error_status |= TcTmDev.TC_ERROR;
 				}
 
 				else
@@ -776,7 +1464,7 @@ public class TelecommandExecutionTask {
 				if ((TC_code != TcAddress.ON_VALUE) && (TC_code != TcAddress.OFF_VALUE) && 
 						(TC_code != TcAddress.SELF_TEST))
 				{
-					tmp_error_status |= TcTm.TC_ERROR;
+					tmp_error_status |= TcTmDev.TC_ERROR;
 				}
 
 				else
@@ -789,7 +1477,7 @@ public class TelecommandExecutionTask {
 				/* TC_Code must be even and not too big */
 				if (((TC_code & 1) != 0) || (TC_code > TcAddress.LAST_EVEN))
 				{
-					tmp_error_status |= TcTm.TC_ERROR;
+					tmp_error_status |= TcTmDev.TC_ERROR;
 				}
 
 				else
@@ -802,7 +1490,7 @@ public class TelecommandExecutionTask {
 
 		if (((TC_address != TcAddress.SEND_STATUS_REGISTER) 
 				|| (tmp_error_status != 0)) 
-				&& ((telemetry_data.error_status & TcTm.TC_OR_PARITY_ERROR) == 0))
+				&& ((telemetry_data.error_status & TcTmDev.TC_OR_PARITY_ERROR) == 0))
 		{
 			/* Condition 1 :                                        */
 			/* (TC is not SEND STATUS REGISTER or TC is invalid).   */
@@ -853,7 +1541,7 @@ public class TelecommandExecutionTask {
 
 			TC_state = TC_State.register_TM_e;
 
-			setInterruptMask(TcTm.TM_ISR_MASK);
+			setInterruptMask(TcTmDev.TM_ISR_MASK);
 			/* Enable TM interrupt mask. Note that EnableInterrupt */
 			/* cannot be called from the C51 ISR                   */
 
@@ -872,7 +1560,7 @@ public class TelecommandExecutionTask {
 			{
 				/* Wrong DEBIE mode. */
 
-				telemetry_data.error_status |= TcTm.TC_ERROR;
+				telemetry_data.error_status |= TcTmDev.TC_ERROR;
 				tctmDev.writeTmMsb (telemetry_data.error_status);
 				tctmDev.writeTmLsb (telemetry_data.mode_status);
 				/* Send response to this TC to TM. */
@@ -884,12 +1572,12 @@ public class TelecommandExecutionTask {
 				telemetry_index = 0; /* was: (EXTERNAL unsigned char *)&science_data; */
 				telemetry_end_index = science_data.getEventByteOffset(free_slot_index) - 1;
 				/* was:  ((EXTERNAL unsigned char *) &(science_data.event[free_slot_index])) - 1; */
-				
+
 				/* Science telemetry stops to the end of the last used event */
 				/* record of the Science Data memory.                        */
 
 				science_data.length = /* (unsigned short int) */ (char)
-					((telemetry_end_index - telemetry_index + 1)/2);
+				((telemetry_end_index - telemetry_index + 1)/2);
 				/* Store the current length of used science data. */  
 
 				tctmDev.clearTmInterruptFlag();
@@ -901,7 +1589,7 @@ public class TelecommandExecutionTask {
 
 				TC_state = TC_State.SC_TM_e;
 
-				setInterruptMask(TcTm.TM_ISR_MASK);
+				setInterruptMask(TcTmDev.TM_ISR_MASK);
 				/* Enable TM interrupt mask. Note that EnableInterrupt */
 				/* cannot be called from a C51 ISR.                    */
 			}
@@ -911,38 +1599,38 @@ public class TelecommandExecutionTask {
 		else if (TC_address == TcAddress.READ_DATA_MEMORY_LSB)
 		{
 			/* Read Data Memory LSB accepted. */
-//			if ( (TC_state != read_memory_e) ||
-//					( ((unsigned int)address_MSB << 8) + TC_code
-//							> (END_SRAM3 - MEM_BUFFER_SIZE) + 1 ) )
-//			{
-//				/* Wrong TC state or wrong address range. */
-//
-//				telemetry_data.error_status |= TcTm.TC_ERROR;
-//				tctmDev.writeTmMsb  (telemetry_data.error_status);
-//				tctmDev.writeTmLsb  (telemetry_data.mode_status);
-//				/* Send response to this TC to TM. */
-//
-//				TC_state = TC_state.TC_handling_e;
-//			}
-//
-//			else
-//			{
-//				telemetry_pointer = 
-//					DATA_POINTER((int)address_MSB * 256 + TC_code);
-//				telemetry_end_pointer = telemetry_pointer + MEM_BUFFER_SIZE;
-//
-//				tctmDev.clearTmInterruptFlag();
-//
-//				tctmDev.writeTmMsb (telemetry_data.error_status);
-//				tctmDev.writeTmLsb (telemetry_data.mode_status);
-//				/* First two bytes of Read Data Memory sequence. */
-//
-//				read_memory_checksum = tmp_error_status ^ telemetry_data.mode_status;
-//
-//				TC_state = TC_State.memory_dump_e;
-//
-//				SetInterruptMask(TM_ISR_MASK);
-//			}
+			//			if ( (TC_state != read_memory_e) ||
+			//					( ((unsigned int)address_MSB << 8) + TC_code
+			//							> (END_SRAM3 - MEM_BUFFER_SIZE) + 1 ) )
+			//			{
+			//				/* Wrong TC state or wrong address range. */
+			//
+			//				telemetry_data.error_status |= TcTmDev.TC_ERROR;
+			//				tctmDev.writeTmMsb  (telemetry_data.error_status);
+			//				tctmDev.writeTmLsb  (telemetry_data.mode_status);
+			//				/* Send response to this TC to TM. */
+			//
+			//				TC_state = TC_state.TC_handling_e;
+			//			}
+			//
+			//			else
+			//			{
+			//				telemetry_pointer = 
+			//					DATA_POINTER((int)address_MSB * 256 + TC_code);
+			//				telemetry_end_pointer = telemetry_pointer + MEM_BUFFER_SIZE;
+			//
+			//				tctmDev.clearTmInterruptFlag();
+			//
+			//				tctmDev.writeTmMsb (telemetry_data.error_status);
+			//				tctmDev.writeTmLsb (telemetry_data.mode_status);
+			//				/* First two bytes of Read Data Memory sequence. */
+			//
+			//				read_memory_checksum = tmp_error_status ^ telemetry_data.mode_status;
+			//
+			//				TC_state = TC_State.memory_dump_e;
+			//
+			//				SetInterruptMask(TM_ISR_MASK);
+			//			}
 		}
 
 		else
@@ -958,15 +1646,15 @@ public class TelecommandExecutionTask {
 	/** FIXME: unimplemented stubs */	
 	private void setInterruptMask(int tmIsrMask) {
 		// TODO Auto-generated method stub
-		
+
 	}
 	private void resetInterruptMask(int tmIsrMask) {
 		// TODO Auto-generated method stub
-		
+
 	}
 	private void sendISRMail(int mailbox, int message) {
 		if(TaskControl.isrSendMessage(mailbox, message) == TaskControl.NOT_OK) {
-		      telemetry_data.isr_send_message_error = (byte) mailbox;
+			telemetry_data.isr_send_message_error = (byte) mailbox;
 		}
 	}
 
@@ -1243,7 +1931,7 @@ public class TelecommandExecutionTask {
 		/* Telecommand Execution task has higher priority than */
 		/* Acquisition task.                                   */
 
-		for(i=0;i<SensorUnit.NUM_SU;i++)
+		for(i=0;i<SensorUnitDev.NUM_SU;i++)
 		{
 			telemetry_data.SU_hits[i] = 0;
 
@@ -1307,6 +1995,237 @@ public class TelecommandExecutionTask {
 	public int getFreeSlotIndex() {
 		return free_slot_index;
 	}
+
+	/*--- ported from measure.c:543-EOF */
+	private void switchSensorUnitState(SensorUnit sensorUnit) 
+	/* Purpose        : Used when only the SU_state variable must be modified.   */
+	/* Interface      : inputs      - SU_state                                   */
+	/*                              - An Address of 'sensor_unit_t' type of a    */
+	/*                                struct.                                    */
+	/*                  outputs     - SU_state                                   */
+	/*                              - SU_setting.execution_result                */
+	/*                  subroutines - none                                       */
+	/* Preconditions  : none                                                     */
+	/* Postconditions : SU_state variable is conditionally modified.             */
+	/* Algorithm      :                                                          */
+	/*                  - If the expected SU_state variable value related to the */
+	/*                    given SU_index number is not valid, variable value is  */
+	/*                    not changed. Error indication is recorded instead.     */
+	/*                  - Else state variable value is changed and an indication */
+	/*                    of this is recorded.                                   */
+	{
+		if (AcquisitionTask.sensorUnitState[(sensorUnit.number) - SensorUnitDev.SU_1] != 
+			sensorUnit.expected_source_state)
+		{
+			/* The original SU state is wrong. */
+
+			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
+		}
+
+		else if (sensorUnit.state == SenorUnitState.self_test_mon_e &&
+				AcquisitionTask.self_test_SU_number    != SensorUnitDev.NO_SU)
+		{
+			/* There is a self test sequence running already */
+
+			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
+		}
+
+
+		else
+		{
+			/* The original SU state is correct. */
+
+			if (sensorUnit.state == SenorUnitState.self_test_mon_e)
+			{
+				AcquisitionTask.self_test_SU_number = sensorUnit.number;
+				/* Number of the SU under self test is recorded. */
+			}
+
+			else if (sensorUnit.number == AcquisitionTask.self_test_SU_number)
+			{
+				AcquisitionTask.self_test_SU_number = SensorUnitDev.NO_SU;
+				/* Reset self test state i.e. no self test is running. */
+			}
+
+			AcquisitionTask.sensorUnitState[(sensorUnit.number) - SensorUnitDev.SU_1] = sensorUnit.state;
+			sensorUnit.execution_result  = SensorUnitDev.SU_STATE_TRANSITION_OK;
+		}
+	}
+
+	private void startSensorUnitSwitchingOn(int su_index, SensorUnit su_setting)
+	//	void Start_SU_SwitchingOn(
+	//		      sensor_index_t SU,
+	//		      unsigned char EXTERNAL *exec_result) COMPACT_DATA REENTRANT_FUNC
+	/* Purpose        : Transition to SU state on.                               */
+	/* Interface      : inputs      - Sensor_index number                        */
+	/*                              - An Address of 'exec_result' variable       */
+	/*                              - SU_state                                   */
+	/*                  outputs     - SU_state                                   */
+	/*                              - 'exec_result'                              */
+	/*                  subroutines - Switch_SU_On                               */
+	/* Preconditions  : none                                                     */
+	/* Postconditions : Under valid conditions transition to 'on' state is       */
+	/*                  completed.                                               */
+	/* Algorithm      :                                                          */
+	/*                  - If the original SU_state variable value related to the */
+	/*                    given SU_index number is not valid, variable value is  */
+	/*                    not changed. Error indication is recorded instead.     */
+	/*                  - Else                                                   */
+	/*                    - Disable interrups                                    */
+	/*                    - 'Switch_SU_On' function is called and an             */
+	/*                      indication of this transition is recorded.           */
+	/*                    - Enable interrupts                                    */
+	{
+		//		   *exec_result  = SU_STATE_TRANSITION_OK;
+		//		   /* Default value, may be changed below. */ 
+		//
+		//		   if (SU_state[SU] != off_e)
+		//		   {
+		//		      /* The original SU state is wrong. */
+		//
+		//		      *exec_result = SU_STATE_TRANSITION_FAILED;
+		//		   }
+		//
+		//		   else
+		//		   {
+		//		      /* The original SU state is correct. */
+		//
+		//		      DISABLE_INTERRUPT_MASTER;
+		//
+		//		      /* SU state is still off_e, because there is only one task  */
+		//		      /* which can switch SU state from off_e to any other state. */
+		//
+		//		      Switch_SU_On(
+		//		         SU + SU_1, 
+		//		         exec_result);
+		//
+		//		      if (*exec_result == SU + SU_1)
+		//		      {
+		//		         /* Transition succeeds. */
+		//
+		//		         SU_state[SU] = start_switching_e;
+		//		      }
+		//
+		//		      else
+		//		      {
+		//		         /* Transition fails. */
+		//
+		//		         *exec_result = SU_STATE_TRANSITION_FAILED;
+		//		      }
+		//
+		//		      ENABLE_INTERRUPT_MASTER;
+		//		   }   
+	}
+
+	private void setSensorUnitOff(int su_index, SensorUnit su_setting)
+	//
+	//		void SetSensorUnitOff(
+	//		         sensor_index_t SU,
+	//		         unsigned char EXTERNAL *exec_result) COMPACT_DATA REENTRANT_FUNC
+	/* Purpose        : Transition to SU state off.                              */
+	/* Interface      : inputs      - Sensor_index number                        */
+	/*                              - An Address of 'exec_result' variable       */
+	/*                              - SU_state                                   */
+	/*                  outputs     - SU_state                                   */
+	/*                              - 'exec_result'                              */
+	/*                  subroutines - Switch_SU_Off                              */
+	/* Preconditions  : none                                                     */
+	/* Postconditions : Under valid conditions transition to 'off' state is      */
+	/*                  completed.                                               */
+	/* Algorithm      :                                                          */
+	/*                  - Disable interrups                                      */
+	/*                  - 'Switch_SU_Off' function is called.                    */
+	/*                  - If transition succeeds,                                */
+	/*                    - 'Off' state is recorded to 'SU_state' variable.      */
+	/*                    - Indication of transition is recorded to              */
+	/*                      'exec_result'.                                       */
+	/*                  - Else if transition fails,                              */
+	/*                    - Indication of this is recorded to 'exec_result'.     */
+	/*                  - Enable interrupts                                      */
+	{
+		//		   static sensor_unit_t EXTERNAL SU_setting;
+		//		   /* Holds parameters for "Switch_SU_State" operation                  */
+		//		   /* Must be in external memory, because the parameter to the function */
+		//		   /* is pointer to external memory                                     */
+		//
+		//		   DISABLE_INTERRUPT_MASTER;
+		//
+		//		   Switch_SU_Off(
+		//		      SU + SU_1, 
+		//		      exec_result);
+		//
+		//		   if (*exec_result == SU + SU_1)
+		//		   {
+		//		      /* Transition succeeds. */
+		//		  
+		//		      SU_setting.SU_number = SU + SU_1;
+		//		      SU_setting.expected_source_state = SU_state[SU]; 
+		//		      SU_setting.SU_state = off_e;
+		//		      Switch_SU_State (&SU_setting);
+		//		      *exec_result = SU_STATE_TRANSITION_OK;
+		//		   }
+		//
+		//		   else
+		//		   {
+		//		      /* Transition fails. */
+		//
+		//		      *exec_result = SU_STATE_TRANSITION_FAILED;
+		//		   }
+		//
+		//		   ENABLE_INTERRUPT_MASTER;
+	}
+
+	//		SU_state_t  ReadSensorUnit(unsigned char SU_number) COMPACT_DATA REENTRANT_FUNC
+	/* Purpose        :  To find out whether given Sensor Unit is switched on or */
+	/*                   off.                                                    */
+	/* Interface      :                                                          */
+	/* Preconditions  :  SU_Number should be 1,2,3 or 4.                         */
+	/* Postconditions :  Value of state variable is returned.                    */
+	/* Algorithm      :  Value of state variable (on_e or off_e) is returned.    */
+	//		{
+	//		   return SU_state[SU_number - 1];      
+	//		}       
+
+
+	void updateSensorUnitState(int sensorUnitIndex)
+	/*		void Update_SU_State(sensor_index_t SU_index) COMPACT_DATA REENTRANT_FUNC */
+	/* Purpose        : Sensor unit state is updated.                            */
+	/* Interface      : inputs      - SU_state                                   */
+	/*                              - SU_index number                            */
+	/*                  outputs     - SU_state                                   */
+	/*                  subroutines - none                                       */
+	/* Preconditions  : none                                                     */
+	/* Postconditions : SU_state variable is modified.                           */
+	/* Algorithm      : - Disable interrups                                      */
+	/*                  - Change SU_state variable value related to the given    */
+	/*                    SU_index number. Selection of the new state depends on */
+	/*                    the present one.                                       */
+	/*                  - Enable interrups                                       */
+	{
+		//		   DISABLE_INTERRUPT_MASTER;
+		//
+		//		   if (SU_state[SU_index] == start_switching_e)
+		//		   {
+		//		      SU_state[SU_index] = switching_e;
+		//		   }
+		//
+		//		   else if (SU_state[SU_index] == switching_e)
+		//		   {
+		//		      ResetPeakDetector(SU_index + SU_1);
+		//		      /*Peak detector for this Sensor Unit is resetted. */       
+		//		 
+		//		      WaitTimeout(PEAK_RESET_MIN_DELAY);
+		//		 
+		//		      ResetPeakDetector(SU_index + SU_1);
+		//		      /*Peak detector for this Sensor Unit is resetted again. */   
+		//
+		//		      SU_state[SU_index] = on_e;
+		//		   }
+		//
+		//		   ENABLE_INTERRUPT_MASTER;
+
+	}
+
 
 
 	/** delegator */

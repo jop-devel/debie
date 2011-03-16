@@ -4,7 +4,7 @@ import static debie.harness.Harness.*;
 import static debie.support.KernelObjects.*;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
-import debie.target.TcTm;
+import debie.target.TcTmDev;
 import debie.telecommand.TelecommandExecutionTask;
 
 /** The simulated DEBIE System */
@@ -31,7 +31,7 @@ public class HarnessSystem {
 
 		this.hmTask = new HealthMonitoringTask();
 		this.acqTask = new AcquisitionTask(hmTask);
-		this.tctmTask = new TelecommandExecutionTask(tctmSim, hmTask.getInternalTime());
+		this.tctmTask = new TelecommandExecutionTask(tctmMailbox, tctmSim, hmTask.getInternalTime());
 	}
 	
 

@@ -93,11 +93,11 @@ public class Harness {
 	/* Instrumentation */
 	public final static boolean INSTRUMENTATION = false;	
 
-	public static void START_PROBLEM(int probCode) {
+	public static void startProblem(int probCode) {
 		// TODO Auto-generated method stub		
 	}
 
-	public static void END_PROBLEM(int probCode) {
+	public static void endProblem(int probCode) {
 		// TODO Auto-generated method stub
 		
 	}

@@ -1,6 +1,6 @@
 package debie.target;
 
-public interface SensorUnit {
+public interface SensorUnitDev {
 	
 	public static enum SensorUnitTestLevel {high_e, low_e};
 
@@ -8,6 +8,19 @@ public interface SensorUnit {
 		   public char FromPlasma1Plus; /* XXX: was unsigned short int  */
 		   public char FromPlasma1Minus; /* XXX: was unsigned short int  */
 	}
+	
+	public static class TriggerSet {
+		   public int /* sensor_number_t */ sensor_unit;
+		   public int /* channel_t */    channel;
+		   public int /* unsigned char */   level;
+		   public int /* unsigned char */   execution_result;
+		   public int /* unsigned int */    base;		
+	}
+
+	public static class VoltageStatus {
+		   int /* unsigned char */ V_down_bit;
+		   int /* unsigned char */ HV_status;
+	};
 
 	/*--- definitions from su_ctrl.h ---*
 	/* Sensor Channels */
@@ -142,23 +155,23 @@ public interface SensorUnit {
 //	/* Sensor Unit power control */
 //	extern void Switch_SU_On  (
 //	   sensor_number_t SU_Number,
-//	   unsigned char EXTERNAL *execution_result)
+//	   int /* unsigned char */ EXTERNAL *execution_result)
 //	   COMPACT REENTRANT_FUNC;
 //
 //	extern void Switch_SU_Off (
 //	   sensor_number_t SU_Number,
-//	   unsigned char EXTERNAL *execution_result)
+//	   int /* unsigned char */ EXTERNAL *execution_result)
 //	   COMPACT REENTRANT_FUNC;               
 //
 //	/* Sensor Unit calibration */
 //
 //	extern void EnableAnalogSwitch(sensor_index_t self_test_SU_index);
 //	extern void DisableAnalogSwitch(sensor_index_t self_test_SU_index);
-//	extern void SelectSelfTestChannel(unsigned char channel);
+//	extern void SelectSelfTestChannel(int /* unsigned char */ channel);
 //	extern void SelectTriggerSwitchLevel(
-//	           unsigned char  test_channel,
+//	           int /* unsigned char */  test_channel,
 //	           sensor_index_t self_test_SU_index);
 //	extern void SelectStartSwitchLevel(
-//	           unsigned char  test_channel,
+//	           int /* unsigned char */  test_channel,
 //	           sensor_index_t self_test_SU_index);	
 }

@@ -54,9 +54,9 @@ public abstract class HarnessTest extends TestSuite {
 	/* Runs the TC Interrupt Service. */	
 	{
 	   /* Analysis Problem (1) */
-	   if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(Prob1);
+	   if(Harness.INSTRUMENTATION) Harness.startProblem(Prob1);
 	   system.tctmTask.tcInterruptService();
-	   if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(Prob1);
+	   if(Harness.INSTRUMENTATION) Harness.endProblem(Prob1);
 	}
 
 	public void handleTC (int problem)
@@ -68,9 +68,9 @@ public abstract class HarnessTest extends TestSuite {
 	{
 	   checkEquals ("[handleTC] TC mailbox has 1 msg", system.tctmMailbox.getMailCount(), 1);
 
-	   if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(problem);
+	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
 	   system.tctmTask.handleTelecommand ();
-	   if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(problem);
+	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
 
 	   checkEquals ("[handleTC] TC mailbox has 0 msgs", system.tctmMailbox.getMailCount(), 0);
 	}

@@ -52,8 +52,11 @@ public abstract class Mailbox {
 	/* XXX: was unsigned char */
 	public final byte mailbox_number;
 
-	/* XXX: was unsigned char */
-	public byte timeout;
+	public int /* unsigned char */ timeout;
+
+	public void setTimeout(int timeout) {
+		this.timeout = timeout;
+	} 
 
 	/** Actual message */
 	/* XXX: why the hell is this a pointer in the C implementation? */
@@ -75,5 +78,6 @@ public abstract class Mailbox {
 	/** The value of this variable defines the
 	 * execution of the wait-task.  */
 	/* XXX: was unsigned char */
-	public byte event_selector; 
+	public byte event_selector;
+
 }

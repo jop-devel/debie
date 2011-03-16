@@ -1,0 +1,40 @@
+On Serialization In Java
+========================
+!! work in progress
+
+In the DEBIE software, different kinds of data are sent bytewise.
+To this end, some form of binary serialization is necessary.
+
+As an example, consider the following struct or class:
+
+class Data1 {
+	char tag;
+	Data2[] f1 = new Data2[8];
+	Data3 f2;
+}
+
+In C, it is possible to cast the object as is to a byte array,
+and then use a pointer in to that array as an iterator object.
+The resulting representation is not portable, of course, but
+this is not necessarily a problem if the receiver know the
+configuration used in the embedded system.
+
+In Java, we need to find a different representation for the
+iterator.
+
+If the iterator is a plain index, we might need to use binary
+search or potentially very large lookup tables to find out
+which field is affected. This is especially true if some of
+the serialized instance variables arrays, and we need to avoid
+division.
+
+The other choice is to use type specific iterator objects,
+e.g. a pair of field index and a sub iterator. This however,
+implies that we need to create iterators dynamically.
+
+Other solution??
+
+
+
+
+[1] Ack: discussions with martin_e

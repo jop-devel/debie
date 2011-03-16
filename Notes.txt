@@ -28,6 +28,13 @@ JOP Model (rough idea, for now put everything in Runnables):
   AquisitionTask: SwEvent (MailBox)
   HealthMonitoringTask: RtThread (periodic)
 
+General Notes on problematic translation steps:
+  * We have no unsigned data type in Java, and therefore need to carefully
+    check whether taking the signed variant (for byte/int) is correct.
+    As a consequence, the translation of primitive types is not an automated
+    task; depending on whether we want to save memory, and whether overflow may
+    occur (or not), different choices are preferable.
+
 Mailbox implementation:
   * public abstract class debie.support.Mailbox
   	* sendTaskMail(message, timeout)
@@ -37,3 +44,20 @@ Mailbox implementation:
 	* fields from incoming_mail_t
   * public class debie.harness.HarnessMailbox extends Mailbox
     * uses same (static) mechanisms as C implementation
+
+EventRecord implementation:
+  * computing checksums and copying records needs A LOT of code if each field is 
+  addressed seperately. Maybe we should use some internal magic for this stuff.
+  Maybe ask the SCJ Gurus?
+    
+EventQueue (Telecommand) implementation:
+  * RecordEvent: in C, interrupts are disabled here; for now, no thread safety
+    in Java. Eventually, we should use monitors.
+
+ScienceData:
+	* Science Data is shared data; access needs to be protected (e.g., by monitors).
+	  In the Java version all data in 'ordinary' memory (that is, we
+	  do not distinguish between internal/external memory).
+
+Telecommand implementation:
+

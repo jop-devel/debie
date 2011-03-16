@@ -1,8 +1,8 @@
 package debie.harness;
 
-import debie.target.TcTm;
+import debie.target.TcTmDev;
 
-public class TcTmSim implements TcTm {
+public class TcTmSim implements TcTmDev {
 	
 	private int /* char */ tc_msb, tc_lsb;
 	/* Simulated TC interface registers. */
