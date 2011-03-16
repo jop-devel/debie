@@ -1,5 +1,6 @@
 package debie.target;
 
+import debie.support.Dpu.ResetClass;
 import debie.target.SensorUnitDev.Delays;
 import debie.telecommand.TelecommandExecutionTask;
 
@@ -7,6 +8,10 @@ import static debie.telecommand.TelecommandExecutionTask.*;
 
 public class HwIf {
 	public static final int MAX_EVENTS = 1261;
+	
+	/* These variables store values of these write-only registers. */
+	/* unsigned char */ public static int SUCtrlRegister    = 0;
+	/* unsigned char */ public static int SUSelfTestChannel = 0;
 	
 	/* The test records the address of the first failed cell in the
 	 * code (program) RAM and the external data RAM.
@@ -19,6 +24,17 @@ public class HwIf {
 	private static char failed_code_address;
 	private static char failed_data_address;	
 	private static final int NO_RAM_FAILURE = 0xffff;
+	
+	/* Expected code checksum. Zero for unpatched code. */
+	/* unsigned char */ public static int reference_checksum;
+
+	/* The type of the last DPU reset, as recorded in Init_DPU.
+	 * Note: this variable must _not_ be initialised here (in
+	 * its declaration), since this would overwrite the value
+	 * set in Init_DPU, which is called from the startup module
+	 * before the variable initialisation code.
+	 */
+	private static ResetClass s_w_reset; 
 	
 	/* Same as in the original DEBIE-1 SW */
 
@@ -93,6 +109,22 @@ public class HwIf {
 			TelecommandExecutionTask.getTelemetryData().setFailedDataAddress(failed_data_address);
 		}
 
+	}
+
+	/**
+	 * Purpose        : Reset class is returned.
+	 * Interface      : - inputs:  s_w_reset, type of the occurred reset.
+	 *                  - outputs: s_w_reset
+	 * Preconditions  : Valid only when called first time after reset in boot
+	 *                  sequence.
+	 * Postconditions : s_w_reset is set to error_e value.
+	 * Algorithm      : value of s_w_reset is returned and s_w_reset is set to
+	 *                  error value.
+	 */
+	public static ResetClass getResetClass() {
+		ResetClass occurred_reset = s_w_reset;
+		s_w_reset = ResetClass.error_e;
+		return occurred_reset;
 	}
 	
 }

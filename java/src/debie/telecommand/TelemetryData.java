@@ -5,6 +5,7 @@ import static debie.target.SensorUnitDev.NUM_SU;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnitSettings;
 import debie.support.TelemetryObject;
+
 public class TelemetryData implements TelemetryObject {
 
 	/* Modes */
@@ -17,8 +18,8 @@ public class TelemetryData implements TelemetryObject {
 	/* unsigned char */ byte        mode_status;                       /* reg   1       */
 	/* uint16_t */ char             TC_word;                           /* reg   2 -   3 */
 	/* dpu_time_t */ int            TC_time_tag;                       /* reg   4 -   7 */
-	/* unsigned char */ byte        watchdog_failures;                 /* reg   8       */
-	/* unsigned char */ byte        checksum_failures;                 /* reg   9       */
+	/* unsigned char */ int         watchdog_failures;                 /* reg   8       */
+	/* unsigned char */ int         checksum_failures;                 /* reg   9       */
 	/* unsigned char */ byte        SW_version;                        /* reg  10       */
 	/* unsigned char */ byte        isr_send_message_error;            /* reg  11       */
 	/* unsigned char */ byte[]      SU_status = new byte[NUM_SU];      /* reg  12 -  15 */
@@ -135,6 +136,34 @@ public class TelemetryData implements TelemetryObject {
 		case 3: return this.sensor_unit_1;
 		default: throw new RuntimeException("getSuConfig: invalid index");
 		}
+	}
+
+	public void setSWVersion(byte version) {
+		SW_version = version;
+	}
+
+	public void incrementWatchdogFailures() {
+		if (watchdog_failures < 255) {
+			watchdog_failures++;
+		}
+	}
+
+	public void resetWatchdogFailures() {
+		watchdog_failures = 0;
+	}
+
+	public void incrementChecksumFailures() {
+		if (checksum_failures < 255) {
+			checksum_failures++;
+		}
+	}
+
+	public void resetChecksumFailures() {
+		checksum_failures = 0;		
+	}
+
+	public void resetTCWord() {
+		TC_word = 0;
 	}
 	
 }

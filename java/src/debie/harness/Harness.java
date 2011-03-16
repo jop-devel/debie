@@ -78,8 +78,11 @@ public class Harness {
 	public static void main(String[] argv) {
 		HarnessSystem system = new HarnessSystem();
 		TestLogger defaultLogger = new TestLogger();
+				
+		HealthMonitoringTask healthMonitor = new HealthMonitoringTask(system);
+		healthMonitor.boot();
 		
-		HealthMonitoringTask healthMonitor = new HealthMonitoringTask();
+		healthMonitor.initHealthMonitoring();
 		
 		TelecommandISRTest tcISRTest = new TelecommandISRTest(system, defaultLogger);
 		tcISRTest.runTests();

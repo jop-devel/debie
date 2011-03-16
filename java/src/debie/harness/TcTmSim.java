@@ -49,8 +49,8 @@ public class TcTmSim implements TcTmDev {
 
 		/* Encode the address and code in the TC interface registers: */
 
-		tc_msb = address << 1;
-		tc_lsb = code;
+		tc_msb = (address & 0xff) << 1;
+		tc_lsb = (code & 0xff);
 
 		/* Generate the even parity bit: */
 

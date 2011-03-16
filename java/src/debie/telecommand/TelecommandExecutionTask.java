@@ -177,7 +177,7 @@ public class TelecommandExecutionTask {
 	//EXTERNAL science_data_file_t LOCATION(SCIENCE_DATA_START_ADDRESS)
 	public static ScienceDataFile science_data = new ScienceDataFile();
 
-	private static int /* uint_least16_t */ max_events;
+	public static int /* uint_least16_t */ max_events;
 	/* This variable is used to speed up certain    */
 	/* Functional Test by adding the possibility    */
 	/* to restrict the amount of events.            */
@@ -1917,7 +1917,7 @@ public class TelecommandExecutionTask {
 
 	}
 
-	void clearEvents()
+	public static void clearEvents()
 	/* Clears the event counters and the quality numbers of                     */
 	/* the event records in the science data memory                              */
 
@@ -1968,7 +1968,7 @@ public class TelecommandExecutionTask {
 		science_data.not_used         = 0;
 	}   
 
-	void resetEventQueueLength()
+	public static void resetEventQueueLength()
 	/* Purpose        : Empty the event queue length.                            */
 	/* Interface      : inputs      - none                                       */
 	/*                  outputs     - none                                       */
@@ -1996,7 +1996,7 @@ public class TelecommandExecutionTask {
 	}
 
 	/*--- ported from measure.c:543-EOF */
-	private void switchSensorUnitState(SensorUnit sensorUnit) 
+	public static void switchSensorUnitState(SensorUnit sensorUnit) 
 	/* Purpose        : Used when only the SU_state variable must be modified.   */
 	/* Interface      : inputs      - SU_state                                   */
 	/*                              - An Address of 'sensor_unit_t' type of a    */
@@ -2121,7 +2121,7 @@ public class TelecommandExecutionTask {
 		}   
 	}
 
-	private void setSensorUnitOff(int index, SensorUnit sensorUnit)
+public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//
 	//		void SetSensorUnitOff(
 	//		         sensor_index_t SU,

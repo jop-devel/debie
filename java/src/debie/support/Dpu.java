@@ -1,5 +1,9 @@
 package debie.support;
 
+import debie.harness.Harness;
+import debie.health.HealthMonitoringTask;
+import debie.target.HwIf;
+
 public class Dpu {
 	public static final int SAME = 1;
 	public static final int NOT_SAME = 0;
@@ -115,24 +119,25 @@ public class Dpu {
 
 	// XXX: todo
 	public static void reboot(ResetClass boot_type) {
-//		void Reboot(reset_class_t boot_type)
-//		{
-//		#if defined(TRACE_HARNESS)
-//		   printf ("Reboot %d\n", boot_type);
-//		#endif
-//
-//		   if (boot_type == checksum_reset_e)
-//		   {
-//		      /* Make it not happen (at once) again: */
-//		      reference_checksum = code_checksum;
-//		   }
-//
-//		   TARGET_REBOOT;
-//		}
+		if (Harness.TRACE) Harness.trace(String.format("Reboot %d", boot_type)); 
 		
+		if (boot_type == ResetClass.checksum_reset_e) {
+			/* Make it not happen (at once) again: */
+			HwIf.reference_checksum = HealthMonitoringTask.getCodeChecksum();
+		   
+			System.out.println("Target Reboot.");
+		}		
 	}
 
-
+	private static byte data_memory[] = new byte[65536];
+	
+	public static void setDataByte(int addr, byte value) {
+		if (Harness.TRACE) Harness.trace(String.format("setDataByte 0x%x to %d = 0x%x",
+													   addr, (int)value, (int)value));
+		
+		data_memory[addr] = value;
+	}
+	
 	/* Assembly-language function prototypes (asmfuncs.a51): */
 
 //	extern unsigned char TestMemBits (data_address_t address);
