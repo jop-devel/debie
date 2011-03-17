@@ -1180,9 +1180,10 @@ public class TelecommandExecutionTask {
 					switchSensorUnitState (SU_setting);
 					/* Try to switch SU 4 to Acquisition state. */
 
+					// FIXME: disabled
 					// clearHitTriggerISRFlag();
 
-					resetDelayCounters();
+					HwIf.resetDelayCounters();
 					/* Resets the SU logic that generates Hit Triggers.    */
 					/* Brings T2EX to a high level, making a new falling   */
 					/* edge possible.                                      */
@@ -1190,7 +1191,7 @@ public class TelecommandExecutionTask {
 					/* because a reversed order could create a deadlock    */
 					/* situation.                                          */
 
-					setMode(TelemetryData.ACQUISITION);
+					HealthMonitoringTask.setMode(TelemetryData.ACQUISITION);
 				}
 
 				else
@@ -1221,7 +1222,7 @@ public class TelecommandExecutionTask {
 					switchSensorUnitState (SU_setting);
 					/* Try to switch SU 4 to On state. */
 
-					setMode(TelemetryData.STAND_BY);
+					HealthMonitoringTask.setMode(TelemetryData.STAND_BY);
 				}
 
 				else
@@ -1235,18 +1236,16 @@ public class TelecommandExecutionTask {
 			}
 		}            		
 	}
-
-	private void setMode(int acquisition) {
-		// TODO Auto-generated method stub
-
-	}
-	private void resetDelayCounters() {
-		// TODO Auto-generated method stub
-
-	}
-	private Object readSensorUnit(int i) {
-		// TODO Auto-generated method stub
-		return null;
+	
+	private SensorUnitState readSensorUnit(int suNumber) 
+	/* Purpose        :  To find out whether given Sensor Unit is switched on or */
+	/*                   off.                                                    */
+	/* Interface      :                                                          */
+	/* Preconditions  :  SU_Number should be 1,2,3 or 4.                         */
+	/* Postconditions :  Value of state variable is returned.                    */
+	/* Algorithm      :  Value of state variable (on_e or off_e) is returned.    */
+	{
+		   return AcquisitionTask.sensorUnitState[suNumber - 1];      
 	}
 
 	/* from health.c: 373-398 
@@ -1288,6 +1287,7 @@ public class TelecommandExecutionTask {
 	/*                  - Write to Error Status register                         */
 	/*                  - Enable interrupts                                      */
 	{
+		// FIXME: add synchronization
 		// DISABLE_INTERRUPT_MASTER;
 
 		telemetry_data.error_status |= TcTmDev.TC_ERROR;
@@ -1767,7 +1767,7 @@ public class TelecommandExecutionTask {
 			}
 		}
 
-		/* FIXME: this is tricky (again) to implement in Java */
+		// FIXME: Implement. this is tricky (again) to implement in Java
 		else if (TC_address == TcAddress.READ_DATA_MEMORY_LSB)
 		{
 			/* Read Data Memory LSB accepted. */
@@ -1815,7 +1815,7 @@ public class TelecommandExecutionTask {
 		}
 
 	}
-	/** FIXME: unimplemented stubs */	
+
 	private void setInterruptMask(int tmIsrMask) {
 		// TODO Auto-generated method stub
 
@@ -1841,6 +1841,7 @@ public class TelecommandExecutionTask {
 		/*dpu_time_t INDIRECT_INTERNAL*/ int hit_time;
 		/* Hit time. */
 		hit_time = science_data.event[event_number].getHitTime();
+		// FIXME: is this the right way to port this to Java
 		//COPY (hit_time, science_data.event[event_number].hit_time);
 
 		return hit_time;

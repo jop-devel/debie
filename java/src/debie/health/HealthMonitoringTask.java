@@ -603,7 +603,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - Write to Mode Status register
 	 *                  - Enable interrupts
 	 */
-	void setMode(int mode)	{
+	public static void setMode(int mode)	{
 //	   DISABLE_INTERRUPT_MASTER;
 
 		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
