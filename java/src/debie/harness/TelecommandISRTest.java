@@ -1,6 +1,5 @@
 package debie.harness;
 
-import static debie.harness.Harness.*;
 import debie.target.TcTmDev;
 import debie.telecommand.TelecommandExecutionTask.TC_State;
 import static debie.telecommand.TcAddress.*;
@@ -75,7 +74,7 @@ public class TelecommandISRTest extends HarnessTest {
 		system.tctmSim.tc_word = 1;
 		tcInterrupt();
 		
-		checkNonZero(tctmTask.getTelemetryData().getErrorStatus() & TcTmDev.PARITY_ERROR);
+		checkNonZero(tctmTask.getErrorStatus() & TcTmDev.PARITY_ERROR);
 	}
 	
 	private void testErrorStatusClear() {
@@ -85,7 +84,7 @@ public class TelecommandISRTest extends HarnessTest {
 		
 		/* The parity-error flag is not yet reset, because */
 		/* the TC was not yet executed:                    */
-		checkNonZero(tctmTask.getTelemetryData().getErrorStatus() & TcTmDev.PARITY_ERROR);
+		checkNonZero(tctmTask.getErrorStatus() & TcTmDev.PARITY_ERROR);
 		
 		checkEquals("mail count of tctm mailbox = 1", system.tctmMailbox.getMailCount(), 1);
 		system.tctmMailbox.flushMail();
@@ -113,7 +112,7 @@ public class TelecommandISRTest extends HarnessTest {
 		
 		sendTC(4, 4);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getTelemetryData().getErrorStatus(), TcTmDev.TC_ERROR);
+		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);	
 		tctmTask.getTelemetryData().setErrorStatus((byte)0);
 	}
@@ -123,7 +122,7 @@ public class TelecommandISRTest extends HarnessTest {
 		
 		sendTC(ERROR_STATUS_CLEAR, ~ERROR_STATUS_CLEAR);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getTelemetryData().getErrorStatus(), TcTmDev.TC_ERROR);
+		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
 		tctmTask.getTelemetryData().setErrorStatus((byte)0);
 	}
@@ -135,7 +134,7 @@ public class TelecommandISRTest extends HarnessTest {
 
 		sendTC (SWITCH_SU_3, 0x3F);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getTelemetryData().getErrorStatus(), TcTmDev.TC_ERROR);
+		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
 		tctmTask.getTelemetryData().setErrorStatus((byte)0);
 	}
@@ -146,7 +145,7 @@ public class TelecommandISRTest extends HarnessTest {
 		sendTC(SEND_STATUS_REGISTER, 5);
 		
 		checkTcState(TC_State.TC_handling_e);
-		checkEquals("error status = TC_ERROR", tctmTask.getTelemetryData().getErrorStatus(), TcTmDev.TC_ERROR);
+		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
 		tctmTask.getTelemetryData().setErrorStatus((byte)0);
 	}
@@ -157,7 +156,7 @@ public class TelecommandISRTest extends HarnessTest {
 		sendTC(SEND_STATUS_REGISTER, LAST_EVEN + 2);
 		
 		checkTcState(TC_State.TC_handling_e);
-		checkEquals("error status = TC_ERROR", tctmTask.getTelemetryData().getErrorStatus(), TcTmDev.TC_ERROR);
+		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
 		tctmTask.getTelemetryData().setErrorStatus((byte)0);
 	}

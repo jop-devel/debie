@@ -36,7 +36,7 @@ public class TaskControl {
 
 	// void CreateTask(task_info_t EXTERNAL *new_task);
 
-	static void waitInterval(int /* unsigned char */ time) {
+	public static void waitInterval(int /* unsigned char */ time) {
 		// TODO Auto-generated method stub				
 	}
 

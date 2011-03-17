@@ -2,7 +2,10 @@ package debie.harness;
 
 import static debie.harness.Harness.Prob1;
 import static debie.harness.Harness.Prob4a;
-import static debie.telecommand.TcAddress.ERROR_STATUS_CLEAR;
+import static debie.harness.Harness.Prob4b;
+import static debie.harness.Harness.Prob4c;
+import static debie.harness.Harness.Prob4d;
+import static debie.telecommand.TcAddress.*;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.telecommand.TelecommandExecutionTask;
@@ -50,6 +53,17 @@ public abstract class HarnessTest extends TestSuite {
 	   tcInterrupt ();
 	}
 	
+	public void sendTCWord (/* uint_least16_t */ int word)
+	{
+	   system.tctmSim.setTcRegsWord(word);
+
+	   /* Invoke the TC ISR: */
+
+	   system.tctmSim.setTimerOverflowFlag();
+
+	   tcInterrupt ();
+	}
+	
 	protected void tcInterrupt ()
 	/* Runs the TC Interrupt Service. */	
 	{
@@ -75,6 +89,42 @@ public abstract class HarnessTest extends TestSuite {
 	   checkEquals ("[handleTC] TC mailbox has 0 msgs", system.tctmMailbox.getMailCount(), 0);
 	}
 
+	/**
+	 * Sends the multi-word TC to patch code memory at the given address,
+	 * with some arbitary contents. Returns the checksum of the patch,
+	 * for use in the final word of the TC, which is not sent here.
+	 */
+	public int sendPatchCode(int address) {
+		int sum;
+		
+		/* Send the patch address: */
+
+		execTC(WRITE_CODE_MEMORY_MSB, (address >> 8) & 0xff, Prob4b); 
+
+		sum = (system.tctmSim.tc_word >> 8) ^ (system.tctmSim.tc_word & 0xff);
+		
+		checkNoErrors();
+		checkTcState(TC_State.write_memory_e);
+		
+		execTC(WRITE_CODE_MEMORY_LSB, address & 0xff, Prob4c);
+
+		sum ^= (system.tctmSim.tc_word >> 8) ^ (system.tctmSim.tc_word & 0xff);
+
+		checkNoErrors();
+		checkTcState(TC_State.memory_patch_e);
+	
+		/* Send the patch contents, 16 words = 32 octets: */
+
+		for (int i = 0; i < 16; i++) {
+			sendTCWord(i << 6);
+			sum ^= (system.tctmSim.tc_word >> 8) ^ (system.tctmSim.tc_word & 0xff);
+			handleTC(Prob4d);
+		}
+
+		/* The last word remains to be sent. */
+		return sum;
+	}
+	
 	protected void clearErrors ()
 	/* Executes the ERROR_STATUS_CLEAR TC. */
 	{

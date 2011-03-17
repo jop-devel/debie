@@ -21,7 +21,7 @@
  
 package debie.particles;
 
-import debie.particles.SensorUnit.SenorUnitState;
+import debie.particles.SensorUnit.SensorUnitState;
 import debie.target.SensorUnitDev;
 import debie.telecommand.TelecommandExecutionTask;
 
@@ -375,7 +375,7 @@ public class EventRecord {
 		/* Store classification number to the event record */
 	
 		if (AcquisitionTask.sensorUnitState[SU_number - SensorUnitDev.SU_1] == 
-			SenorUnitState.self_test_e) {
+			SensorUnitState.self_test_e) {
 			quality_number = MAX_QUALITY;
 		} else {
 			calculateQualityNumber();

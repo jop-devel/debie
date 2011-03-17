@@ -6,6 +6,7 @@ import debie.particles.AcquisitionTask;
 import debie.particles.EventClassifier;
 import debie.particles.SensorUnit;
 import debie.support.Dpu;
+import debie.support.TaskControl;
 import debie.support.Dpu.ResetClass;
 import debie.support.Dpu.Time;
 import debie.target.HwIf;
@@ -284,7 +285,7 @@ public class HealthMonitoringTask implements Runnable {
 			/* We are running the PROM code unpatched, either   */
 			/* from PROM or from SRAM.                          */
 
-			HwIf.reference_checksum = Dpu.INITIAL_CHECKSUM_VALUE;
+			Dpu.reference_checksum = Dpu.INITIAL_CHECKSUM_VALUE;
 			/* 'reference_checksum' is used as a reference when */
 			/* the integrity of the code is checked by          */
 			/* HealthMonitoringTask. It is set to  its initial  */
@@ -478,12 +479,13 @@ public class HealthMonitoringTask implements Runnable {
 	 *                     - Activate Hit Trigger Interrupt Service task.
 	 */
 	private void initSystem() {
+// TODO port
 		
 //		SetTimeSlice(SYSTEM_INTERVAL);
 //		/* Set system clock interval */
 
-//      WaitInterval(BOOT_WAIT_INTERVAL);
-//      /* Wait for automatic A/D converter calibration */
+		TaskControl.waitInterval(BOOT_WAIT_INTERVAL);
+		/* Wait for automatic A/D converter calibration */
 
 //		new_task.rtx_task_number    = TC_TM_INTERFACE_TASK;
 //		new_task.task_main_function = TC_task;
@@ -527,23 +529,24 @@ public class HealthMonitoringTask implements Runnable {
 	 * {@see debie1-c, health#HandleHealthMonitoring}
 	 */
 	private void handleHealthMonitor() {
-		//		   Update_SU_State (0);
-		//		   Update_SU_State (1);
-		//		   Update_SU_State (2);
-		//		   Update_SU_State (3);
-		//
-		//		   UpdateTime();
-		//		   /* Update telemetry registers. */
-		//
+		TelecommandExecutionTask.updateSensorUnitState(0);
+		TelecommandExecutionTask.updateSensorUnitState(1);
+		TelecommandExecutionTask.updateSensorUnitState(2);
+		TelecommandExecutionTask.updateSensorUnitState(3);
+
+		updateTime();
+		/* Update telemetry registers. */
+		
+		// TODO port
 		//		   Monitor(health_mon_round);
 		//		   /* Execute current Health Monitoring Round.                            */
-		//
-		//		   UpdatePeriodCounter(&health_mon_round, HEALTH_COUNT);
-		//		   /* Decrease or reset health monitor loop counter depending on its      */
-		//		   /* current and limiting values.                                        */
-		//
-		//		   WaitInterval(HM_INTERVAL);    
-		//		   /* Wait for next activation */
+		
+		health_mon_round = updatePeriodCounter(health_mon_round, HEALTH_COUNT);
+		/* Decrease or reset health monitor loop counter depending on its      */
+		/* current and limiting values.                                        */
+		
+		TaskControl.waitInterval(HM_INTERVAL);    
+		/* Wait for next activation */
 	}
 
 	/**
@@ -569,7 +572,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - Write to Mode Status register
 	 *                  - Enable interrupts
 	 */
-	public void setModeStatusError(int mode_status_error) {
+	public static void setModeStatusError(int mode_status_error) {
 //		   DISABLE_INTERRUPT_MASTER;
 
 		TelecommandExecutionTask.getTelemetryData()
@@ -626,6 +629,51 @@ public class HealthMonitoringTask implements Runnable {
 		return (value < lowerLimit || value > upperLimit);
 	}
 	
+	/**
+	 * Purpose        : advances time in the telemetry
+	 * Interface      : inputs      - telemetry_data.time
+	 *                  outputs     - telemetry_data.time
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : Time updated in telemetry_data.
+	 * Algorithm      :
+	 *                  Time in the telemetry_data.time is advanced until
+	 *                  maximum value for the variable is reached, after that it 
+	 *                  is implicitely wrapped-around on overflow.
+	 */
+	private void updateTime() {
+//		DISABLE_INTERRUPT_MASTER;
+//		/* Disable all interrupts.                                             */
+
+		internal_time.incr();
+		/* Increment internal time. */
+		                                           
+//		ENABLE_INTERRUPT_MASTER;
+//		/* Enable all interrupts.                                              */
+	}
+	
+	
+	/**
+	 * Purpose        : Advances counters
+	 * Interface      : inputs      - address to counter variable
+	 *                  outputs     - none
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : counter value is adjusted
+	 * Algorithm      : - If a given counter is not already zero, its value is
+	 *                    decreased.
+	 *                  - Else it set to its initialization value.
+	 * XXX: C version does update via a pointer, in Java we need to assign the return value!
+	 */
+	private int updatePeriodCounter(int counter, int full_counter_value) {
+		if (counter != 0) {
+			return counter-1;
+			/* Decrease temperature measurement counter. */
+		} else {
+			return full_counter_value;
+			/* Reset temperature measurement counter. */
+		}
+	}
 	
 	public Dpu.Time getInternalTime() {
 		return internal_time;

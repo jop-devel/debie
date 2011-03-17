@@ -3,7 +3,7 @@ package debie.particles;
 
 public class SensorUnit {
 	
-	public enum SenorUnitState {
+	public enum SensorUnitState {
 		   off_e,               /* SU off state - power is Off.                  */
 		   start_switching_e,   /* Transition to On state is starting.           */
 		   switching_e,         /* Transition to On state is started.            */
@@ -15,9 +15,9 @@ public class SensorUnit {
 	}
 
 	public int /* sensor_number_t */ number;        /* Sensor Unit number                   */
-	public SenorUnitState state;              /* Sensor unit states can be either On  */
+	public SensorUnitState state;              /* Sensor unit states can be either On  */
 	                                     /* or Off.                              */
-	public SenorUnitState expected_source_state; /* Excpected source state of the SU     */
+	public SensorUnitState expected_source_state; /* Excpected source state of the SU     */
 	                                     /* state transition.                    */
 	public /* unsigned char */ int execution_result;   /* This variable is used to indicate    */
 	                                     /* execution results.                   */

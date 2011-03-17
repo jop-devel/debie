@@ -88,11 +88,19 @@ public class HarnessMailbox extends Mailbox {
 	 */
 	@Override
 	public void waitMail() {
+		if (Harness.TRACE)
+			Harness.trace(String.format("[HarnessMailbox] WaitMail from %d, timeout %d",
+										(int)mailbox_number, timeout));
+		
 		if (mail_count[mailbox_number] > 0) {
 			wait_result = MSG_RECEIVED;
 			execution_result = MSG_RECEIVED;
 			message = mail_message[mailbox_number];
 
+			if (Harness.TRACE)
+				Harness.trace(String.format("[HarnessMailbox] Message from %d is %d = 0x%x",
+											(int)mailbox_number, (int)message, (int)message));
+			
 			mail_count[mailbox_number]--;
 		} else {
 			wait_result = TIMEOUT_OCCURRED;

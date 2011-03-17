@@ -1,9 +1,11 @@
 package debie.telecommand;
 
+import debie.harness.HarnessSystem;
+import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnit;
-import debie.particles.SensorUnit.SenorUnitState;
+import debie.particles.SensorUnit.SensorUnitState;
 import debie.support.Dpu;
 import debie.support.KernelObjects;
 import debie.support.Mailbox;
@@ -288,6 +290,7 @@ public class TelecommandExecutionTask {
 	private Dpu.Time internal_time;
 	private Mailbox tcMailbox;
 	private TeleCommand received_command;
+	private HarnessSystem system;
 
 	/*--- Constructor ---*/
 
@@ -299,10 +302,11 @@ public class TelecommandExecutionTask {
 	/* Preconditions  : none                                                     */
 	/* Postconditions : TelecommandExecutionTask is operational.                 */
 	/* Algorithm      : - initialize task variables.                             */
-	public TelecommandExecutionTask(Mailbox tcMailbox, TcTmDev tctmDev, Dpu.Time timeRef) {
+	public TelecommandExecutionTask(Mailbox tcMailbox, TcTmDev tctmDev, Dpu.Time timeRef, HarnessSystem system) {
 		this.tcMailbox = tcMailbox;
 		this.tctmDev = tctmDev;
 		this.internal_time = timeRef;
+		this.system = system;
 		this.received_command = new TeleCommand(0,TcAddress.UNUSED_TC_ADDRESS, 0);
 		initTcLookup();
 
@@ -433,10 +437,10 @@ public class TelecommandExecutionTask {
 //					}
 //					break;
 //				case write_memory_e:
-//					//WriteMemory (&received_command);
+//					writeMemory (&received_command);
 //					break;
 //				case memory_patch_e:
-//					//MemoryPatch (&received_command);
+//					memoryPatch (&received_command);
 //					break;
 //				case TC_handling_e:
 //					executeCommand(received_command);
@@ -448,9 +452,9 @@ public class TelecommandExecutionTask {
 						TC_state = TC_State.TC_handling_e;
 					}					
 				} else if (TC_state == TC_State.write_memory_e) {
-					//WriteMemory (&received_command);					
+					writeMemory(received_command);					
 				} else if (TC_state == TC_State.memory_patch_e) {
-					//MemoryPatch (&received_command);
+					memoryPatch(received_command);
 				} else if (TC_state == TC_State.TC_handling_e) {
 					executeCommand(received_command);			
 				}
@@ -704,8 +708,8 @@ public class TelecommandExecutionTask {
 					break;
 
 				case TcAddress.SELF_TEST:
-					SU_setting.state              = SenorUnitState.self_test_mon_e;
-					SU_setting.expected_source_state = SenorUnitState.on_e;
+					SU_setting.state                 = SensorUnitState.self_test_mon_e;
+					SU_setting.expected_source_state = SensorUnitState.on_e;
 					switchSensorUnitState (SU_setting);
 					break;
 				}
@@ -732,7 +736,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			//SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.plasma_1_plus_threshold = 
 				command.TC_code;
@@ -743,7 +747,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			//SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.plasma_1_plus_threshold = 
 				command. TC_code;
@@ -754,7 +758,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			//SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.plasma_1_plus_threshold = 
 				command. TC_code;
@@ -765,7 +769,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			//SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.plasma_1_plus_threshold = 
 				command. TC_code;
@@ -776,7 +780,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			//SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -787,7 +791,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			//SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -798,7 +802,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			// SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -809,7 +813,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			// SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -820,7 +824,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			// SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.piezo_threshold = command. TC_code;
 			break;
@@ -830,7 +834,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			// SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.piezo_threshold = command. TC_code;
 			break;
@@ -840,7 +844,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			// SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.piezo_threshold = command. TC_code;
 			break;
@@ -850,7 +854,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			// SetTriggerLevel(&new_threshold);
+			system.suSim.setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.piezo_threshold = command. TC_code;
 			break;
@@ -860,6 +864,171 @@ public class TelecommandExecutionTask {
 			break;
 		}
 	}
+
+	/**
+	 * Purpose        : Handles received telecommand in memory patch state
+	 * Interface      : inputs  - command, received telecommand
+	 *                            address_MSB, MSB of patch area
+	 *                            address_LSB, LSB of patch area
+	 *                            memory_transfer_buffer, buffer for bytes
+	 *                               to be written to patch area
+	 *                            memory_buffer_index, index to above buffer
+	 *                  outputs - memory_transfer_buffer, as above
+	 *                            memory_buffer_index, as above
+	 *                            code_not_patched, indicates if code
+	 *                               checksum is vali or not
+	 *                            telemetry_data.mode_status, Mode Status
+	 *                               telemetry register
+	 *                            TC_state, TC Execution task state
+	 * Preconditions  : TC_state is memory patch.
+	 *                  Destination memory type (data/code) is memorized.
+	 * Postconditions : After last phase code or data memory patched if
+	 *                     operation succeeded.
+	 * Algorithm      : - If memory_transfer_buffer not filled
+	 *                     - update write_checksum (XOR with MSB and LSB of
+	 *                          the telecommand word)
+	 *                     - store TC word to memory_transfer_buffer
+	 *                  - else
+	 *                     - If checksum of TC block Ok
+	 *                        - If data memory patch
+	 *                           - copy memory_tranfer_buffer to data memory
+	 *                        - else (code memory patch)
+	 *                           - call PatchCode function
+	 *                     - else
+	 *                        - set MEMORY_WRITE_ERROR bit in ModeStatus
+	 */
+	private void memoryPatch(TeleCommand command) {
+
+		int address;
+		/* Start address of the memory area to be patched. */
+
+		int TC_msb;
+		/* Most significant byte of the TC word. */
+
+		TC_msb = (command.TC_word) >> 8;
+
+		write_checksum ^= TC_msb;
+
+		if (memory_buffer_index < MEM_BUFFER_SIZE) {
+			/* Filling the buffer bytes to be written to code or data */
+			/* memory.                                                */
+
+			write_checksum ^= command.TC_code;
+
+			memory_transfer_buffer[memory_buffer_index] = (byte)TC_msb;
+			memory_buffer_index++;
+			memory_transfer_buffer[memory_buffer_index] = (byte)command.TC_code;
+			memory_buffer_index++;
+
+			TC_timeout = WRITE_MEMORY_TIMEOUT;
+
+		} else {
+			/* Now all bytes for memory area to be patched have been */
+			/* received.                                             */
+
+			if (write_checksum == command.TC_code) {
+				/* Checksum Ok. */
+
+				address = (address_MSB)*256 + address_LSB;
+
+		         if (memory_type == MemoryType.Data) {
+		        	 /* Write to the data memory. */
+
+		        	 if (address <= (Dpu.END_SRAM3 - MEM_BUFFER_SIZE + 1)) {
+		                  for(int i=0; i<MEM_BUFFER_SIZE; i++) {
+		                	  Dpu.setDataByte(address + i, memory_transfer_buffer[i]);
+		                  }
+
+		        	 } else {
+		        		 setTCError();
+		        	 }
+		         } else if (memory_type == MemoryType.Code) { 
+		        	 /* Write to the code memory. */
+
+		        	 if ((address >= Dpu.BEGIN_SRAM1) && 
+		        			 (address <= Dpu.END_SRAM1 - MEM_BUFFER_SIZE + 1) &&
+		        			 (Dpu.patchExecCommandOk(TC_msb))) {
+		        		 /* Destination section resides in SRAM1.   */
+		 
+		        		 Dpu.code_not_patched = 0;
+		        		 /* Next code checksum not valid, because code memory */
+		        		 /* will be patched.                                  */
+
+		        		 Dpu.MemoryPatchVariables patch_info = new Dpu.MemoryPatchVariables();
+		        		 
+		        		 patch_info.source            = memory_transfer_buffer;
+		        		 patch_info.destination       = address;
+		        		 patch_info.data_amount       = MEM_BUFFER_SIZE;
+		        		 patch_info.execution_command = TC_msb;
+		        		 /* Set parameters for the MemoryPatch function   */
+		        		 /* (see definition of memory_patch_variables_t). */
+
+		        		 Dpu.patchCode(patch_info);
+		        		 /* May or may not return here. */
+
+		        	 } else {
+		        		 /* Destination section out side SRAM1.   */
+		        		 setTCError();
+		        	 }
+		         }
+
+			} else {
+				/* Checksum failure. */
+
+				HealthMonitoringTask.setModeStatusError(MEMORY_WRITE_ERROR);
+				/* Set memory write error bit in Mode Status register. */
+			}
+
+			TC_state = TC_State.TC_handling_e;		
+		}
+	}
+	
+	/**
+	 * Purpose        : Handles received telecommand in the WriteMemory state
+	 * Interface      : inputs  - Parameter "command" containing received
+	 *                            telecommand or memory byte
+	 *                            memory_type defining code or data memory
+	 *                            destination
+	 *                  outputs - address_LSB, LSB of the patch area
+	 *                            TC_state
+	 * Preconditions  : TC_state is write_memory
+	 *                  Destination memory type (data/code) is memorized
+	 * Postconditions : LSB of the patch area address is memorized.
+	 * Algorithm      : - update write_checksum (XOR with TC word MSB and LSB)
+	 *                  - if telecommand is LSB setting of patch memory address
+	 *                    of selected memory type
+	 *                      - set TC state to memory_patch_e
+	 *                      - memorize address LSB
+	 *                      - clear memory_buffer_index
+	 *                      - set TC timeout to WRITE_MEMORY_TIMEOUT
+	 *                  - else
+	 *                      - set TC state to TC_handling_e
+	 */
+	private void writeMemory(TeleCommand command) {
+
+		/* Expecting LSB of the start address for the memory area to be patched. */
+
+		write_checksum ^= ((command.TC_word) >> 8) ^ (command.TC_code);
+
+		if (((command.TC_address == TcAddress.WRITE_CODE_MEMORY_LSB)
+				&& (memory_type == MemoryType.Code))
+				|| ((command.TC_address == TcAddress.WRITE_DATA_MEMORY_LSB)
+						&& (memory_type == MemoryType.Data)))
+		{
+			TC_state = TC_State.memory_patch_e;
+
+			address_LSB = command.TC_code;
+			memory_buffer_index = 0;
+			TC_timeout = WRITE_MEMORY_TIMEOUT;
+		}
+
+		else
+		{
+			TC_state = TC_State.TC_handling_e;
+
+			setTCError();
+		}
+	}		
 
 	private void executeCommand(TeleCommand command) {
 		/* Purpose        : Executes telecommand                                     */
@@ -980,8 +1149,8 @@ public class TelecommandExecutionTask {
 
 				for (i=SensorUnitDev.SU_1; i<=SensorUnitDev.SU_4; i++)
 				{		        	 
-					if ((readSensorUnit(i) == SenorUnitState.start_switching_e) ||
-							(readSensorUnit(i) == SenorUnitState.switching_e))
+					if ((readSensorUnit(i) == SensorUnitState.start_switching_e) ||
+							(readSensorUnit(i) == SensorUnitState.switching_e))
 					{
 						/* SU is being switched on. */
 
@@ -992,8 +1161,8 @@ public class TelecommandExecutionTask {
 
 				if ((telemetry_data.getMode() == TelemetryData.STAND_BY) && (error_flag == 0))
 				{
-					SU_setting.state              = SenorUnitState.acquisition_e;
-					SU_setting.expected_source_state = SenorUnitState.on_e;
+					SU_setting.state              = SensorUnitState.acquisition_e;
+					SU_setting.expected_source_state = SensorUnitState.on_e;
 
 					SU_setting.number = SensorUnitDev.SU_1;
 					switchSensorUnitState (SU_setting);
@@ -1033,8 +1202,8 @@ public class TelecommandExecutionTask {
 			case TcAddress.STOP_ACQUISITION:
 				if (telemetry_data.getMode() == TelemetryData.ACQUISITION)
 				{
-					SU_setting.state              = SenorUnitState.on_e;
-					SU_setting.expected_source_state = SenorUnitState.acquisition_e;
+					SU_setting.state              = SensorUnitState.on_e;
+					SU_setting.expected_source_state = SensorUnitState.acquisition_e;
 
 					SU_setting.number = SensorUnitDev.SU_1;
 					switchSensorUnitState (SU_setting);
@@ -2020,7 +2189,7 @@ public class TelecommandExecutionTask {
 			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
 		}
 
-		else if (sensorUnit.state == SenorUnitState.self_test_mon_e &&
+		else if (sensorUnit.state == SensorUnitState.self_test_mon_e &&
 				AcquisitionTask.self_test_SU_number    != SensorUnitDev.NO_SU)
 		{
 			/* There is a self test sequence running already */
@@ -2033,7 +2202,7 @@ public class TelecommandExecutionTask {
 		{
 			/* The original SU state is correct. */
 
-			if (sensorUnit.state == SenorUnitState.self_test_mon_e)
+			if (sensorUnit.state == SensorUnitState.self_test_mon_e)
 			{
 				AcquisitionTask.self_test_SU_number = sensorUnit.number;
 				/* Number of the SU under self test is recorded. */
@@ -2078,7 +2247,7 @@ public class TelecommandExecutionTask {
 		sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
 		/* Default value, may be changed below. */ 
 
-		if (AcquisitionTask.sensorUnitState[sensorUnitIndex] != SenorUnitState.off_e)
+		if (AcquisitionTask.sensorUnitState[sensorUnitIndex] != SensorUnitState.off_e)
 		{
 			/* The original SU state is wrong. */
 
@@ -2106,7 +2275,7 @@ public class TelecommandExecutionTask {
 			{
 				/* Transition succeeds. */
 
-				AcquisitionTask.sensorUnitState[sensorUnitIndex] = SenorUnitState.start_switching_e;
+				AcquisitionTask.sensorUnitState[sensorUnitIndex] = SensorUnitState.start_switching_e;
 			}
 
 			else
@@ -2168,7 +2337,7 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 
 			sensorUnitSetting.number = index + SensorUnitDev.SU_1;
 			sensorUnitSetting.expected_source_state = AcquisitionTask.sensorUnitState[index]; 
-			sensorUnitSetting.state = SenorUnitState.off_e;
+			sensorUnitSetting.state = SensorUnitState.off_e;
 			switchSensorUnitState (sensorUnitSetting);
 			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
 		}
@@ -2195,7 +2364,7 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//		}       
 
 
-	void updateSensorUnitState(int sensorUnitIndex)
+	public static void updateSensorUnitState(int sensorUnitIndex)
 	/*		void Update_SU_State(sensor_index_t SU_index) COMPACT_DATA REENTRANT_FUNC */
 	/* Purpose        : Sensor unit state is updated.                            */
 	/* Interface      : inputs      - SU_state                                   */

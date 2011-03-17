@@ -25,9 +25,6 @@ public class HwIf {
 	private static char failed_data_address;	
 	private static final int NO_RAM_FAILURE = 0xffff;
 	
-	/* Expected code checksum. Zero for unpatched code. */
-	/* unsigned char */ public static int reference_checksum;
-
 	/* The type of the last DPU reset, as recorded in Init_DPU.
 	 * Note: this variable must _not_ be initialised here (in
 	 * its declaration), since this would overwrite the value

@@ -35,7 +35,7 @@ public class HarnessSystem {
 
 		this.hmTask = new HealthMonitoringTask(this);
 		this.acqTask = new AcquisitionTask(hmTask);
-		this.tctmTask = new TelecommandExecutionTask(TaskControl.getMailbox(TCTM_MAILBOX), tctmSim, hmTask.getInternalTime());
+		this.tctmTask = new TelecommandExecutionTask(tctmMailbox, tctmSim, hmTask.getInternalTime(), this);
 	}
 	
 

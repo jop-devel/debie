@@ -1,7 +1,7 @@
 package debie.harness;
 
 import debie.particles.AcquisitionTask;
-import debie.particles.SensorUnit.SenorUnitState;
+import debie.particles.SensorUnit.SensorUnitState;
 import debie.support.Dpu;
 import debie.target.SensorUnitDev;
 
@@ -50,10 +50,10 @@ public class SensorUnitSim extends SensorUnitDev {
 	   &&  (hit_enabled     == 1)
 	   &&  (self_test_pulse >  0)
 	   &&  (system.acqTask.self_test_SU_number != NO_SU)
-	   &&  (system.acqTask.sensorUnitState[system.acqTask.self_test_SU_number  - AcquisitionTask.SU1] == SenorUnitState.self_test_trigger_e))
+	   &&  (system.acqTask.sensorUnitState[system.acqTask.self_test_SU_number  - AcquisitionTask.SU1] == SensorUnitState.self_test_trigger_e))
 	   {
 		   if(Harness.TRACE) Harness.trace("SU Self Test trigger!\n");
-		   system.acqTask.sensorUnitState[system.acqTask.self_test_SU_number - AcquisitionTask.SU1] = SenorUnitState.self_test_e;
+		   system.acqTask.sensorUnitState[system.acqTask.self_test_SU_number - AcquisitionTask.SU1] = SensorUnitState.self_test_e;
 	   }
 	}
 

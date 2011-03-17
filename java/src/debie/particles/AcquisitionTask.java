@@ -20,7 +20,7 @@
 package debie.particles;
 
 import debie.health.HealthMonitoringTask;
-import debie.particles.SensorUnit.SenorUnitState;
+import debie.particles.SensorUnit.SensorUnitState;
 import debie.support.Dpu;
 import debie.support.Mailbox;
 import debie.support.TaskControl;
@@ -130,7 +130,7 @@ public class AcquisitionTask {
 	/* Test level being used in SU Self Test. */
 	/* FIXME: Made static because of the code in EventRecord */
 	/* FIXME: This does not fit here well */
-	public static SenorUnitState sensorUnitState[] = { SenorUnitState.off_e, SenorUnitState.off_e, SenorUnitState.off_e, SenorUnitState.off_e };
+	public static SensorUnitState sensorUnitState[] = { SensorUnitState.off_e, SensorUnitState.off_e, SensorUnitState.off_e, SensorUnitState.off_e };
 
 	private char ADC_result[] = new char[SensorUnitDev.NUM_CH]; /* XXX: was unsigned short int */
 	/*Used to temporarily store AD conversion results.                           */
@@ -152,7 +152,7 @@ public class AcquisitionTask {
 	}
 	
 	
-	public SenorUnitState getSensorUnitState(int sen) {
+	public SensorUnitState getSensorUnitState(int sen) {
 		return sensorUnitState[sen];
 	}
 
@@ -211,9 +211,10 @@ public class AcquisitionTask {
 		int time_delay; /* XXX: was signed int */
 		/*This variable is used to store the delay from plasma 1+ to plasma 1-.   */
 
-		SenorUnitState state = SenorUnitState.off_e;   
+		SensorUnitState state = SensorUnitState.off_e;   
 		/* Used to store sensor unit state. */                                     
 
+		
 		//WaitMail(&ACQ_mail);
 		/* XXX: this is done via a BoundAsynchronousEventHandler (in JOPRT: SwEvent)
 		   mechanism */
@@ -233,7 +234,7 @@ public class AcquisitionTask {
 		{
 			state = sensorUnitState[trigger_unit - SensorUnitDev.SU_1];
 
-			if ((state == SenorUnitState.self_test_e || state == SenorUnitState.acquisition_e) 
+			if ((state == SensorUnitState.self_test_e || state == SensorUnitState.acquisition_e) 
 					&& (Dpu.getEventFlag() == Dpu.ACCEPT_EVENT))
 			{
 				// XXX: should this really be a static method of telemetry?

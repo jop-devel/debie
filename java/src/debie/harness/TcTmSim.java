@@ -63,6 +63,19 @@ public class TcTmSim implements TcTmDev {
 
 		tc_word = (char)((tc_msb << 8) | tc_lsb);
 	}
+	
+	public void setTcRegsWord (/* uint_least16_t */ int word)
+	/* Invokes TC_InterruptService with the given TC word,
+	 * exactly as given.
+	 */
+	{
+		/* Set the high and low TC bytes: */
+		 
+		tc_msb = (word >> 8) & 0xff;
+		tc_lsb =  word       & 0xff;
+
+		tc_word = (char)((tc_msb << 8) | tc_lsb);
+	}
 
 	static /* unsigned char */ int tc_timer_overflow = 1;
 	/* Simulated overflow flag on the TC timer. */
