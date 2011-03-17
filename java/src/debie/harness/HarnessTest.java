@@ -127,6 +127,42 @@ public abstract class HarnessTest extends TestSuite {
 		return sum;
 	}
 	
+	/**
+	 * Sends the multi-word TC to patch data memory at the given address,
+	 * with some arbitary contents. Returns the checksum of the patch,
+	 * for use in the final word of the TC, which is not sent here.
+	 */
+	public int sendPatchData(int address) {
+		int sum;
+		
+		/* Send the patch address: */
+
+		execTC(WRITE_DATA_MEMORY_MSB, (address >> 8) & 0xff, Prob4b); 
+
+		sum = (system.tctmSim.tc_word >> 8) ^ (system.tctmSim.tc_word & 0xff);
+
+		checkNoErrors();
+		checkTcState(TC_State.write_memory_e);
+
+		execTC(WRITE_DATA_MEMORY_LSB, address & 0xff, Prob4c);
+
+		sum ^= (system.tctmSim.tc_word >> 8) ^ (system.tctmSim.tc_word & 0xff);
+
+		checkNoErrors();
+		checkTcState(TC_State.memory_patch_e);
+
+		/* Send the patch contents, 16 words = 32 octets: */
+
+		for (int i = 0; i < 16; i++) {
+			sendTCWord (i << 6);
+			sum ^= (system.tctmSim.tc_word >> 8) ^ (system.tctmSim.tc_word & 0xff);
+			handleTC (Prob4d);
+		}
+
+		/* The last word remains to be sent. */
+		return sum;
+	}
+	
 	protected void clearErrors ()
 	/* Executes the ERROR_STATUS_CLEAR TC. */
 	{

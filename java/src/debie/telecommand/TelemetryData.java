@@ -96,6 +96,10 @@ public class TelemetryData implements TelemetryObject {
 		return mode_status & MODE_BITS_MASK;
 	}
 	
+	public int getModeBits() {
+		return mode_status;
+	}
+
 	public void clearModeBits(int mask) {
 		mode_status &= ~mask;
 	}
@@ -304,6 +308,5 @@ public class TelemetryData implements TelemetryObject {
 
 	public void resetTCWord() {
 		TC_word = 0;
-	}
-	
+	}	
 }

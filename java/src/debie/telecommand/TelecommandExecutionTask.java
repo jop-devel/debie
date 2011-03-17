@@ -397,7 +397,7 @@ public class TelecommandExecutionTask {
 			if (TC_state != TC_State.TC_handling_e)
 			{
 				/* Memory R/W time-out. */
-				// Set_TC_Error();
+				setTCError();
 			}
 
 			TC_state = TC_State.TC_handling_e; 
