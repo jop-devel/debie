@@ -373,7 +373,7 @@ public class AcquisitionTest extends HarnessTest {
 
 	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
 
-	   system.acqTask.handelHitTrigger();
+	   system.acqTask.handleHitTrigger();
 	   
 	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
 

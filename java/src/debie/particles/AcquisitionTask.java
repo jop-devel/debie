@@ -172,7 +172,7 @@ public class AcquisitionTask {
 	}
 	
 	// FIXME: stub
-	public void handelHitTrigger() {
+	public void handleHitTrigger() {
 		// TODO Auto-generated method stub
 		
 	}

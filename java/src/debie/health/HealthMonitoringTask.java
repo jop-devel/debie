@@ -2,6 +2,7 @@ package debie.health;
 
 import debie.Version;
 import debie.harness.HarnessSystem;
+import debie.particles.AcquisitionTask;
 import debie.particles.EventClassifier;
 import debie.particles.SensorUnit;
 import debie.support.Dpu;
@@ -297,15 +298,8 @@ public class HealthMonitoringTask implements Runnable {
 
 			internal_time = new Dpu.Time();
 
-// TODO: port
-//		      fill_pointer = (EXTERNAL unsigned char * DIRECT_INTERNAL)&telemetry_data;
-//
-//		      for (i=0; i < sizeof(telemetry_data); i++)
-//		      {
-//		         *fill_pointer = 0;
-//		         fill_pointer++;
-//		      }
-
+			TelecommandExecutionTask.getTelemetryData().clearAll();
+			
 			TelecommandExecutionTask.resetEventQueueLength();
 			/* Empty event queue. */
 
@@ -318,8 +312,7 @@ public class HealthMonitoringTask implements Runnable {
 			/* Initializes thresholds, classification levels and */
 			/* min/max times related to classification.          */
 
-// TODO: port
-// 			Clear_RTX_Errors();
+			TelecommandExecutionTask.getTelemetryData().clearRTXErrors();
 			/* RTX error indicating registers are initialized. */
 
 		} else if (reset_class == ResetClass.watchdog_reset_e) {
@@ -342,17 +335,15 @@ public class HealthMonitoringTask implements Runnable {
 		 			
 		   TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 		 
-// TODO: port
-//		      ClearErrorStatus();  
-//		      Clear_SU_Error();
-//		      Clear_RTX_Errors();
-//		      ClearSoftwareError();
+		   tmData.clearErrorStatus();
+		   tmData.clearSUError();
+           tmData.clearRTXErrors();
+           tmData.clearSoftwareError();
 		   
 		   tmData.clearModeBits(~MODE_BITS_MASK);
 		   tmData.resetWatchdogFailures();
 		   tmData.resetChecksumFailures();
-		   tmData.resetTCWord();
-		   
+		   tmData.resetTCWord();	   
 		   /* Clear error status bits, error status counters */
 		   /* and Command Status register.                   */
 
@@ -368,8 +359,7 @@ public class HealthMonitoringTask implements Runnable {
 		   /* Initializes thresholds, classification levels and */
 		   /* min/max times related to classification.          */
 
-// TODO: port
-//		   self_test_SU_number = NO_SU;
+		   AcquisitionTask.self_test_SU_number = NO_SU;
 		   /* Self test SU number indicating parameter */
 		   /* is set to its default value.             */                       
 	   }
@@ -385,14 +375,13 @@ public class HealthMonitoringTask implements Runnable {
 		HwIf.signalMemoryErrors();
 		/* Copy results of RAM tests to telemetry_data. */
 
-// TODO: port
-//		   SetTestPulseLevel(DEFAULT_TEST_PULSE_LEVEL);
-//		   /* Initializes test pulse level. */
-//
-//		   Set_SU_TriggerLevels (SU_1, &telemetry_data.sensor_unit_1);
-//		   Set_SU_TriggerLevels (SU_2, &telemetry_data.sensor_unit_2);
-//		   Set_SU_TriggerLevels (SU_3, &telemetry_data.sensor_unit_3);
-//		   Set_SU_TriggerLevels (SU_4, &telemetry_data.sensor_unit_4);	
+		system.suSim.setTestPulseLevel(DEFAULT_TEST_PULSE_LEVEL);
+		/* Initializes test pulse level. */
+
+		system.suSim.setSUTriggerLevels(SU_1, tmData.getSensorUnit1());
+		system.suSim.setSUTriggerLevels(SU_2, tmData.getSensorUnit2());
+		system.suSim.setSUTriggerLevels(SU_3, tmData.getSensorUnit3());
+		system.suSim.setSUTriggerLevels(SU_4, tmData.getSensorUnit4());
 	}
 	
 	

@@ -189,19 +189,17 @@ public class SensorUnitSim extends SensorUnitDev {
 //	   printf ("Set SU Self-Test Channel %x\n", value);
 //	#endif
 //	}
-//
-//
-//	void Set_Test_Pulse_Level (unsigned char level)
-//	/* Set the SU Self Test pulse level. */
-//	{
-//	#if defined(TRACE_HARNESS)
-//	   printf ("Set SU Self-Test Pulse Level %d\n", level);
-//	#endif
-//	   self_test_pulse = level;
-//	   Sim_Self_Test_Trigger ();
-//	}
-//
-//
+
+
+	/** Set the SU Self Test pulse level. */
+	public void setTestPulseLevel(int level) {
+		if (Harness.TRACE) Harness.trace(String.format("Set SU Self-Test Pulse Level %d", level));
+
+		self_test_pulse = level;
+		simSelfTestTrigger();
+	}
+
+
 //	static unsigned int v_down_errors = 0;
 //	/* The number of consecutive error results to
 //	 * be returned from the next calls of V_Down.

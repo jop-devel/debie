@@ -20,7 +20,7 @@ public class HarnessSystem {
 	HarnessMailbox tctmMailbox;
 
 	public AdcSim adcSim;
-	SensorUnitSim suSim;
+	public SensorUnitSim suSim;
 	TcTmSim tctmSim;
 	
 	public HarnessSystem() {

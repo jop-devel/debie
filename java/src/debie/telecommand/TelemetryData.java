@@ -78,7 +78,7 @@ public class TelemetryData implements TelemetryObject {
 
 	public void setErrorStatus(byte val) {
 		error_status = val;
-	}
+	}	
 
 	public void setISRSendMessageError(byte val) {
 		isr_send_message_error = val;
@@ -103,6 +103,146 @@ public class TelemetryData implements TelemetryObject {
 	public void setModeBits(int mask) {
 		mode_status |= mask;
 	}
+	
+	/**
+	 * Purpose        : This function will be called always when all
+	 *                  error bits in the mode status register are cleared.
+	 * Interface      : inputs      - mode status register
+	 *                  outputs     - mode status register
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      : - Disable interrupts
+	 *                  - Write to Mode Status register
+	 *                  - Enable interrupts
+	 */
+	void clearModeStatusError()	{
+//	   DISABLE_INTERRUPT_MASTER;
+
+		mode_status &= MODE_BITS_MASK;
+		/* Error bits in the mode status register are cleared. */
+
+//	   ENABLE_INTERRUPT_MASTER;
+	}
+
+	
+	public void clearAll() {
+		error_status = 0;
+		mode_status = 0;
+		TC_word = 0;
+		TC_time_tag = 0;
+		watchdog_failures = 0;
+		checksum_failures = 0;
+		SW_version = 0;
+		isr_send_message_error = 0;
+		for (int i = 0; i < NUM_SU; i++) {
+			SU_status[i] = 0;
+		}
+		for (int i = 0; i < NUM_SU; i++) {
+			SU_temperature[i] = 0;
+		}
+		DPU_plus_5_digital = 0;
+		os_send_message_error = 0;
+		os_create_task_error = 0;
+		SU_plus_50 = 0;
+		SU_minus_50 = 0;
+		os_disable_isr_error = 0;
+		not_used_1 = 0;
+		sensor_unit_1.clearAll();
+		os_wait_error = 0;
+		sensor_unit_2.clearAll();
+		os_attach_interrupt_error = 0;
+		sensor_unit_3.clearAll();
+		os_enable_isr_error = 0;
+		sensor_unit_4.clearAll();
+		failed_code_address = 0;
+		failed_data_address = 0;		
+		for (int i = 0; i < NUM_SU; i++) {
+			SU_hits[i] = 0;
+		}
+		time = 0;
+		software_error = 0;
+		hit_budget_exceedings = 0;
+		for (int i = 0; i < NUM_QCOEFF; i++) {
+			coefficient[i] = 0;
+		}
+		// not_used = 0;
+	}
+	
+	/**
+	 * Purpose        : Clears RTX error registers in telemetry
+	 * Interface      : input   -
+	 *                  output  - telemetry_data, rtx error registers
+	 * Preconditions  : none
+	 * Postconditions : RTX error registers are cleared.
+	 * Algorithm      : See below, self explanatory. 
+	 */ 
+	public void clearRTXErrors() {
+	   isr_send_message_error    = (byte)0xFF;
+	   os_send_message_error     = (byte)0xFF;
+	   os_create_task_error      = (byte)0xFF;
+	   os_wait_error             = (byte)0xFF;
+	   os_attach_interrupt_error = (byte)0xFF;
+	   os_enable_isr_error       = (byte)0xFF; 
+	   os_disable_isr_error      = (byte)0xFF;
+	}
+
+	/**
+	 * Purpose        : This function will be called always when all
+	 *                  error bits in the SU# status register are cleared.
+	 * Interface      : inputs      - SU# status register
+	 *                  outputs     - SU# status register
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      : - Disable interrupts
+	 *                  - Write to Mode Status register
+	 *                  - Enable interrupts
+	 */
+	public void clearSUError() {
+//	   DISABLE_INTERRUPT_MASTER;
+	   for (int i = 0; i < NUM_SU; i++)
+	   {
+	      SU_status[i] &= SUPPLY_VOLTAGE_MASK;
+	      /* Error bits in the SU# status register are cleared. */
+	   }
+
+//	   ENABLE_INTERRUPT_MASTER;
+	}
+	
+	/**
+	 * Purpose        : This function will be called always when
+	 *                  error bits in the error status register are cleared.
+	 * Interface      : inputs      - error status register
+	 *                  outputs     - error status register
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      :
+	 *                  - Write to error status register
+	 */
+	public void clearErrorStatus() {
+		setErrorStatus((byte)0);
+	    /* Error bits in the error status register are      */
+	    /* cleared.			                  */
+	}
+	
+	/**
+	 * Purpose        : This function will be called always when all
+	 *                  bits in the software error status
+	 *                  register are cleared.
+	 * Interface      : inputs      - software error status register
+	 *                  outputs     - software error status register
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      :
+	 *                  - Write to SoftwareErrorStatuRegister
+	 */
+	public void clearSoftwareError() {
+		software_error = 0;
+	}
+
 	
 	/* getter/setter for coefficient array */
 	public void initCoefficients() {

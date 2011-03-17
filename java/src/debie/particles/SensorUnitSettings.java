@@ -47,4 +47,22 @@ public class SensorUnitSettings {
 		plasma_1_minus_to_piezo_min_time = DEFAULT_MIN_TIME;
 		plasma_1_minus_to_piezo_max_time = DEFAULT_MAX_TIME;
 	}
+
+	public void clearAll() {
+		plus_5_voltage                = 0;
+		minus_5_voltage               = 0;
+		plasma_1_plus_threshold       = 0;
+		plasma_1_minus_threshold      = 0;
+		piezo_threshold               = 0;
+		plasma_1_plus_classification  = 0;
+		plasma_1_minus_classification = 0;
+		piezo_1_classification        = 0;
+		piezo_2_classification        = 0;
+		plasma_2_plus_classification  = 0;
+		plasma_1_plus_to_minus_max_time  = 0;
+		plasma_1_plus_to_piezo_min_time  = 0;
+		plasma_1_plus_to_piezo_max_time  = 0;
+		plasma_1_minus_to_piezo_min_time = 0;
+		plasma_1_minus_to_piezo_max_time = 0;		
+	}
 }

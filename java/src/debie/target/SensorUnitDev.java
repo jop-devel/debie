@@ -1,9 +1,11 @@
 package debie.target;
 
 import debie.particles.SensorUnit;
+import debie.particles.SensorUnitSettings;
+import debie.support.Dpu;
 import debie.telecommand.TelecommandExecutionTask;
 
-public class SensorUnitDev {
+public abstract class SensorUnitDev {
 
 	public static enum SensorUnitTestLevel {high_e, low_e};
 
@@ -14,7 +16,7 @@ public class SensorUnitDev {
 
 	public static class TriggerSet {
 		public int /* sensor_number_t */ sensor_unit;
-		public int /* channel_t */    channel;
+		public int /* channel_t */       channel;
 		public int /* unsigned char */   level;
 		public int /* unsigned char */   execution_result;
 		public int /* unsigned int */    base;		
@@ -270,6 +272,128 @@ public class SensorUnitDev {
 		// NOTE: Moved telemetry_data status update to the only call site 'Start_SU_SwitchingOff' 
 	}
 
+	/**
+	 * Purpose        :  Given trigger level is set.
+	 * Interface      :  Execution result is stored in a variable.
+	 * Preconditions  :  SU_Number should be 1-4 and channel number 1-5 levels
+	 * Postconditions :  Given level is set for specific unit and channel.
+	 * Algorithm      :  The respective memory address is written into.
+	 *
+	 * This function is used by TelecomandExecutionTask and
+	 * HealthMonitoringTask. despite the fact that it is of type re-enrant 
+	 * the two tasks should not use it simultaniously. When
+	 * HealthMonitoringTask is conducting self test and uses
+	 * SetTriggerLevel, TelecomandExecutionTask is able to interrupt and
+	 * possibly set another trigger levels which would foul up the self
+	 * test. On the other hand when TelecomandExecutionTask is setting
+	 * trigger levels HealthMonitoringTask is disabled due to its lower
+	 * priority.
+	 */
+	public void setTriggerLevel(TriggerSet setting) {
+
+		setting.execution_result = TRIGGER_SET_OK;
+
+		switch (setting.sensor_unit)
+		/*sensor unit is selected*/
+		{
+		case SU_1:
+		{
+			setting.base = SU_1_TRIGGER_BASE;
+			break;
+		}
+		case SU_2:
+		{
+			setting.base = SU_2_TRIGGER_BASE;
+			break;
+		}
+		case SU_3:
+		{
+			setting.base = SU_3_TRIGGER_BASE;
+			break;
+		}
+		case SU_4:
+		{
+			setting.base = SU_4_TRIGGER_BASE;
+			break;
+		}
+		default:
+		{
+			setting.execution_result = SU_NOT_SELECTED;
+			/*Sensor Unit number is invalid.                                    */
+			break;
+		}
+		}
+
+		if (setting.execution_result != SU_NOT_SELECTED)
+		{
+			switch (setting.channel)
+			/*channel is selected*/
+			{
+			case PLASMA_1_PLUS:
+			{
+				Dpu.setDataByte(setting.base + 0, (byte)setting.level);
+				break;
+			}
+			case PLASMA_1_MINUS:
+			{
+				Dpu.setDataByte(setting.base + 1, (byte)setting.level);
+				break;
+			}
+			case PZT_1_2:
+			{
+				Dpu.setDataByte(setting.base + 2, (byte)setting.level);
+				break;
+			}
+			default:
+			{
+				setting.execution_result = CHANNEL_NOT_SELECTED;
+				/*Given channel parameter is invalid.                            */
+				break;
+			}
+			} 
+		}
+	}
+	
+	/**
+	 * Purpose        : Set all trigger-levels of one SU.
+	 * Interface      : inputs      - SU number in 'sensor_unit'.
+	 *                              - Triggering levels in 'settings'.
+	 *                  outputs     - Hardware trigger levels.
+	 *                  subroutines - SetTriggerLevel
+	 * Preconditions  : none
+	 * Postconditions : none 
+	 * Algorithm      : - set trigger level for Plasma 1+
+	 *                  - set trigger level for Plasma 1-
+	 *                  - set trigger level for Piezos.
+	 */
+	public void setSUTriggerLevels (int sensor_unit, SensorUnitSettings settings) {   
+		TriggerSet trigger = new TriggerSet();
+		/* Holds parameters for SetTriggerLevel. */
+
+		trigger.sensor_unit = sensor_unit;
+			 
+		trigger.level   = settings.plasma_1_plus_threshold;
+		trigger.channel = PLASMA_1_PLUS;
+		setTriggerLevel(trigger);
+			 
+		trigger.level   = settings.plasma_1_minus_threshold;
+		trigger.channel = PLASMA_1_MINUS;
+		setTriggerLevel(trigger);
+			 
+		trigger.level   = settings.piezo_threshold;
+		trigger.channel = PZT_1_2;
+		setTriggerLevel(trigger);
+	}
+	
+	/**
+	 * Purpose        :  Testpulse level is set.
+	 * Interface      :  input:  - Desired test pulse level.
+	 * Preconditions  :  none.
+	 * Postconditions :  Level is set.
+	 * Algorithm      :  Level is written into memory-mapped port address.
+	 */
+	public abstract void setTestPulseLevel(int level);
+	
 	//
 	//	/* Sensor Unit calibration */
 	//

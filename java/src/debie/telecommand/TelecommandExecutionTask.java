@@ -609,12 +609,11 @@ public class TelecommandExecutionTask {
 
 		case TcAddress.ERROR_STATUS_CLEAR:
 
-			// FIXME: implement
-			//	         ClearErrorStatus();
-			//	         Clear_RTX_Errors();
-			//	         ClearSoftwareError();
-			//	         ClearModeStatusError();
-			//	         Clear_SU_Error();
+			telemetry_data.clearErrorStatus();
+			telemetry_data.clearRTXErrors();
+			telemetry_data.clearSoftwareError();
+			telemetry_data.clearModeStatusError();
+			telemetry_data.clearSUError();
 
 			/* Clear Error Status register, RTX and software error indicating bits  */
 			/* and Mode and SU Status registers.                                    */
