@@ -122,7 +122,7 @@ public class AdcSim implements AdConverter {
 	public void setAD_Nominal ()
 	/* Sets A/D limits to ensure nominal (in-range) readings. */
 	{
-		if(Harness.TRACE) Harness.trace("Set AD Nominal\n");
+		if(Harness.TRACE) Harness.trace("[AdcSim] Set AD Nominal");
 
 	  /* SU +5V supply: */
 

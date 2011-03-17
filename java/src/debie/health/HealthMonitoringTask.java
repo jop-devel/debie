@@ -528,7 +528,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *   
 	 * {@see debie1-c, health#HandleHealthMonitoring}
 	 */
-	private void handleHealthMonitor() {
+	public void handleHealthMonitor() {
 		TelecommandExecutionTask.updateSensorUnitState(0);
 		TelecommandExecutionTask.updateSensorUnitState(1);
 		TelecommandExecutionTask.updateSensorUnitState(2);

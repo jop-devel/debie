@@ -2364,7 +2364,7 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//		}       
 
 
-	public static void updateSensorUnitState(int sensorUnitIndex)
+	public static void updateSensorUnitState(int idx)
 	/*		void Update_SU_State(sensor_index_t SU_index) COMPACT_DATA REENTRANT_FUNC */
 	/* Purpose        : Sensor unit state is updated.                            */
 	/* Interface      : inputs      - SU_state                                   */
@@ -2379,28 +2379,29 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	/*                    the present one.                                       */
 	/*                  - Enable interrups                                       */
 	{
-		//		   DISABLE_INTERRUPT_MASTER;
-		//
-		//		   if (SU_state[SU_index] == start_switching_e)
-		//		   {
-		//		      SU_state[SU_index] = switching_e;
-		//		   }
-		//
-		//		   else if (SU_state[SU_index] == switching_e)
-		//		   {
-		//		      ResetPeakDetector(SU_index + SU_1);
-		//		      /*Peak detector for this Sensor Unit is resetted. */       
-		//		 
-		//		      WaitTimeout(PEAK_RESET_MIN_DELAY);
-		//		 
-		//		      ResetPeakDetector(SU_index + SU_1);
-		//		      /*Peak detector for this Sensor Unit is resetted again. */   
-		//
-		//		      SU_state[SU_index] = on_e;
-		//		   }
-		//
-		//		   ENABLE_INTERRUPT_MASTER;
+		// TODO: add synchronization
+		//	   DISABLE_INTERRUPT_MASTER;
 
+		if (AcquisitionTask.sensorUnitState[idx] == SensorUnitState.start_switching_e)
+		{
+			AcquisitionTask.sensorUnitState[idx] = SensorUnitState.switching_e;
+		}
+
+		else if (AcquisitionTask.sensorUnitState[idx] == SensorUnitState.switching_e)
+		{
+			// TODO
+			HwIf.resetPeakDetector(idx + SensorUnitDev.SU_1);
+			/*Peak detector for this Sensor Unit is resetted. */       
+
+			TaskControl.waitTimeout(AcquisitionTask.PEAK_RESET_MIN_DELAY);
+
+			HwIf.resetPeakDetector(idx + SensorUnitDev.SU_1);
+			/*Peak detector for this Sensor Unit is resetted again. */   
+
+			AcquisitionTask.sensorUnitState[idx] = SensorUnitState.on_e;
+		}
+		
+		//		   ENABLE_INTERRUPT_MASTER;
 	}
 
 

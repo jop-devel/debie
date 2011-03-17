@@ -17,6 +17,8 @@ public abstract class HarnessTest extends TestSuite {
 	protected AcquisitionTask acqTask;
 	protected TelecommandExecutionTask tctmTask;
 	protected HealthMonitoringTask hmTask;
+	private int start_conversion_count;
+	private int end_of_adc_count;
 
 	public HarnessTest(HarnessSystem sys, TestLogger td) {
 		super(td);
@@ -145,17 +147,47 @@ public abstract class HarnessTest extends TestSuite {
 	}
 		
 	/*--- Common Tests ---*/
-	void monitorHealth (int problem)
+	
+	protected void monitorHealth (int problem)
 	/* Executes HandleHealthMonitoring for a particular analysis problem. */
 	{
-//	   start_conversion_count = 0;
-//	   end_of_adc_count       = 0;
-//
-//	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
-//	   handleHealthMonitoring();
-//	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
-//
-//	   Report_Start_Conversion_Count (problem);
-//	   Report_End_Of_ADC_Count       (problem);
+	   start_conversion_count = 0;
+	   end_of_adc_count       = 0;
+
+	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
+	   system.hmTask.handleHealthMonitor();
+	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
+
+	   reportStartConversionCount (problem);
+	   reportEndOfADCCount        (problem);
 	}
+
+	protected void reportStartConversionCount (int problem)
+	/* Reports and then clears the count of Start_Conversion calls.
+	 * The problem parameter associates this count with a given
+	 * analysis problem for this benchmark.
+	 */
+	{
+		if(Harness.TRACE) {
+			Harness.trace(String.format("[HarnessTest] Called Start_Conversion %d times in problem %d.",
+				      start_conversion_count, problem));
+		}
+
+	   start_conversion_count = 0;
+	}
+	
+	void reportEndOfADCCount (int problem)
+	/* Reports and then clears the count of End_Of_ADC calls.
+	 * The problem parameter associates this count with a given
+	 * analysis problem for this benchmark.
+	 */
+	{
+		if(Harness.TRACE) {
+			Harness.trace(String.format("[HarnessTest] Called End_Of_ADC %d times in problem %d.",
+				      end_of_adc_count, problem));
+		}
+		end_of_adc_count = 0;
+	}
+
+
 }
