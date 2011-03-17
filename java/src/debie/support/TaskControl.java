@@ -29,7 +29,7 @@ public class TaskControl {
 
 	/* Function prototypes */
 
-	int shortDelay (/* uint_least8_t */ int delay_loops) {
+	public static int shortDelay (/* uint_least8_t */ int delay_loops) {
 		// TODO Auto-generated method stub		
 		return 0;
 	}
@@ -43,6 +43,12 @@ public class TaskControl {
 	public static void waitTimeout(int delay) {
 		// TODO Auto-generated method stub		
 	}
+	
+	public static void waitInterrupt(byte isrVectorNumber, int timer) {
+		// TODO Auto-generated method stub
+		
+	}
+
 
 	// extern void SetTimeSlice(unsigned int time_slice);
 
@@ -71,4 +77,5 @@ public class TaskControl {
 			tctmMailbox = box;
 		}		
 	}
+
 }

@@ -237,7 +237,7 @@ public class AcquisitionTest extends HarnessTest {
 		int iterations = 0;
 		while (system.tctmMailbox.getMailCount() == 0)
 		{
-			if(iterations++ >= 64) {
+			if(iterations++ >= 4096) {
 				failCheck("Too many iterations int testHitsDuringTm");
 				break;
 			}

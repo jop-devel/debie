@@ -91,14 +91,14 @@ public class SensorUnitSim extends SensorUnitDev {
 	}
 
 
-	void enableHitTrigger  () /* Enable_Hit_Trigger */
+	public void enableHitTrigger  () /* Enable_Hit_Trigger */
 	{
 		if(Harness.TRACE) Harness.trace("Enable_Hit_Trigger\n");
  	    hit_enabled = 1;
 	    simSelfTestTrigger ();
 	}
 
-	void disableHitTrigger () /* Disable_Hit_Trigger  */
+	public void disableHitTrigger () /* Disable_Hit_Trigger  */
 	{
 		if(Harness.TRACE) Harness.trace("Disable_Hit_Trigger\n");
  	    hit_enabled = 0;

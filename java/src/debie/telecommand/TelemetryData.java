@@ -48,7 +48,7 @@ public class TelemetryData implements TelemetryObject {
 	/* tm_dpu_time_t */ int         time;                              /* reg 106 - 109 */
 
 	/* unsigned char */ byte        software_error;                    /* reg 110       */
-	/* unsigned char */ byte        hit_budget_exceedings;             /* reg 111       */
+	/* unsigned char */ public byte        hit_budget_exceedings;             /* reg 111       */
 	/* unsigned char */ byte[]      coefficient = new byte[NUM_QCOEFF];/* reg 112 - 116 */
 //	/* unsigned char */ byte        not_used;                          /* reg 117       */
 

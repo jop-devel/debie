@@ -1,5 +1,6 @@
 package debie.target;
 
+import debie.harness.Harness;
 import debie.particles.SensorUnit;
 import debie.particles.SensorUnitSettings;
 import debie.support.Dpu;
@@ -394,6 +395,10 @@ public abstract class SensorUnitDev {
 	 */
 	public abstract void setTestPulseLevel(int level);
 	
+	public abstract void enableHitTrigger  ();
+
+	public abstract void disableHitTrigger ();
+
 	//
 	//	/* Sensor Unit calibration */
 	//
