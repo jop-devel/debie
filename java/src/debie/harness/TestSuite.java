@@ -38,7 +38,7 @@ public abstract class TestSuite {
 			failCheck("assertEquals: " + msg);
 		}
 	}
-
+	
 	protected void checkZero(int cond) 
 	/* Checks that cond == 0. */
 	{
@@ -58,6 +58,18 @@ public abstract class TestSuite {
 		{
 			failCheck ("Check_Nonzero");
 		}
+	}
+
+	protected void checkTrue (boolean cond)
+	/* Checks that cond == true. */
+	{
+		checkNonZero(cond ? 1 : 0);
+	}
+
+	protected void checkFalse (boolean cond)
+	/* Checks that cond == false. */
+	{
+		checkZero(cond ? 1 : 0);
 	}
 
 	protected void failCheck (String message)

@@ -29,13 +29,13 @@ public class TcTmSim implements TcTmDev {
 
 	@Override
 	public void writeTmLsb(int value) {
-		if(Harness.TRACE) Harness.trace(String.format("[TcTmSim] Write_TM_LSB %d = 0x%x", value, value));			
+		if(Harness.TRACE) Harness.trace(String.format("[TcTmSim] Write_TM_LSB %d = 0x%x", value & 0xff, value & 0xff));			
 		tm_lsb = value;
 	}
 
 	@Override
 	public void writeTmMsb(int value) {
-		if(Harness.TRACE) Harness.trace(String.format("[TcTmSim] Write_TM_MSB %d = 0x%x", value, value));			
+		if(Harness.TRACE) Harness.trace(String.format("[TcTmSim] Write_TM_MSB %d = 0x%x", value & 0xff, value & 0xff));			
 		tm_msb = value;
 	}
 

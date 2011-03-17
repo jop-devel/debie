@@ -286,6 +286,14 @@ public class TelemetryData implements TelemetryObject {
 		SW_version = version;
 	}
 
+	public int getWatchdogFailures() {
+		return watchdog_failures;
+	}	
+
+	public void setWatchdogFailures(int value) {
+		watchdog_failures = value;
+	}	
+
 	public void incrementWatchdogFailures() {
 		if (watchdog_failures < 255) {
 			watchdog_failures++;
@@ -295,6 +303,14 @@ public class TelemetryData implements TelemetryObject {
 	public void resetWatchdogFailures() {
 		watchdog_failures = 0;
 	}
+
+	public int getChecksumFailures() {
+		return checksum_failures;
+	}	
+
+	public void setChecksumFailures(int value) {
+		checksum_failures = value;
+	}	
 
 	public void incrementChecksumFailures() {
 		if (checksum_failures < 255) {
@@ -308,5 +324,5 @@ public class TelemetryData implements TelemetryObject {
 
 	public void resetTCWord() {
 		TC_word = 0;
-	}	
+	}
 }

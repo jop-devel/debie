@@ -3,6 +3,7 @@ package debie.harness;
 import static debie.harness.Harness.*;
 import debie.target.TcTmDev;
 import debie.telecommand.TelecommandExecutionTask;
+import debie.telecommand.TelemetryData;
 import debie.telecommand.TelecommandExecutionTask.TC_State;
 import static debie.telecommand.TcAddress.*;
 import static debie.telecommand.TelecommandExecutionTask.MEMORY_WRITE_ERROR;
@@ -34,12 +35,35 @@ public class TelecommandTaskTest extends HarnessTest {
 		testPatchDataChecksumError();
 		testPatchDataTimeoutA();
 		testPatchDataTimeoutB();
+		testReadData();
+		testReadDataAddressError();
+		testReadDataSeqErrorFirst();
+		testReadDataSeqErrorSecond();
+		testClearWatchdogFailures();
+		testClearChecksumFailures();
+		testSetDebieTime();
+		testSetDebieTimeSeqErrorAt2();
+		testSetDebieTimeSeqErrorAt1();
+		testSetDebieTimeSeqErrorAt0();
+		testSoftReset();
+		testAcquisitionInStandBy();
 		
 		if(Harness.TRACE) {
 			Harness.trace("[TelecommandTaskTest] Finished");
 			Harness.trace("[TelecommandTaskTest] Checks: "+this.getChecks());
 			Harness.trace("[TelecommandTaskTest] Failures: "+this.getCheckErrors());
-		}  		
+		}
+		
+		/* Telecommands tested elsewhere:
+
+		   ERROR_STATUS_CLEAR        See TC_ISR_Tests, TM_Tests, others.
+		   SEND_STATUS_REGISTER      See TM_Tests.
+		   SEND_SCIENCE_DATA_FILE    See TM_Tests, Acquisition_Tests.
+		   START_ACQUISITION         See Acquisition_Tests.
+		   STOP_ACQUISITION          See Acquisition_Tests.
+		   SWITCH_SU_1/2/3/4         See Acquisition_Tests, SU_Self_Test_Tests.
+		   TM_READY message          See TM_Tests.
+		 */
 	}
 
 	private void testErrorStatusClear() {
@@ -177,17 +201,17 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		chsum ^= 0x5A;   /* Call patch function. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x5A00 | chsum);
 	    handleTC (Prob4a);
 
-	    checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+	    checkNoWriteError();
 
 	    checkNoErrors();
 	    checkTcState(TC_State.TC_handling_e);
 	}
-	
+
 	private void testPatchCodeNoAction() {
 		testcase("TC to patch code memory, no action");
 		
@@ -197,12 +221,12 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		chsum ^= 0x00;   /* No action. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x0000 | chsum);
 	    handleTC (Prob4a);
 
-	    checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+	    checkNoWriteError();
 
 	    checkNoErrors();
 	    checkTcState(TC_State.TC_handling_e);
@@ -217,12 +241,12 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		chsum ^= 0x09;   /* Soft Reset. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x0900 | chsum);
 	    handleTC (Prob4a);
 
-	    checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+	    checkNoWriteError();
 
 	    checkNoErrors();
 	    checkTcState(TC_State.TC_handling_e);
@@ -237,12 +261,12 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		chsum ^= 0x37;   /* Warm Reset. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x3700 | chsum);
 	    handleTC (Prob4a);
 
-	    checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+	    checkNoWriteError();
 
 	    checkNoErrors();
 	    checkTcState(TC_State.TC_handling_e);
@@ -257,14 +281,14 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		chsum ^= 0x62;   /* Invalid. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x6200 | chsum);
 	    handleTC (Prob4a);
 
-	    checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
+	    checkTcError();
 	    
-	    checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+	    checkNoWriteError();
 	    
 	    clearErrors();
 	}
@@ -278,14 +302,14 @@ public class TelecommandTaskTest extends HarnessTest {
 
 		chsum ^= 0x00;   /* No action. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x0000 | chsum);
 		handleTC (Prob4a);
 
-		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
+		checkTcError();
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		clearErrors();
 	}
@@ -300,25 +324,25 @@ public class TelecommandTaskTest extends HarnessTest {
 		chsum ^= 0x5A;   /* Correct checksum. */
 		chsum ^= 0xff;   /* Wrong   checksum. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x5A00 | chsum);
 		handleTC (Prob4a);
 
-		checkNonZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkWriteError();
 	    checkTcState(TC_State.TC_handling_e);
 
 		clearErrors();
 	}
-	
+
 	private void testPatchCodeSeqErrorFirst() {
 		testcase("TC to patch code, TC sequence error at first word");
 
 		execTC(WRITE_CODE_MEMORY_LSB, 0x32, Prob4a);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);		
+		checkTcError();		
 		
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		clearErrors();
 	}
@@ -333,9 +357,9 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		execTC(CLEAR_WATCHDOG_FAILURES, CLEAR_WATCHDOG_FAILURES, Prob4a);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);		
+		checkTcError();		
 		
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		clearErrors();
 	}
@@ -349,12 +373,12 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		chsum ^= 0x11;   /* Irrelevant for data patch. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 	
 		sendTCWord(0x1100 | chsum);
 		handleTC(Prob4a);
 		
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		checkNoErrors();
 	    checkTcState(TC_State.TC_handling_e);		
@@ -369,13 +393,13 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		chsum ^= 0x11;   /* Irrelevant for data patch. */
 		
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 		
 		sendTCWord(0x1100 | chsum);
 		handleTC(Prob4a);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);		
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkTcError();		
+		checkNoWriteError();
 		
 		clearErrors();
 	}
@@ -385,9 +409,9 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		execTC(WRITE_DATA_MEMORY_LSB, 0x32, Prob4a);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
+		checkTcError();
 		
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 		
 		clearErrors();
 	}
@@ -402,9 +426,9 @@ public class TelecommandTaskTest extends HarnessTest {
 		
 		execTC(CLEAR_WATCHDOG_FAILURES, CLEAR_WATCHDOG_FAILURES, Prob4a);
 		
-		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);		
+		checkTcError();		
 		
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		clearErrors();
 	}
@@ -419,12 +443,12 @@ public class TelecommandTaskTest extends HarnessTest {
 		chsum ^= 0x11;   /* Correct checksum. */
 		chsum ^= 0xff;   /* Wrong   checksum. */
 
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		sendTCWord(0x1100 | chsum);
 		handleTC (Prob4a);
 
-		checkNonZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkWriteError();
 	    checkTcState(TC_State.TC_handling_e);
 
 		clearErrors();
@@ -440,7 +464,7 @@ public class TelecommandTaskTest extends HarnessTest {
 		chsum ^= 0x11;   /* Irrelevant for data patch. */
 		
 		checkTcState(TC_State.memory_patch_e);
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNoWriteError();
 
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);
 		
@@ -451,7 +475,7 @@ public class TelecommandTaskTest extends HarnessTest {
 		if(Harness.INSTRUMENTATION) Harness.endProblem(Prob4a);
 		
 	    checkTcState(TC_State.TC_handling_e);
-		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);		
+		checkTcError();		
 
 		clearErrors();
 	}
@@ -471,6 +495,188 @@ public class TelecommandTaskTest extends HarnessTest {
 	    checkNoErrors();
 	}
 	
+	private void testReadData() {
+		testcase("TC to read data memory");
+		
+		readDataMemory(0x2041);
+	}
+
+	private void testReadDataAddressError() {
+		testcase("TC to read data memory, address error");
+		
+		execTC (READ_DATA_MEMORY_MSB, 0xfe, Prob4a);
+
+		checkNoErrors ();
+		checkTcState(TC_State.read_memory_e);
+
+		execTC (READ_DATA_MEMORY_LSB, 0xf0, Prob4a);
+
+		checkTcError();		
+
+		clearErrors();
+	}
+
+	private void testReadDataSeqErrorFirst() {
+		testcase("TC to read data memory, TC sequence error at first word");
+
+		execTC (READ_DATA_MEMORY_LSB, 0xfe, Prob4a);
+
+		checkTcError();		
+
+		clearErrors();
+	}
+
+	private void testReadDataSeqErrorSecond() {
+		testcase("TC to read data memory, TC sequence error at second word");
+
+		execTC (READ_DATA_MEMORY_MSB, 0xab, Prob4a);
+
+		checkNoErrors();
+		checkTcState(TC_State.read_memory_e);
+
+		execTC (CLEAR_WATCHDOG_FAILURES, CLEAR_WATCHDOG_FAILURES, Prob4a);
+
+		checkTcError();		
+
+		clearErrors();
+	}
+
+	private void testClearWatchdogFailures() {
+	   testcase("TC = CLEAR_WATCHDOG_FAILURES");
+
+	   TelecommandExecutionTask.getTelemetryData().setWatchdogFailures(3);
+
+	   execTC (CLEAR_WATCHDOG_FAILURES, CLEAR_WATCHDOG_FAILURES, Prob4a);
+
+	   checkNoErrors();
+	   checkZero(TelecommandExecutionTask.getTelemetryData().getWatchdogFailures());
+	}
+	
+	private void testClearChecksumFailures() {
+	   testcase("TC = CLEAR_CHECKSUM_FAILURES");
+
+	   TelecommandExecutionTask.getTelemetryData().setChecksumFailures(9);
+
+	   execTC (CLEAR_CHECKSUM_FAILURES, CLEAR_CHECKSUM_FAILURES, Prob4a);
+
+	   checkNoErrors();
+	   checkZero(TelecommandExecutionTask.getTelemetryData().getChecksumFailures());
+	}
+
+	private void testSetDebieTime() {
+		testcase("TC to set DEBIE time");
+
+		execTC (SET_TIME_BYTE_3, 0x44, Prob4a);
+
+		checkNoErrors();
+
+		execTC (SET_TIME_BYTE_2, 0x33, Prob4a);
+
+		checkNoErrors();
+
+		execTC (SET_TIME_BYTE_1, 0x22, Prob4a);
+
+		checkNoErrors();
+
+		execTC (SET_TIME_BYTE_0, 0x11, Prob4a);
+
+		checkNoErrors();
+
+		checkEquals("internal time = 0x44332211", tctmTask.getInternalTime().getTag(), 0x44332211);
+	}
+	
+	private void testSetDebieTimeSeqErrorAt2() {
+	   testcase("TC to set DEBIE time, sequence error at byte 2");
+
+	   tctmTask.setInternalTime(0x01122334);
+
+	   execTC (SET_TIME_BYTE_3, 0x44, Prob4a);
+
+	   checkNoErrors ();
+
+	   execTC (SET_TIME_BYTE_1, 0x33, Prob4a);
+
+	   checkTcError();		
+	   
+	   checkEquals("internal time = 0x44000000", tctmTask.getInternalTime().getTag(), 0x44000000);
+	   
+	   clearErrors();
+	}
+	
+	private void testSetDebieTimeSeqErrorAt1() {
+		testcase("TC to set DEBIE time, sequence error at byte 1");
+
+		tctmTask.setInternalTime(0x01122334);
+
+		execTC (SET_TIME_BYTE_3, 0x44, Prob4a);
+
+		checkNoErrors ();
+
+		execTC (SET_TIME_BYTE_2, 0x33, Prob4a);
+
+		checkNoErrors ();
+
+		execTC (SET_TIME_BYTE_0, 0x22, Prob4a);
+
+		checkTcError();		
+		   
+		checkEquals("internal time = 0x44330000", tctmTask.getInternalTime().getTag(), 0x44330000);
+		   
+		clearErrors();
+	}	
+
+	private void testSetDebieTimeSeqErrorAt0() {
+		testcase("TC to set DEBIE time, sequence error at byte 0");
+
+		tctmTask.setInternalTime(0x01122334);
+
+		execTC (SET_TIME_BYTE_3, 0x44, Prob4a);
+
+		checkNoErrors ();
+
+		execTC (SET_TIME_BYTE_2, 0x33, Prob4a);
+
+		checkNoErrors ();
+
+		execTC (SET_TIME_BYTE_1, 0x22, Prob4a);
+
+		checkNoErrors ();
+
+		execTC (SET_TIME_BYTE_2, 0x11, Prob4a);
+
+		checkTcError();		
+		   
+		checkEquals("internal time = 0x44332200", tctmTask.getInternalTime().getTag(), 0x44332200);
+		   
+		clearErrors();
+	}	
+
+	private void testSoftReset() {
+		testcase("TC = SOFT_RESET");
+
+		execTC (SOFT_RESET, SOFT_RESET, Prob4a);
+
+		checkNoErrors();
+	}
+
+	private void testAcquisitionInStandBy() {
+		testcase("TC = STOP_ACQUISITION in STAND_BY, fail");
+
+		checkMode(TelemetryData.STAND_BY);
+
+		execTC (STOP_ACQUISITION, STOP_ACQUISITION, Prob4a);
+
+		checkTcError();
+		checkMode(TelemetryData.STAND_BY);
+
+		clearErrors();
+	}
+
+	private void checkNoWriteError() {
+		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+	}
+
+	private void checkWriteError() {
+		checkNonZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+	}
 }
-
-

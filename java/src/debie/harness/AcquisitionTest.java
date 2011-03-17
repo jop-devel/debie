@@ -402,18 +402,4 @@ public class AcquisitionTest extends HarnessTest {
 	   }
 	}
 
-	/*-- Helper Methods --*/
-	
-	private void checkNoTcError() {
-		checkZero (system.tctmTask.getTelemetryData().getErrorStatus() & TC_ERROR);		
-	}
-
-	private void checkTcError() {
-		checkEquals ("tm status = error", tctmTask.getTelemetryData().getErrorStatus(), TC_ERROR);		
-	}
-
-	private void checkMode(int expectedMode) {
-		checkEquals ("check telemetry mode", tctmTask.getTelemetryData().getMode(), expectedMode);		
-	}
-
 }

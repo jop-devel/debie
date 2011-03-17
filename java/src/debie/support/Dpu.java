@@ -124,6 +124,14 @@ public class Dpu {
 	public static class Time {
 		public int tval;
 
+		public Time(int raw) {
+			tval = raw;
+		}
+
+		public Time() {
+			this(0);
+		}
+
 		public void incr() {
 			tval++;
 		}
@@ -278,7 +286,7 @@ public class Dpu {
 	
 	public static void setDataByte(int addr, byte value) {
 		if (Harness.TRACE) Harness.trace(String.format("setDataByte 0x%x to %d = 0x%x",
-													   addr, (int)value, (int)value));
+													   addr, (int)value & 0xff, (int)value & 0xff));
 		
 		data_memory[addr] = value;
 	}
@@ -286,7 +294,7 @@ public class Dpu {
 	public static byte getDataByte(int addr) {
 		byte value = data_memory[addr];
 		if (Harness.TRACE) Harness.trace(String.format("getDataByte 0x%x is %d = 0x%x",
-													   addr, (int)value, (int)value));
+													   addr, (int)value & 0xff, (int)value & 0xff));
 		return value;
 	}
 	

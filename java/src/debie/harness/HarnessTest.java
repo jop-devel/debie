@@ -1,10 +1,13 @@
 package debie.harness;
 
 import static debie.harness.Harness.Prob1;
+import static debie.harness.Harness.Prob2a;
+import static debie.harness.Harness.Prob2c;
 import static debie.harness.Harness.Prob4a;
 import static debie.harness.Harness.Prob4b;
 import static debie.harness.Harness.Prob4c;
 import static debie.harness.Harness.Prob4d;
+import static debie.target.TcTmDev.TC_ERROR;
 import static debie.telecommand.TcAddress.*;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
@@ -163,6 +166,71 @@ public abstract class HarnessTest extends TestSuite {
 		return sum;
 	}
 	
+	/**
+	 * Sends the TC to read 32 octets of data memory, starting at
+	 * the given address, receives the corresponding TM block, and
+	 * handles the TM_READY message to the TC Execution task.
+	 */
+	public void readDataMemory (int address) {
+
+		execTC (READ_DATA_MEMORY_MSB, (address >> 8) & 0xff, Prob4a);
+
+		checkNoErrors();
+		checkTcState(TC_State.read_memory_e);
+
+		execTC (READ_DATA_MEMORY_LSB, address & 0xff, Prob4a);
+
+		checkNoErrors();
+		checkTcState(TC_State.memory_dump_e);
+
+		/* The 16 first words of data: */
+
+	   for (int i = 0; i < 16; i++) {
+	      checkFalse(tctmTask.telemetryIndexAtEnd());
+	      
+	      /* The first TM IT, below, acknowledges the immediate TC
+	       * response and transmits the first data word.
+	       */
+
+	      if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2a);	      
+	      tctmTask.tmInterruptService();
+	      if(Harness.INSTRUMENTATION) Harness.endProblem(Prob2a);	      
+
+	      checkTcState(TC_State.memory_dump_e);
+	   }
+
+	   /* The last word, with the checksum: */
+	   
+	   checkTrue(tctmTask.telemetryIndexAtEndExactly());
+
+	   /* The TM IT below acknowledges the last data word and
+	    * transmits the very last word of the Read Data Memory
+	    * sequence, containing the data checksum.
+	    */
+
+	   if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2c);	      
+	   tctmTask.tmInterruptService();
+	   if(Harness.INSTRUMENTATION) Harness.endProblem(Prob2c);	      
+
+	   /* The TM_READY message: */
+
+	   handleTC (Prob1);
+
+	   checkNoErrors ();
+	   checkTcState(TC_State.TC_handling_e);
+
+	   /* There is a design error in TM_InterruptService:
+	    * when the Read Data Memory sequence ends, with the
+	    * transmission of the checksum word, the TM IT is
+	    * left enabled. If the TC Execution task does not
+	    * react quickly to the TM_READY message, and disable
+	    * the TM IT before the transmission of the checksum
+	    * word is completed, a new TM IT can invoke
+	    * TM_InterruptService once again, sending the checksum
+	    * word a second time, and perhaps a third time etc.
+	    */
+	}
+	
 	protected void clearErrors ()
 	/* Executes the ERROR_STATUS_CLEAR TC. */
 	{
@@ -181,7 +249,21 @@ public abstract class HarnessTest extends TestSuite {
 	{
 		checkZero (system.tctmTask.getErrorStatus());
 	}
-		
+	
+	protected void checkNoTcError() {
+		checkZero (tctmTask.getErrorStatus() & TC_ERROR);		
+	}
+
+
+	protected void checkTcError() {
+		checkEquals ("tm status = error", tctmTask.getErrorStatus(), TC_ERROR);		
+	}
+
+
+	protected void checkMode(int expectedMode) {
+		checkEquals ("check telemetry mode", tctmTask.getTelemetryData().getMode(), expectedMode);		
+	}
+
 	/*--- Common Tests ---*/
 	
 	protected void monitorHealth (int problem)
@@ -224,6 +306,4 @@ public abstract class HarnessTest extends TestSuite {
 		}
 		end_of_adc_count = 0;
 	}
-
-
 }

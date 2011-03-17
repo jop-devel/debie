@@ -156,8 +156,19 @@ public class TelecommandExecutionTask {
 			return BYTE_INDEX_EVENT_RECORDS + (free_slot_index * EventRecord.sizeInBytes()); 
 		}
 	}
-	/* State of Telecommand Execution task */
 
+	/** Emulate a pointer to plain data memory */
+	public static class DataPointer implements TelemetryObject {
+		private int base;
+		public DataPointer(int base) {
+			this.base = base;
+		}
+		public int getByte(int addr) {
+			return Dpu.getDataByte(base+addr);
+		}
+	}
+	
+	/* State of Telecommand Execution task */
 	public static enum TC_State {
 		TC_handling_e, 
 		read_memory_e,
@@ -1340,19 +1351,23 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmMsb(tm_byte);
 			read_memory_checksum ^= tm_byte;
 
+			telemetry_index++;
+
 			tm_byte = telemetryPointerNext();
 			tctmDev.writeTmLsb(tm_byte);
 			read_memory_checksum ^= tm_byte;
 
+			telemetry_index++;			
 		}
 		else if (TC_state == TC_State.register_TM_e)
 			/* Start to send TM data registers starting from the first ones */
 		{
 			//				  telemetry_pointer = (EXTERNAL unsigned char *)&telemetry_data;
 			telemetry_object = telemetry_data;
-			telemetry_index = 0;
 			tctmDev.writeTmMsb (telemetryPointerNext());
+			telemetry_index++;
 			tctmDev.writeTmLsb (telemetryPointerNext());
+			telemetry_index++;
 		}
 		else if (TC_state == TC_State.memory_dump_e)
 		{
@@ -1767,42 +1782,45 @@ public class TelecommandExecutionTask {
 			}
 		}
 
-		// FIXME: Implement. this is tricky (again) to implement in Java
 		else if (TC_address == TcAddress.READ_DATA_MEMORY_LSB)
 		{
 			/* Read Data Memory LSB accepted. */
-			//			if ( (TC_state != read_memory_e) ||
-			//					( ((unsigned int)address_MSB << 8) + TC_code
-			//							> (END_SRAM3 - MEM_BUFFER_SIZE) + 1 ) )
-			//			{
-			//				/* Wrong TC state or wrong address range. */
-			//
-			//				telemetry_data.error_status |= TcTmDev.TC_ERROR;
-			//				tctmDev.writeTmMsb  (telemetry_data.error_status);
-			//				tctmDev.writeTmLsb  (telemetry_data.mode_status);
-			//				/* Send response to this TC to TM. */
-			//
-			//				TC_state = TC_state.TC_handling_e;
-			//			}
-			//
-			//			else
-			//			{
-			//				telemetry_pointer = 
-			//					DATA_POINTER((int)address_MSB * 256 + TC_code);
-			//				telemetry_end_pointer = telemetry_pointer + MEM_BUFFER_SIZE;
-			//
-			//				tctmDev.clearTmInterruptFlag();
-			//
-			//				tctmDev.writeTmMsb (telemetry_data.error_status);
-			//				tctmDev.writeTmLsb (telemetry_data.mode_status);
-			//				/* First two bytes of Read Data Memory sequence. */
-			//
-			//				read_memory_checksum = tmp_error_status ^ telemetry_data.mode_status;
-			//
-			//				TC_state = TC_State.memory_dump_e;
-			//
-			//				SetInterruptMask(TM_ISR_MASK);
-			//			}
+			if ((TC_state != TC_State.read_memory_e) ||
+					((address_MSB << 8) + TC_code
+							> (Dpu.END_SRAM3 - MEM_BUFFER_SIZE) + 1))
+			{
+				/* Wrong TC state or wrong address range. */
+			
+				telemetry_data.error_status |= TcTmDev.TC_ERROR;
+				tctmDev.writeTmMsb  (telemetry_data.error_status);
+				tctmDev.writeTmLsb  (telemetry_data.mode_status);
+				/* Send response to this TC to TM. */
+			
+				TC_state = TC_state.TC_handling_e;
+			}
+			
+			else
+			{
+				telemetry_object = new DataPointer((int)address_MSB * 256 + TC_code);
+				telemetry_index = 0;
+				telemetry_end_index = MEM_BUFFER_SIZE;
+				/* was originally:
+					telemetry_pointer = DATA_POINTER((int)address_MSB * 256 + TC_code);
+					telemetry_end_pointer = telemetry_pointer + MEM_BUFFER_SIZE;
+				*/
+				
+				tctmDev.clearTmInterruptFlag();
+				
+				tctmDev.writeTmMsb (telemetry_data.error_status);
+				tctmDev.writeTmLsb (telemetry_data.mode_status);
+				/* First two bytes of Read Data Memory sequence. */
+				
+				read_memory_checksum = (char)(tmp_error_status ^ telemetry_data.mode_status);
+				
+				TC_state = TC_State.memory_dump_e;
+				
+				setInterruptMask(TcTmDev.TM_ISR_MASK);
+			}
 		}
 
 		else
@@ -2412,6 +2430,14 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 		return telemetry_data.getErrorStatus();
 	}
 
+	public Dpu.Time getInternalTime() {
+		return internal_time;
+	}
+
+	public void setInternalTime(int raw) {
+		internal_time = new Dpu.Time(raw);
+	}
+	
 	/** get telecommand state */
 	public TC_State getTC_State() {
 		return TC_state;
@@ -2427,12 +2453,17 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	}
 
 	private int telemetryPointerNext() {
-		return this.telemetry_object.getByte(this.telemetry_index);
+		return telemetry_object.getByte(telemetry_index);
 	}
 
-	/** returns true if telemetry_pointer is not at the end */
+	/** returns true if telemetry_pointer is at the end */
 	public boolean telemetryIndexAtEnd() {
 		return telemetry_index >= telemetry_end_index;
+	}
+
+	/** returns true if telemetry_pointer is exactly at the end */
+	public boolean telemetryIndexAtEndExactly() {
+		return telemetry_index == telemetry_end_index;
 	}
 
 }
