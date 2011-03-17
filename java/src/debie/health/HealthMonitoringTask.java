@@ -140,6 +140,12 @@ public class HealthMonitoringTask implements Runnable {
 	private static final int MAX_CHECKSUM_COUNT = 59;
 	private static final int MIN_CHECKSUM_COUNT = 0;
 
+	/* Ported SU_INDEX_t */
+	private static final int SU_INDEX_1 = 0;
+	private static final int SU_INDEX_2 = 1;
+	private static final int SU_INDEX_3 = 2;
+	private static final int SU_INDEX_4 = 3;
+
 	/* === types === */
 	private enum Round {
 		round_0_e, round_1_e, round_2_e, round_3_e, round_4_e,
@@ -256,16 +262,16 @@ public class HealthMonitoringTask implements Runnable {
 		
 		HwIf.resetDelayCounters();
 		
-		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_1, new SensorUnit());
+		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_1, new SensorUnit());
 		/* Set Sensor Unit 1 to Off state */
 
-		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_2, new SensorUnit());
+		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_2, new SensorUnit());
 		/* Set Sensor Unit 2 to Off state */
 
-		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_3, new SensorUnit());
+		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_3, new SensorUnit());
 		/* Set Sensor Unit 3 to Off state */
 
-		TelecommandExecutionTask.setSensorUnitOff(SensorUnitDev.SU_4, new SensorUnit());
+		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_4, new SensorUnit());
 		/* Set Sensor Unit 4 to Off state */
 
 		ADCChannelRegister |= 0x80;

@@ -33,7 +33,6 @@ import debie.telecommand.TelecommandExecutionTask.TC_State;
  * </ul>
  */
 public class AcquisitionTest extends HarnessTest {
-
 	private AcquisitionTask acqTask;
 	private TelecommandExecutionTask tctmTask;
 	private HealthMonitoringTask hmTask;
@@ -171,9 +170,13 @@ public class AcquisitionTest extends HarnessTest {
 		//_AD_Delay (2);
 
 		int hits = 0;
-
+		int iterations = 0;
 		while (tctmTask.hasFreeSlot())
 		{
+			if(iterations++ >= 64) {
+				failCheck("Too many iterations int testHitsSd");
+				break;
+			}
 			hits ++;
 			hmTask.getInternalTime().incr();
 			acqTask.setHitBudgetLeft(10);
@@ -231,8 +234,13 @@ public class AcquisitionTest extends HarnessTest {
 		checkZero (tctmTask.getEventQueueLength());
 
 		int octets = 0;
+		int iterations = 0;
 		while (system.tctmMailbox.getMailCount() == 0)
 		{
+			if(iterations++ >= 64) {
+				failCheck("Too many iterations int testHitsDuringTm");
+				break;
+			}
 			if (! tctmTask.telemetryIndexAtEnd())
 			{
 				if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2a);

@@ -98,13 +98,12 @@ public abstract class HarnessTest extends TestSuite {
 	void monitorHealth (int problem)
 	/* Executes HandleHealthMonitoring for a particular analysis problem. */
 	{
-	   //	 TODO: implement
 //	   start_conversion_count = 0;
 //	   end_of_adc_count       = 0;
 //
-//	   if(Harness.INSTRUMENTATION) Harness.START_PROBLEM(problem);
+//	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
 //	   handleHealthMonitoring();
-//	   if(Harness.INSTRUMENTATION) Harness.END_PROBLEM(problem);
+//	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
 //
 //	   Report_Start_Conversion_Count (problem);
 //	   Report_End_Of_ADC_Count       (problem);
