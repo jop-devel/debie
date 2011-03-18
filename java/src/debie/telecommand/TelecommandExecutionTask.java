@@ -1,11 +1,11 @@
 package debie.telecommand;
 
-import debie.harness.HarnessSystem;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnit;
 import debie.particles.SensorUnit.SensorUnitState;
+import debie.support.DebieSystem;
 import debie.support.Dpu;
 import debie.support.KernelObjects;
 import debie.support.Mailbox;
@@ -123,7 +123,14 @@ public class TelecommandExecutionTask {
 		private char /*unsigned char*/  counter_checksum; /* (3+NUM_SU*NUM_CLASSES) */
 		private EventRecord[] event = new EventRecord[HwIf.MAX_EVENTS]; /* (4+NUM_SU*NUM_CLASSES)-(4+NUM_SU*NUM_CLASSES+MAX_EVENTS*26-1) */
 		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (SensorUnitDev.NUM_SU * NUM_CLASSES);
-
+		
+		public ScienceDataFile() {
+			/* Java only: Array initialization */
+			for(int i = 0; i < event.length; ++i) {
+				event[i] = new EventRecord();
+			}
+		}
+		
 		public int getByte(int index) {
 			/* FIXME: just a stub */
 			if(index == 0) return length & 0xff;
@@ -188,7 +195,7 @@ public class TelecommandExecutionTask {
 
 	// XXX: this should probably be in external memory:
 	//EXTERNAL science_data_file_t LOCATION(SCIENCE_DATA_START_ADDRESS)
-	public static ScienceDataFile science_data = new ScienceDataFile();
+	public ScienceDataFile science_data = new ScienceDataFile();
 
 	public static int /* uint_least16_t */ max_events;
 	/* This variable is used to speed up certain    */
@@ -206,7 +213,7 @@ public class TelecommandExecutionTask {
 	private /* unsigned char */ char read_memory_checksum;
 	/* Checksum to be sent at the end of Read Memory sequence. */
 
-	private static EventRecord event_queue[] = new EventRecord[MAX_QUEUE_LENGTH];
+	private EventRecord[] event_queue; /* Initialized in the constructor */
 	/* Holds event records before they are copied to the */
 	/* Science Data memory. Normally there is only data  */
 	/* from the new event whose data is beign collected, */
@@ -214,13 +221,13 @@ public class TelecommandExecutionTask {
 	/* several older events which are copied to the      */
 	/* Science Data memory after telemetry ends.         */
 
-	private static /* uint_least8_t */ int event_queue_length;
+	private /* uint_least8_t */ int event_queue_length;
 	/* Number of event records stored in the queue.    */
 	/* These records are stored into event_queue table */
 	/* in order starting from the first element.       */
 	/* Initialised to zero on power-up.                */
 
-	private static /* uint_least16_t */ int free_slot_index;
+	private /* uint_least16_t */ int free_slot_index;
 	/* Index to the first free record in the Science         */
 	/* Data memory, or if it is full equals to 'max_events'. */
 	/* Initialised to zero on power-up.                      */
@@ -298,10 +305,10 @@ public class TelecommandExecutionTask {
 
 	/* link to tctm hardware */
 	private TcTmDev tctmDev;
-	private Dpu.Time internal_time;
 	private Mailbox tcMailbox;
+	private DebieSystem system;
+
 	private TeleCommand received_command;
-	private HarnessSystem system;
 
 	/*--- Constructor ---*/
 
@@ -313,12 +320,13 @@ public class TelecommandExecutionTask {
 	/* Preconditions  : none                                                     */
 	/* Postconditions : TelecommandExecutionTask is operational.                 */
 	/* Algorithm      : - initialize task variables.                             */
-	public TelecommandExecutionTask(Mailbox tcMailbox, TcTmDev tctmDev, Dpu.Time timeRef, HarnessSystem system) {
-		this.tcMailbox = tcMailbox;
-		this.tctmDev = tctmDev;
-		this.internal_time = timeRef;
+	public TelecommandExecutionTask(DebieSystem system) {
+
+		this.tcMailbox = system.getTcTmMailbox();
+		this.tctmDev = system.getTcTmDevice();
 		this.system = system;
 		this.received_command = new TeleCommand(0,TcAddress.UNUSED_TC_ADDRESS, 0);
+
 		initTcLookup();
 
 		TC_state            = TC_State.TC_handling_e;
@@ -335,11 +343,17 @@ public class TelecommandExecutionTask {
 		// FIXME: TODO
 		// disableInterrupt(TM_ISR_SOURCE);
 		// enableInterrupt(TC_ISR_SOURCE);
+		
+		/* Java only: Initialize the EventRecord list */
+		event_queue	= new EventRecord[MAX_QUEUE_LENGTH];
+		for(int i = 0; i < MAX_QUEUE_LENGTH; ++i) {
+			event_queue[i] = new EventRecord();
+		}
 	}
 
 	/*--- [2] Definitions from   telem.c: 74 ---*/
 
-	public static EventRecord getFreeRecord()
+	public EventRecord getFreeRecord()
 
 	/* Purpose        : Returns pointer to free event record in event queue.     */
 	/* Interface      : inputs      - event_queue_length, legnth of the event    */
@@ -640,7 +654,7 @@ public class TelecommandExecutionTask {
 
 			// new_time = ((dpu_time_t) command. TC_code) << 24;
 			// COPY (internal_time, new_time);
-			internal_time.updateWithMask(0xFFFFFFFF, (int)command.TC_code << 24);
+			system.getInternalTime().updateWithMask(0xFFFFFFFF, (int)command.TC_code << 24);
 			TC_timeout = SET_TIME_TC_TIMEOUT;
 
 			break;
@@ -649,7 +663,7 @@ public class TelecommandExecutionTask {
 
 			if (previous_TC.TC_address == TcAddress.SET_TIME_BYTE_3)
 			{
-				internal_time.updateWithMask(0x00FFFFFF, (int)command.TC_code << 16);
+				system.getInternalTime().updateWithMask(0x00FFFFFF, (int)command.TC_code << 16);
 				TC_timeout = SET_TIME_TC_TIMEOUT;
 			}
 
@@ -664,7 +678,7 @@ public class TelecommandExecutionTask {
 
 			if (previous_TC.TC_address == TcAddress.SET_TIME_BYTE_2)
 			{
-				internal_time.updateWithMask(0x0000FFFF, (int)command.TC_code << 8);
+				system.getInternalTime().updateWithMask(0x0000FFFF, (int)command.TC_code << 8);
 				TC_timeout = SET_TIME_TC_TIMEOUT;
 			}
 
@@ -679,7 +693,7 @@ public class TelecommandExecutionTask {
 
 			if (previous_TC.TC_address == TcAddress.SET_TIME_BYTE_1)
 			{
-				internal_time.updateWithMask(0x000000FF, (int)command.TC_code);
+				system.getInternalTime().updateWithMask(0x000000FF, (int)command.TC_code);
 			}
 
 			else
@@ -747,7 +761,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.plasma_1_plus_threshold = 
 				command.TC_code;
@@ -758,7 +772,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.plasma_1_plus_threshold = 
 				command. TC_code;
@@ -769,7 +783,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.plasma_1_plus_threshold = 
 				command. TC_code;
@@ -780,7 +794,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.plasma_1_plus_threshold = 
 				command. TC_code;
@@ -791,7 +805,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -802,7 +816,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -813,7 +827,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -824,7 +838,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.plasma_1_minus_threshold = 
 				command. TC_code;
@@ -835,7 +849,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.piezo_threshold = command. TC_code;
 			break;
@@ -845,7 +859,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.piezo_threshold = command. TC_code;
 			break;
@@ -855,7 +869,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.piezo_threshold = command. TC_code;
 			break;
@@ -865,7 +879,7 @@ public class TelecommandExecutionTask {
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
 			new_threshold.level       = command. TC_code;
-			system.suSim.setTriggerLevel(new_threshold);
+			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.piezo_threshold = command. TC_code;
 			break;
@@ -986,7 +1000,7 @@ public class TelecommandExecutionTask {
 			} else {
 				/* Checksum failure. */
 
-				HealthMonitoringTask.setModeStatusError(MEMORY_WRITE_ERROR);
+				system.getHealthMonitoringTask().setModeStatusError(MEMORY_WRITE_ERROR);
 				/* Set memory write error bit in Mode Status register. */
 			}
 
@@ -1340,7 +1354,7 @@ public class TelecommandExecutionTask {
 
 		if (telemetry_object == telemetry_data && telemetry_index == TelemetryData.TIME_INDEX)
 		{
-			telemetry_data.time = internal_time.getTag();
+			telemetry_data.time = system.getInternalTime().getTag();
 		}
 
 		if (! telemetryIndexAtEnd())
@@ -1690,7 +1704,7 @@ public class TelecommandExecutionTask {
 
 
 			telemetry_data.TC_word = (char) TC_word;
-			telemetry_data.TC_time_tag = internal_time.getTag();
+			telemetry_data.TC_time_tag = system.getInternalTime().getTag();
 			/* Update TC registers in HK TM data area */
 		}
 
@@ -1712,7 +1726,7 @@ public class TelecommandExecutionTask {
 		{
 			/* Send Status Register TC accepted */
 
-			telemetry_data.TC_time_tag = internal_time.getTag();
+			telemetry_data.TC_time_tag = system.getInternalTime().getTag();
 
 			telemetry_object = telemetry_data;
 			telemetry_index = TC_code;
@@ -1796,7 +1810,7 @@ public class TelecommandExecutionTask {
 				tctmDev.writeTmLsb  (telemetry_data.mode_status);
 				/* Send response to this TC to TM. */
 			
-				TC_state = TC_state.TC_handling_e;
+				TC_state = TC_State.TC_handling_e;
 			}
 			
 			else
@@ -1843,7 +1857,7 @@ public class TelecommandExecutionTask {
 
 	}
 
-	/*dpu_time_t*/ static int GetElapsedTime(/*unsigned int*/int event_number)
+	int  /*dpu_time_t*/ GetElapsedTime(/*unsigned int*/int event_number)
 	/* Purpose        : Returns the hit time of a given event.                   */
 	/* Interface      : inputs      - event_number (parameter)                   */
 	/*                                science_data[event_number].hit_time, hit   */
@@ -1865,7 +1879,7 @@ public class TelecommandExecutionTask {
 		return hit_time;
 	}
 
-	public static void recordEvent()
+	public void recordEvent()
 	/* Purpose        : This function increments proper event counter and stores */
 	/*                  the new event record to the science data memory.         */
 	/* Interface      : inputs      - free_slot_index, index of next free event  */
@@ -1964,7 +1978,7 @@ public class TelecommandExecutionTask {
 	}   
 
 
-	private static /*unsigned int*/ int findMinQualityRecord()
+	private /*unsigned int*/ int findMinQualityRecord()
 
 	/* Purpose        : Finds event with lowest quality from Science Data memory.*/
 	/* Interface      : inputs      - science_data.event, event records          */
@@ -2037,7 +2051,7 @@ public class TelecommandExecutionTask {
 	}
 
 
-	private static void incrementCounters(
+	private void incrementCounters(
 			/* sensor_index_t */ int  sensor_unit,
 			/* unsigned char */  byte classification)
 
@@ -2104,7 +2118,7 @@ public class TelecommandExecutionTask {
 
 	}
 
-	public static void clearEvents()
+	public void clearEvents()
 	/* Clears the event counters and the quality numbers of                     */
 	/* the event records in the science data memory                              */
 
@@ -2155,7 +2169,7 @@ public class TelecommandExecutionTask {
 		science_data.not_used         = 0;
 	}   
 
-	public static void resetEventQueueLength()
+	public void resetEventQueueLength()
 	/* Purpose        : Empty the event queue length.                            */
 	/* Interface      : inputs      - none                                       */
 	/*                  outputs     - none                                       */
@@ -2431,11 +2445,11 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	}
 
 	public Dpu.Time getInternalTime() {
-		return internal_time;
+		return system.getInternalTime();
 	}
 
 	public void setInternalTime(int raw) {
-		internal_time = new Dpu.Time(raw);
+		system.getInternalTime().set(raw);
 	}
 	
 	/** get telecommand state */

@@ -12,7 +12,7 @@ public class SensorUnitSim extends SensorUnitDev {
 
 	private /* unsigned char */ int hit_enabled       = 0;
 	private /* unsigned char */ int trigger_flag      = 1;
-	/* unsigned char */ int event_flag        = Dpu.ACCEPT_EVENT;
+	/* unsigned char */ int event_flag                = Dpu.ACCEPT_EVENT;
 	private /* unsigned char */ int trigger_source_0  = 0;
 	private /* unsigned char */ int trigger_source_1  = 0;
 
@@ -197,6 +197,11 @@ public class SensorUnitSim extends SensorUnitDev {
 
 		self_test_pulse = level;
 		simSelfTestTrigger();
+	}
+
+	@Override
+	public int getEventFlag() {
+		return event_flag;
 	}
 
 

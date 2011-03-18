@@ -1,10 +1,10 @@
 package debie.health;
 
 import debie.Version;
-import debie.harness.HarnessSystem;
 import debie.particles.AcquisitionTask;
 import debie.particles.EventClassifier;
 import debie.particles.SensorUnit;
+import debie.support.DebieSystem;
 import debie.support.Dpu;
 import debie.support.TaskControl;
 import debie.support.Dpu.ResetClass;
@@ -169,11 +169,11 @@ public class HealthMonitoringTask implements Runnable {
 	char confirm_hit_result;  
 	private Time internal_time = new Time();
 
-	private HarnessSystem system;
+	private DebieSystem system;
 
 	private int ADCChannelRegister;
 	
-	public HealthMonitoringTask(HarnessSystem system) {
+	public HealthMonitoringTask(DebieSystem system) {
 		this.system = system;
 	}
 
@@ -277,7 +277,7 @@ public class HealthMonitoringTask implements Runnable {
 		/* Set Sensor Unit 4 to Off state */
 
 		ADCChannelRegister |= 0x80;
-		system.adcSim.updateADC_ChannelReg(ADCChannelRegister);
+		system.getAdcDevice().updateADC_ChannelReg(ADCChannelRegister);
 		
 		ResetClass reset_class = HwIf.getResetClass();
 		
@@ -301,10 +301,10 @@ public class HealthMonitoringTask implements Runnable {
 
 			TelecommandExecutionTask.getTelemetryData().clearAll();
 			
-			TelecommandExecutionTask.resetEventQueueLength();
+			system.getTelecommandExecutionTask().resetEventQueueLength();
 			/* Empty event queue. */
 
-			TelecommandExecutionTask.clearEvents();
+			system.getTelecommandExecutionTask().clearEvents();
 			/* Clears the event counters, quality numbers  */
 			/* and free_slot_index of the event records in */
 			/* the science data memory.                    */
@@ -348,10 +348,10 @@ public class HealthMonitoringTask implements Runnable {
 		   /* Clear error status bits, error status counters */
 		   /* and Command Status register.                   */
 
-		   TelecommandExecutionTask.resetEventQueueLength();
+		   system.getTelecommandExecutionTask().resetEventQueueLength();
 		   /* Empty event queue. */
 
-		   TelecommandExecutionTask.clearEvents();
+		   system.getTelecommandExecutionTask().clearEvents();
 		   /* Clears the event counters, quality numbers  */
 		   /* and free_slot_index of the event records in */
 		   /* the science data memory.                    */
@@ -376,13 +376,13 @@ public class HealthMonitoringTask implements Runnable {
 		HwIf.signalMemoryErrors();
 		/* Copy results of RAM tests to telemetry_data. */
 
-		system.suSim.setTestPulseLevel(DEFAULT_TEST_PULSE_LEVEL);
+		system.getSensorUnitDevice().setTestPulseLevel(DEFAULT_TEST_PULSE_LEVEL);
 		/* Initializes test pulse level. */
 
-		system.suSim.setSUTriggerLevels(SU_1, tmData.getSensorUnit1());
-		system.suSim.setSUTriggerLevels(SU_2, tmData.getSensorUnit2());
-		system.suSim.setSUTriggerLevels(SU_3, tmData.getSensorUnit3());
-		system.suSim.setSUTriggerLevels(SU_4, tmData.getSensorUnit4());
+		system.getSensorUnitDevice().setSUTriggerLevels(SU_1, tmData.getSensorUnit1());
+		system.getSensorUnitDevice().setSUTriggerLevels(SU_2, tmData.getSensorUnit2());
+		system.getSensorUnitDevice().setSUTriggerLevels(SU_3, tmData.getSensorUnit3());
+		system.getSensorUnitDevice().setSUTriggerLevels(SU_4, tmData.getSensorUnit4());
 	}
 	
 	
@@ -572,7 +572,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - Write to Mode Status register
 	 *                  - Enable interrupts
 	 */
-	public static void setModeStatusError(int mode_status_error) {
+	public void setModeStatusError(int mode_status_error) {
 //		   DISABLE_INTERRUPT_MASTER;
 
 		TelecommandExecutionTask.getTelemetryData()

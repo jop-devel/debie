@@ -22,6 +22,7 @@ package debie.particles;
 import debie.harness.HarnessSystem;
 import debie.health.HealthMonitoringTask;
 import debie.particles.SensorUnit.SensorUnitState;
+import debie.support.DebieSystem;
 import debie.support.Dpu;
 import debie.support.KernelObjects;
 import debie.support.Mailbox;
@@ -46,10 +47,7 @@ public class AcquisitionTask {
 	// ACQ_mail.mailbox_number = ACQUISITION_MAILBOX;
 	// ACQ_mail.message = &trigger_unit;
 	// ACQ_mail.timeout = 0;
-	/* FIXME: Where to initialize the mailbox? */
-	// ACQ_mail.mailbox_number = ACQUISITION_MAILBOX;
-	// ACQ_mail.message = &trigger_unit;
-	// ACQ_mail.timeout = 0;
+
 	/*
 	 * TODO: It would be nice if we had an interface for tasks in joprt. With
 	 * the current class hierarchy, we have two options: (a) Fix tasks early to
@@ -63,18 +61,17 @@ public class AcquisitionTask {
 		private AcquisitionTask task;
 
 		/* Holds parameters for the mail waiting function. */
-		private Mailbox ACQ_mailbox;
+		private Mailbox acqMailbox;
 
-		public AcquisitionTaskSwEvent(HealthMonitoringTask healthMonitor,
-				Mailbox ACQ_mailbox, int priority, int minTime) {
+		public AcquisitionTaskSwEvent(DebieSystem system, int priority, int minTime) {
 			super(priority, minTime);
-			this.ACQ_mailbox = ACQ_mailbox;
-			this.task = new AcquisitionTask(healthMonitor);
+			this.acqMailbox = system.getAcqMailbox();
+			this.task = new AcquisitionTask(system);
 		}
 
 		@Override
 		public void handle() {
-			task.handleAcquisition(ACQ_mailbox.message);
+			task.handleAcquisition(acqMailbox.message);
 		}
 	}
 
@@ -155,7 +152,8 @@ public class AcquisitionTask {
 		return sensorUnitState[sen];
 	}
 
-	private HealthMonitoringTask healthMonitor;
+	/* reference to the DEBIE system */
+	private DebieSystem system;
 
 	// void InitAcquisitionTask()
 	/*
@@ -163,8 +161,8 @@ public class AcquisitionTask {
 	 * outputs - ACQ_mail static fields. Preconditions : none Postconditions :
 	 * AcqusitionTask is operational. Algorithm : - initialize task variables
 	 */
-	public AcquisitionTask(HealthMonitoringTask healthMonitor) {
-		this.healthMonitor = healthMonitor;
+	public AcquisitionTask(DebieSystem system) {
+		this.system = system;
 	}
 
 	public void handleHitTrigger()
@@ -424,8 +422,8 @@ public class AcquisitionTask {
 			 * There has been an error in AD conversion in Hit trigger
 			 * processing.
 			 */
-			healthMonitor
-					.setModeStatusError(TelecommandExecutionTask.ADC_ERROR);
+			system.getHealthMonitoringTask()
+			      .setModeStatusError(TelecommandExecutionTask.ADC_ERROR);
 		}
 
 		if (trigger_unit == SensorUnitDev.SU_1
@@ -437,9 +435,10 @@ public class AcquisitionTask {
 			state = sensorUnitState[trigger_unit - SensorUnitDev.SU_1];
 
 			if ((state == SensorUnitState.self_test_e || state == SensorUnitState.acquisition_e)
-					&& (Dpu.getEventFlag() == Dpu.ACCEPT_EVENT)) {
-				// XXX: should this really be a static method of telemetry?
-				event = TelecommandExecutionTask.getFreeRecord();
+					&& (system.getSensorUnitDevice().getEventFlag() == Dpu.ACCEPT_EVENT)) {
+
+				// XXX: should this really be a method of tce task?
+				event = system.getTelecommandExecutionTask().getFreeRecord();
 				/*
 				 * Get pointer to the new event record.Number of the Sensor
 				 * Unit, which has been hit, is stored intoEvent Record.
@@ -499,7 +498,7 @@ public class AcquisitionTask {
 				}
 
 				/* Measurement time is stored into Event Record. */
-				event.hit_time = healthMonitor.getInternalTime().tval;
+				event.hit_time = system.getInternalTime().getTag();
 
 				/* Unit temperatures are stored into Event Record. */
 
@@ -521,7 +520,7 @@ public class AcquisitionTask {
 				 * After the event record is filled up, it is stored into
 				 * science data.
 				 */
-				TelecommandExecutionTask.recordEvent();
+				system.getTelecommandExecutionTask().recordEvent();
 			}
 		}
 

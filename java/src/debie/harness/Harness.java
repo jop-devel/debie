@@ -1,8 +1,12 @@
 package debie.harness;
 
+/* JOP specific instrumentation */
+/*
+ * import com.jopdesign.sys.Const;
+ * import com.jopdesign.sys.Native;
+ */
+
 import debie.health.HealthMonitoringTask;
-import debie.particles.AcquisitionTask;
-import debie.telecommand.TelecommandExecutionTask;
 
 public class Harness {
 	
@@ -48,6 +52,8 @@ public class Harness {
 	by the most recently executed FOR_PROBLEM. Note that more cases
 	for the same problem can be added later with another FOR_PROBLEM.
 	*/
+	public static final int ProbFirst = 10;
+	public static final int ProbLast  = 65;
 
 	public static final int Prob1 = 10;
 
@@ -76,6 +82,10 @@ public class Harness {
 
 	/** Test harness */
 	public static void main(String[] argv) {
+		
+		/* JOP specific instrumentation code */
+		if(INSTRUMENTATION) initInstrumentation();
+
 		HarnessSystem system = new HarnessSystem();
 		TestLogger defaultLogger = new TestLogger();
 				
@@ -92,6 +102,7 @@ public class Harness {
 		
 		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
 		acqTest.runTests();
+
 	}
 	
 	/*   Tracing */
@@ -104,13 +115,49 @@ public class Harness {
 	/* Instrumentation */
 	public final static boolean INSTRUMENTATION = false;	
 
+	private static int ts, te, to;
+
 	public static void startProblem(int probCode) {
-		// TODO Auto-generated method stub		
+		// if(INSTRUMENTATION) ts = Native.rdMem(Const.IO_CNT);
 	}
 
 	public static void endProblem(int probCode) {
-		// TODO Auto-generated method stub
-		
+		if(INSTRUMENTATION) {
+			/* JOP Specific instrumentation */
+			// te = Native.rdMem(Const.IO_CNT);
+			
+			problemStats[probCode-ProbFirst].recordRun(ts-te-to);
+		}
+	}
+
+	private static class MeasurementStatistic {
+		int minElapsed, maxElapsed, totalElapsed, totalRuns;
+		public MeasurementStatistic() {
+			minElapsed = Integer.MAX_VALUE;
+			maxElapsed = 0;
+			totalElapsed = 0;
+			totalRuns = 0;
+		}
+		public void recordRun(int elapsed) {
+			totalRuns++;
+			totalElapsed += elapsed;
+			if(minElapsed > elapsed) minElapsed = elapsed;
+			if(maxElapsed < elapsed) maxElapsed = elapsed;
+		}
+	}
+
+	private static MeasurementStatistic[] problemStats;
+	
+	private static void initInstrumentation() {
+		/* initialize statistics */
+		problemStats = new MeasurementStatistic[ProbLast-ProbFirst+1];
+		for(int i = 0; i < problemStats.length; i++) {
+			problemStats[i] = new MeasurementStatistic();
+		} 
+		/* JOP Specific instrumentation */
+		// ts = Native.rdMem(Const.IO_CNT);
+		// te = Native.rdMem(Const.IO_CNT);
+		// to = te-ts;
 	}
 
 }

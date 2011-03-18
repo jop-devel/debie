@@ -25,13 +25,7 @@ public class TelecommandISRTest extends HarnessTest {
 		testOnOffTc();
 		testOnlyEvenOdd();
 		testOnlyEvenTooLarge();
-		
-		if(Harness.TRACE) {
-			Harness.trace("[TelecommandISRTest] Finished");
-			Harness.trace("[TelecommandISRTest] Checks: "+this.getChecks());
-			Harness.trace("[TelecommandISRTest] Failures: "+this.getCheckErrors());
-		}  		
-
+		reportTestResults("TelecommandISRTest");
 	}
 
 	private void testRejectOnOverflow() {

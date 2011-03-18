@@ -25,6 +25,10 @@ public abstract class TestSuite {
 		td.startTest(name);
 	}
 		
+	protected void reportTestResults(String testSuiteName) {
+		td.endTestSuite(testSuiteName, this);
+	}
+
 	protected void checkEquals(String msg, int o1, int o2) {
 		checks ++;
 		if(o1 != o2) {

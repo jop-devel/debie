@@ -7,6 +7,7 @@ import debie.telecommand.TelecommandExecutionTask;
 import static debie.telecommand.TelecommandExecutionTask.*;
 
 public class HwIf {
+	
 	public static final int MAX_EVENTS = 1261;
 	
 	/* These variables store values of these write-only registers. */

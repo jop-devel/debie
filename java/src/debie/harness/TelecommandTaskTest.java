@@ -48,11 +48,7 @@ public class TelecommandTaskTest extends HarnessTest {
 		testSoftReset();
 		testAcquisitionInStandBy();
 		
-		if(Harness.TRACE) {
-			Harness.trace("[TelecommandTaskTest] Finished");
-			Harness.trace("[TelecommandTaskTest] Checks: "+this.getChecks());
-			Harness.trace("[TelecommandTaskTest] Failures: "+this.getCheckErrors());
-		}
+		reportTestResults("[TelecommandTaskTest]");
 		
 		/* Telecommands tested elsewhere:
 

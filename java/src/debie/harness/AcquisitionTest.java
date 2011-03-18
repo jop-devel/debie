@@ -44,7 +44,7 @@ public class AcquisitionTest extends HarnessTest {
 			SWITCH_SU_4};
 	/* The commands to switch Sensor Units ON or OFF. */
 
-
+	// FIXME: Do we need this variables?
 	private int max_adc_hits;
 	private int ad_random_failures;
 	private int check_current_errors;
@@ -72,11 +72,7 @@ public class AcquisitionTest extends HarnessTest {
 		testSwitchToSelfTestDuringAcq();
 		testStopAcq();
 		testTurnSensorUnitsOff();
-		if(Harness.TRACE) {
-			Harness.trace("[AcquisitionTest] Finished");
-			Harness.trace("[AcquisitionTest] Checks: "+this.getChecks());
-			Harness.trace("[AcquisitionTest] Failures: "+this.getCheckErrors());
-		}  		
+		reportTestResults("[AcquisitionTest]");
 	}
 
 	private void testTurnSensorUnitsOn() {
@@ -170,13 +166,8 @@ public class AcquisitionTest extends HarnessTest {
 		//_AD_Delay (2);
 
 		int hits = 0;
-		int iterations = 0;
 		while (tctmTask.hasFreeSlot())
 		{
-			if(iterations++ >= 64) {
-				failCheck("Too many iterations int testHitsSd");
-				break;
-			}
 			hits ++;
 			hmTask.getInternalTime().incr();
 			acqTask.setHitBudgetLeft(10);
@@ -234,13 +225,8 @@ public class AcquisitionTest extends HarnessTest {
 		checkZero (tctmTask.getEventQueueLength());
 
 		int octets = 0;
-		int iterations = 0;
 		while (system.tctmMailbox.getMailCount() == 0)
 		{
-			if(iterations++ >= 4096) {
-				failCheck("Too many iterations int testHitsDuringTm");
-				break;
-			}
 			if (! tctmTask.telemetryIndexAtEnd())
 			{
 				if(Harness.INSTRUMENTATION) Harness.startProblem(Prob2a);
@@ -357,6 +343,7 @@ public class AcquisitionTest extends HarnessTest {
 		if (system.acqMailbox.getMailCount() > 0)
 		{
 			if(Harness.INSTRUMENTATION) startProblem(hit_problem);
+			system.acqMailbox.waitMail();
 			system.acqTask.handleAcquisition (system.acqMailbox.getMessage());
 			if(Harness.INSTRUMENTATION) endProblem(hit_problem);
 		}
@@ -369,7 +356,7 @@ public class AcquisitionTest extends HarnessTest {
 	 */
 	{
 	   checkEquals("no acq mail", system.acqMailbox.getMailCount(), 0);
-	   if(Harness.TRACE) Harness.trace("Hit!\n");
+	   if(Harness.TRACE) Harness.trace("[AcquisitionTest] Hit!");
 
 	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
 
@@ -379,9 +366,9 @@ public class AcquisitionTest extends HarnessTest {
 
 	   if(Harness.TRACE) {
 		   if(system.acqMailbox.getMailCount() == 0) {
-			   Harness.trace(" - hit rejected");
+			   Harness.trace("[AcquisitionTest]  - hit rejected");
 		   } else {   
-			   Harness.trace(" - hit accepted");
+			   Harness.trace("[AcquisitionTest]  - hit accepted");
 		   }
 	   }
 	}

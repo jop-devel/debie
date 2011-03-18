@@ -122,10 +122,10 @@ public class Dpu {
 
 	/** representation of time in DEBIE */
 	public static class Time {
-		public int tval;
+		private int internal_repr;
 
 		public Time(int raw) {
-			tval = raw;
+			internal_repr = raw;
 		}
 
 		public Time() {
@@ -133,21 +133,20 @@ public class Dpu {
 		}
 
 		public void incr() {
-			tval++;
+			internal_repr++;
 		}
 
 		public int getTag() {
-			return tval;
+			return internal_repr;
 		}
 		// FIXME: synchronized?
 		public synchronized void updateWithMask(int mask, int val) {
-			tval = (tval & ~mask) | (val & mask);
+			internal_repr = (internal_repr & ~mask) | (val & mask);
 		}
-	}
 
-	public static int getEventFlag() {
-		// TODO: stub
-		return 0;
+		public void set(int raw) {
+			internal_repr = raw;
+		}
 	}
 
 	public static class MemoryPatchVariables {
