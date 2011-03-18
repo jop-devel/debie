@@ -44,13 +44,6 @@ public class AcquisitionTest extends HarnessTest {
 			SWITCH_SU_4};
 	/* The commands to switch Sensor Units ON or OFF. */
 
-	// FIXME: Do we need this variables?
-	private int max_adc_hits;
-	private int ad_random_failures;
-	private int check_current_errors;
-	private int v_down_errors;
-
-
 	public AcquisitionTest(HarnessSystem sys, TestLogger tl) {
 		super(sys, tl);		
 		this.acqTask = sys.acqTask;
@@ -93,11 +86,11 @@ public class AcquisitionTest extends HarnessTest {
 
 		/* Prevent all errors in Monitoring: */
 
-		system.adcSim.setAD_Nominal ();
-		max_adc_hits         = 0;
-		ad_random_failures   = 0;
-		check_current_errors = 0;
-		v_down_errors        = 0;
+		system.adcSim.setADNominal ();
+		system.adcSim.max_adc_hits = 0;
+		system.adcSim.ad_random_failures   = 0;
+		Dpu.setCheckCurrentErrors(0);
+		system.suSim.v_down_errors        = 0;
 
 		/* Run Health Monitoring to drive the SUs ON: */
 
@@ -162,7 +155,7 @@ public class AcquisitionTest extends HarnessTest {
 	private void testHitsSd() {
 		testcase("Hits with Science Data not full");
 
-		system.adcSim.setAD_Delay(2);
+		system.adcSim.setADDelay(2);
 		//_AD_Delay (2);
 
 		int hits = 0;

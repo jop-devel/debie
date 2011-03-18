@@ -10,13 +10,8 @@ public class Dpu {
 
 	public static final int MEMORY_PATCHED = 1;
 	public static final int MEMORY_NOT_PATCHED = 0;
-    // #ifndef HIGH
-	// public static final int HIGH = 1;
-	// #endif
-   
-	// #ifndef LOW
-	//   public static final int LOW = 0;
-	//#endif
+	public static final int HIGH = 1;
+	public static final int LOW = 0;
 
 	public static final int SELECTED = 1;
 	public static final int NOT_SELECTED = 0;
@@ -295,6 +290,45 @@ public class Dpu {
 		if (Harness.TRACE) Harness.trace(String.format("getDataByte 0x%x is %d = 0x%x",
 													   addr, (int)value & 0xff, (int)value & 0xff));
 		return value;
+	}
+
+	public static byte getCodeByte(int addr) {
+//		if (Harness.TRACE) Harness.trace(String.format("getCodeByte 0x%x", addr));
+		/* This would be to much output. Skip. */
+		
+		return 0;
+	}
+	
+	private static int check_current_errors;
+	
+	public static int getCheckCurrentErrors() {
+		return check_current_errors;
+	}
+	public static void setCheckCurrentErrors(int errors) {
+		check_current_errors = errors;
+	}
+	
+	public static int checkCurrent (int bits) {
+		if (Harness.TRACE) Harness.trace(String.format("Check_Current 0x%x", bits));
+			
+		int val;
+	
+		switch (bits) {
+		case   3: val =  1; break;
+		case  12: val =  4; break;
+		case  48: val = 16; break;
+		case 192: val = 64; break;
+		default : val =  0;
+		if (Harness.TRACE) Harness.trace(String.format("Check_Current param error"));
+		break;
+		}
+
+		if (check_current_errors > 0) {
+			val = ~val;  /* Wrong value => alarm. */
+			check_current_errors --;
+		}
+
+		return val;
 	}
 	
 	/* Assembly-language function prototypes (asmfuncs.a51): */

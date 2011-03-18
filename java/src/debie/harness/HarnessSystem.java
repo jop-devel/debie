@@ -1,11 +1,9 @@
 package debie.harness;
 
-import static debie.harness.Harness.*;
 import static debie.support.KernelObjects.*;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.support.DebieSystem;
-import debie.support.Mailbox;
 import debie.support.TaskControl;
 import debie.support.Dpu.Time;
 import debie.target.AdConverter;
@@ -23,8 +21,8 @@ public class HarnessSystem implements DebieSystem {
 	HarnessMailbox acqMailbox;
 	HarnessMailbox tctmMailbox;
 
-	public AdcSim adcSim;
-	public SensorUnitSim suSim;
+	AdcSim adcSim;
+	SensorUnitSim suSim;
 	TcTmSim tctmSim;
 	
 	public HarnessSystem() {

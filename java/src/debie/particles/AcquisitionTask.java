@@ -27,6 +27,7 @@ import debie.support.Dpu;
 import debie.support.KernelObjects;
 import debie.support.Mailbox;
 import debie.support.TaskControl;
+import debie.target.AdConverter;
 import debie.target.HwIf;
 import debie.target.SensorUnitDev;
 import debie.target.SensorUnitDev.Delays;
@@ -109,6 +110,8 @@ public class AcquisitionTask {
 	/* FIXME: Static because used in TelecommandExecutionTask */
 	public static int /* sensor_number_t */self_test_SU_number = SensorUnitDev.NO_SU;
 
+	public static int self_test_flag;
+
 	/* By default this variable indicates that no SU self test */
 	/* sequence is running. */
 	/* Number of SU being self tested (SU_1, SU_2, SU_3 or SU_4) */
@@ -133,7 +136,7 @@ public class AcquisitionTask {
 																 */
 	/* Used to temporarily store AD conversion results. */
 
-	private/* unsigned char */int confirm_hit_result;
+	public static /* unsigned char */int confirm_hit_result;
 	/* This variable indicates a hit with a high value. */
 
 	private/* uint_least8_t */int hit_budget = HIT_BUDGET_DEFAULT;
@@ -143,9 +146,15 @@ public class AcquisitionTask {
 	public int getHitBudgetLeft() {
 		return this.hit_budget_left;
 	}
-
 	public void setHitBudgetLeft(int value) {
 		this.hit_budget_left = value;
+	}
+
+	public int getHitBudget() {
+		return this.hit_budget;
+	}
+	public void setHitBudget(int value) {
+		this.hit_budget = value;
 	}
 
 	public SensorUnitState getSensorUnitState(int sen) {
@@ -242,13 +251,11 @@ public class AcquisitionTask {
 	      confirm_hit_result = 1;
 	      /*This variable indicates a hit with a high value.                  */
 
-	      // FIXME: unimplemented
-	      // ADC_channel_register &= BP_DOWN;
-	      // UPDATE_ADC_CHANNEL_REG;   
+	      system.getHealthMonitoringTask().ADCChannelRegister &= AdConverter.BP_DOWN;
+	      system.getAdcDevice().updateADCChannelReg(system.getHealthMonitoringTask().ADCChannelRegister);   
 	      /*AD converter is set to unipolar mode                              */
 
-	      // FIXME: unimplemented
-	      // START_CONVERSION;
+	      system.getAdcDevice().startConversion();
 	      /*Dummy cycle to set unipolar mode.                                 */
 
 	      conversion_try_count = 0;
@@ -309,10 +316,9 @@ public class AcquisitionTask {
 	      TaskControl.shortDelay(initial_delay);
 	      /* Delay before converting first channel. */
 
-	      // FIXME: implement
-//	      ADC_channel_register =
-//	         (ADC_channel_register & 0xC0) | CH_base;
-//	      UPDATE_ADC_CHANNEL_REG;
+	      system.getHealthMonitoringTask().ADCChannelRegister =
+	    	  system.getHealthMonitoringTask().ADCChannelRegister | CH_base;
+	      system.getAdcDevice().updateADCChannelReg(system.getHealthMonitoringTask().ADCChannelRegister);   
 	      /* First channel is selected. */
 
 	      TaskControl.shortDelay(delay_limit);
@@ -325,14 +331,12 @@ public class AcquisitionTask {
 	    	  TaskControl.shortDelay(delay_limit);
 	         /* Delay of 100 microseconds (+ function call overhead). */
 
-	    	 // FIXME: implement
-	         // START_CONVERSION;
+	         system.getAdcDevice().startConversion();
 	         /* AD conversion for the selected channel is started. */
 
-		     // FIXME: implement
-//	         ADC_channel_register =
-//	            (ADC_channel_register & 0xC0) | (CH_base + i + 1);
-//	         UPDATE_ADC_CHANNEL_REG;
+	         system.getHealthMonitoringTask().ADCChannelRegister =
+	        	 (system.getHealthMonitoringTask().ADCChannelRegister & 0xC0) | (CH_base + i + 1);
+	         system.getAdcDevice().updateADCChannelReg(system.getHealthMonitoringTask().ADCChannelRegister);   
 	         /* Next channel is selected. */
 
 	         conversion_try_count = 0;
@@ -349,16 +353,14 @@ public class AcquisitionTask {
 
 	         if (conversion_try_count < ADC_MAX_TRIES)
 	         {
-	        	// FIXME: implement
-	        	 
-//	            msb = GET_RESULT;
-//	            /*Most significant byte is read from ADC result address.      */
-//
-//	            lsb = GET_RESULT;
-//	            /*Least significant byte is read from ADC result address.     */
-//
-//	            ADC_result[i] = 
-//	               ((unsigned int)msb << 8) | (unsigned int)lsb;
+	            msb = system.getAdcDevice().getResult();
+	            /*Most significant byte is read from ADC result address.      */
+
+	            lsb = system.getAdcDevice().getResult();
+	            /*Least significant byte is read from ADC result address.     */
+
+	            ADC_result[i] = 
+	               (char)((msb << 8) | lsb);
 	            /*Msb and lsb are combined into one word.                     */
 	         } 
 

@@ -213,6 +213,52 @@ public class TelemetryData implements TelemetryObject {
 
 //	   ENABLE_INTERRUPT_MASTER;
 	}
+
+	/**
+	 * Purpose        : This function will be called always when 
+	 *                  error bit(s) in the SU# status register are set.
+	 * Interface      : inputs      - SU# status register
+	 *        	                    - 'SU_index' (0-3)
+	 *                              - 'SU_error' is one of the following:
+	 *
+	 *                                 LV_SUPPLY_ERROR
+	 *                                 HV_SUPPLY_ERROR
+	 *                                 TEMPERATURE_ERROR
+	 *                                 SELF_TEST_ERROR
+	 *
+	 *                  outputs     - SU# status register
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      : - Disable interrupts
+	 *                  - Write to SU# status register
+	 *                  - Set corresponding SU# error bit in the
+	 *                    error status register.
+	 *                  - Enable interrupts
+	 */
+	public void setSUError(int SU_index, byte SU_error) {
+	 
+//	   DISABLE_INTERRUPT_MASTER;
+	   
+	      SU_status[SU_index] |= (SU_error &(~SUPPLY_VOLTAGE_MASK));
+	      /* Error bits in the SU# status register are cleared. */
+	      /* The voltage status bits in the SU# status register */
+	      /* are secured against unintended modification by     */
+	      /* clearing those bits in 'SU_error' before           */
+	      /* "or":ing its value to                              */
+	      /* 'telemetry_data.SU_status'.                        */
+	 
+	      setErrorStatus((byte)(ERROR_STATUS_OFFSET << SU_index));      
+	      /* SU# error is set in the error status register, if      */
+	      /* anyone of the error bits in the SU# status register    */
+	      /* is set.                                                */
+	      /* Because this subroutine enables itself the interrupts, */
+	      /* the call of it must be the last operation in the       */ 
+	      /* interrupt blocked area !                               */
+
+//	   ENABLE_INTERRUPT_MASTER;
+	}
+
 	
 	/**
 	 * Purpose        : This function will be called always when

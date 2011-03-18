@@ -20,9 +20,7 @@ public abstract class HarnessTest extends TestSuite {
 	protected AcquisitionTask acqTask;
 	protected TelecommandExecutionTask tctmTask;
 	protected HealthMonitoringTask hmTask;
-	private int start_conversion_count;
-	private int end_of_adc_count;
-
+	
 	public HarnessTest(HarnessSystem sys, TestLogger td) {
 		super(td);
 		this.system = sys;
@@ -269,9 +267,9 @@ public abstract class HarnessTest extends TestSuite {
 	protected void monitorHealth (int problem)
 	/* Executes HandleHealthMonitoring for a particular analysis problem. */
 	{
-	   start_conversion_count = 0;
-	   end_of_adc_count       = 0;
-
+	   system.adcSim.start_conversion_count = 0;
+	   system.adcSim.end_of_adc_count       = 0;
+	   
 	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
 	   system.hmTask.handleHealthMonitor();
 	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
@@ -280,30 +278,30 @@ public abstract class HarnessTest extends TestSuite {
 	   reportEndOfADCCount        (problem);
 	}
 
-	protected void reportStartConversionCount (int problem)
-	/* Reports and then clears the count of Start_Conversion calls.
+	/** Reports and then clears the count of Start_Conversion calls.
 	 * The problem parameter associates this count with a given
 	 * analysis problem for this benchmark.
 	 */
+	protected void reportStartConversionCount (int problem)
 	{
 		if(Harness.TRACE) {
 			Harness.trace(String.format("[HarnessTest] Called Start_Conversion %d times in problem %d.",
-				      start_conversion_count, problem));
+					system.adcSim.start_conversion_count, problem));
 		}
 
-	   start_conversion_count = 0;
+		system.adcSim.start_conversion_count = 0;
 	}
 	
-	void reportEndOfADCCount (int problem)
-	/* Reports and then clears the count of End_Of_ADC calls.
+	/** Reports and then clears the count of End_Of_ADC calls.
 	 * The problem parameter associates this count with a given
 	 * analysis problem for this benchmark.
 	 */
+	void reportEndOfADCCount (int problem)
 	{
 		if(Harness.TRACE) {
 			Harness.trace(String.format("[HarnessTest] Called End_Of_ADC %d times in problem %d.",
-				      end_of_adc_count, problem));
+					system.adcSim.end_of_adc_count, problem));
 		}
-		end_of_adc_count = 0;
+		system.adcSim.end_of_adc_count = 0;
 	}
 }

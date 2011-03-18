@@ -399,9 +399,13 @@ public abstract class SensorUnitDev {
 
 	public abstract void disableHitTrigger ();
 	
+	public abstract int getHitTriggerFlag ();
+	
 	/*--- XXX: this used to be in the Dpu module */
 	public abstract int getEventFlag();
 
+	public abstract int VDown();
+	
 	//
 	//	/* Sensor Unit calibration */
 	//

@@ -100,25 +100,20 @@ public class SensorUnitSim extends SensorUnitDev {
 
 	public void disableHitTrigger () /* Disable_Hit_Trigger  */
 	{
-		if(Harness.TRACE) Harness.trace("Disable_Hit_Trigger\n");
+		if(Harness.TRACE) Harness.trace("Disable_Hit_Trigger");
  	    hit_enabled = 0;
 	    simSelfTestTrigger ();
 	}
 
+	public int getHitTriggerFlag ()
+	{
+		if(Harness.TRACE) Harness.trace("Hit_Trigger_Flag");
+		return trigger_flag;
+		/* 1 means hit trigger ITs are enabled
+		 * 0 means they are disabled.
+		 */
+	}
 
-
-//	unsigned char Hit_Trigger_Flag (void)
-//	{
-//	#if defined(TRACE_HARNESS)
-//	   printf ("Hit_Trigger_Flag\n");
-//	#endif
-//	   return trigger_flag;
-//	  /* 1 means hit trigger ITs are enabled
-//	   * 0 means they are disabled.
-//	   */
-//	}
-//
-//
 //	unsigned char Event_Flag (void)
 //	{
 //	#if defined(TRACE_HARNESS)
@@ -204,33 +199,28 @@ public class SensorUnitSim extends SensorUnitDev {
 		return event_flag;
 	}
 
+	/** The number of consecutive error results to
+	 * be returned from the next calls of V_Down.
+	 */
+	int v_down_errors = 0;
 
-//	static unsigned int v_down_errors = 0;
-//	/* The number of consecutive error results to
-//	 * be returned from the next calls of V_Down.
-//	 */
-//
-//
-//	unsigned char V_Down (void) 
-//	{
-//	   unsigned char result;
-//
-//	   if (v_down_errors > 0)
-//	   {
-//	      result = 0;  /* Bad. */
-//	      v_down_errors --;
-//	   }
-//	   else
-//	      result = 1;  /* Good. */
-//
-//	#if defined(TRACE_HARNESS)
-//	   printf ("V_Down %d\n", result);
-//	#endif
-//
-//	   return result;
-//	}
-//
-//
+	public int VDown () 
+	{
+	   int result;
+
+	   if (v_down_errors > 0)
+	   {
+	      result = 0;  /* Bad. */
+	      v_down_errors --;
+	   }
+	   else
+	      result = 1;  /* Good. */
+
+	   if (Harness.TRACE) Harness.trace(String.format("V_Down %d", result));
+
+	   return result;
+	}
+
 //	void SignalPeakDetectorReset(
 //	   unsigned char low_reset_value,
 //	   unsigned char high_reset_value)
