@@ -58,8 +58,8 @@ public class SensorUnitSim extends SensorUnitDev {
 	}
 
 
-	/* unsigned int */ RandomSim rand = new RandomSim();
-	/* Roving index for ad_random, for randomizing the event data. */
+	/** Roving index for ad_random, for randomizing the event data. */
+	RandomSim /* unsigned int */ rand = new RandomSim(0);
 
 
 	void randomEvent () /* Random_Event */

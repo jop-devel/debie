@@ -2,6 +2,8 @@ package debie.harness;
 
 /** Ported from harness.c:866-926 */
 public class RandomSim {
+
+	/** Random A/D data. */
 	public static final /* unsigned char */ char[] AD_RANDOM = {
 		   0x6a, 0xde, 0xba, 0x90, 0xf2, 0x18, 0x48, 0xf3,
 		   0x9e, 0x2b, 0x31, 0xdb, 0xe0, 0x7e, 0xc6, 0x18,
@@ -43,31 +45,23 @@ public class RandomSim {
 		   0x13, 0xc3, 0x34, 0x95, 0x5d, 0x5a, 0xc3, 0xd0,
 		   0x33, 0x05, 0x82, 0x4a, 0x2e, 0x6d, 0x39, 0xeb,
 		   0x9c, 0x65, 0x81, 0x7f, 0xa1, 0x62, 0x11};
-		/* Random A/D data. */
 	
+	/** The amount of random A/D data defined above. */
 	public static final int AD_NUM_RAND = AD_RANDOM.length;
-	/* The amount of random A/D data defined above. */
 
 
 	private int index;
 
-	public RandomSim() {
+	public RandomSim(int initialIndex) {
 		this.index = 0;
 	}
 
 
-	private void next()
-	/* Go on to the next random value. */
+	/** Go on to the next random value and return it. */
+	public int nextRand()
 	{
 	   index++;
 	   if (index >= AD_NUM_RAND) index = 0;
-	}
-
-
-	public int nextRand()
-	/* Go on to the next random value and return it. */
-	{
-	   next();
 	   return AD_RANDOM[index];
 	}
 
