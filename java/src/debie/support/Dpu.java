@@ -57,8 +57,8 @@ public class Dpu {
 	/* 10 Acquisition                   */
 
 	public enum ResetClass {
-	   power_up_reset_e /* 0 */, /* Don't change value ! */
-	   watchdog_reset_e /* 1 */, /* Don't change value ! */
+	   power_up_reset_e, /* = 0, Don't change value ! */
+	   watchdog_reset_e, /* = 1, Don't change value ! */
 	   soft_reset_e, 
 	   warm_reset_e, 
 	   error_e,
@@ -68,7 +68,8 @@ public class Dpu {
 	public static ResetClass  s_w_reset;
 
 	public enum MemoryConfiguration {
-	   PROM_e, SRAM_e
+	   PROM_e,
+	   SRAM_e
 	};
 
 	static MemoryConfiguration memory_mode;

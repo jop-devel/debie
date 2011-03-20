@@ -260,7 +260,10 @@ public class TelecommandExecutionTask {
 		}
 	}
 
-	public enum MemoryType { Code, Data };
+	public enum MemoryType { 
+		Code, 
+		Data
+	};
 
 	/*--- Ported from tc_hand.c:90-123 */
 	/* Global variables */
@@ -454,23 +457,24 @@ public class TelecommandExecutionTask {
 			else
 			{
 				/* XXX: work around ticket #9 for JOP, broken switch/case for enums */
-//				switch (TC_state) {
-//				case read_memory_e:
-//					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
-//						setTCError();
-//						TC_state = TC_State.TC_handling_e;
-//					}
-//					break;
-//				case write_memory_e:
-//					writeMemory (&received_command);
-//					break;
-//				case memory_patch_e:
-//					memoryPatch (&received_command);
-//					break;
-//				case TC_handling_e:
-//					executeCommand(received_command);
-//					break;
-//				}
+				switch (TC_state) {
+				case read_memory_e:
+					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
+						setTCError();
+						TC_state = TC_State.TC_handling_e;
+					}
+					break;
+				case write_memory_e:
+					writeMemory (received_command);
+					break;
+				case memory_patch_e:
+					memoryPatch (received_command);
+					break;
+				case TC_handling_e:
+					executeCommand(received_command);
+					break;
+				}
+
 				if (TC_state == TC_State.read_memory_e) {
 					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
 						setTCError();

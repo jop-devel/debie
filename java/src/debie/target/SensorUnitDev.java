@@ -1,14 +1,15 @@
 package debie.target;
 
-import debie.harness.Harness;
 import debie.particles.SensorUnit;
 import debie.particles.SensorUnitSettings;
 import debie.support.Dpu;
-import debie.telecommand.TelecommandExecutionTask;
 
 public abstract class SensorUnitDev {
 
-	public static enum SensorUnitTestLevel {high_e, low_e};
+	public static enum SensorUnitTestLevel {
+		high_e, 
+		low_e
+	};
 
 	public static class Delays {
 		public char FromPlasma1Plus; /* XXX: was unsigned short int  */
