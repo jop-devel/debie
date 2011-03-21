@@ -97,7 +97,7 @@ public class AdcSim implements AdConverter {
 	/* Limits on the simulated A/D readings for all channels. */
 
 	int ad_converting;
-	
+		
 	/** A roving index to the random A/D data. */
 	private RandomSim ad_rand_index = new RandomSim(0);
 
@@ -137,6 +137,10 @@ public class AdcSim implements AdConverter {
 	
 	int ad_conv_timer;
 	
+	public void clearADConverting() {
+		ad_converting = 0;
+	}
+	
 	/** Sets ad_conv_delay[all] = delay. */
 	public void setADDelay(int delay) {
 		for (int i = 0; i < AD_NUM_CONV; i++)
@@ -148,10 +152,10 @@ public class AdcSim implements AdConverter {
 	 * 0 (CONVERSION_ACTIVE) means yes, any other value means no.
 	 */
 	public int endOfADC() {
-		if (Harness.TRACE) Harness.trace("End_Of_ADC");
+		if (Harness.TRACE) Harness.trace("[AdcSim] End_Of_ADC");
 		
 		if (ad_converting == 0) {
-			if (Harness.TRACE) Harness.trace("- conversion not going on.");
+			if (Harness.TRACE) Harness.trace("[AdcSim] - conversion not going on.");
 		}
 
 		end_of_adc_count ++;
@@ -178,7 +182,7 @@ public class AdcSim implements AdConverter {
 				{
 					/* Hit me again, Sam. */
 
-					if (Harness.TRACE) Harness.trace("Hit during A/D"); 
+					if (Harness.TRACE) Harness.trace("[AdcSim] Hit during A/D"); 
 					AcquisitionTask.confirm_hit_result = 1;
 
 					total_adc_hits ++;
@@ -205,7 +209,7 @@ public class AdcSim implements AdConverter {
 
 		value = (ad_value >>> 8) & 0xff;
 
-		if (Harness.TRACE) Harness.trace(String.format("Get_Result %d = 0x%x\n", value, value));
+		if (Harness.TRACE) Harness.trace(String.format("[AdcSim] Get_Result %d = 0x%x", value, value));
 
 		/* Shift the LSB to the MSB, for next Get_Result: */
 
@@ -216,7 +220,7 @@ public class AdcSim implements AdConverter {
 
 	@Override
 	public void setDACOutput(int level) {
-		if (Harness.TRACE) Harness.trace(String.format("Set_DAC_Output %d", level)); 
+		if (Harness.TRACE) Harness.trace(String.format("[AdcSim] Set_DAC_Output %d", level)); 
 	}
 
 	@Override
@@ -225,10 +229,10 @@ public class AdcSim implements AdConverter {
 
 		channel = HealthMonitoringTask.ADCChannelRegister & 0x3f;
 
-		if (Harness.TRACE) Harness.trace(String.format("Start_Conversion on channel %d\n", channel));
+		if (Harness.TRACE) Harness.trace(String.format("[AdcSim] Start_Conversion on channel %d", channel));
 
 		if (ad_converting != 0) {
-			if (Harness.TRACE) Harness.trace("- previous conversion did not end.\n");
+			if (Harness.TRACE) Harness.trace("[AdcSim] - previous conversion did not end.");
 		}
 
 		/* Pick an A/D reading for this channel: */
@@ -254,7 +258,7 @@ public class AdcSim implements AdConverter {
 			if (ad_fail_index.nextRand() > 0x3f) {
 				/* Pretend that this conversion will fail (not end). */
 
-				if (Harness.TRACE) Harness.trace("Start_Conversion starts a failing A/D conversion.");
+				if (Harness.TRACE) Harness.trace("[AdcSim] Start_Conversion starts a failing A/D conversion.");
 				ad_conv_timer = -5000;
 
 				ad_random_failures --;
@@ -266,73 +270,81 @@ public class AdcSim implements AdConverter {
 
 	@Override
 	public void updateADCChannelReg(int channel) {
-		if (Harness.TRACE) Harness.trace(String.format("UpdateADC_ChannelReg %x", channel));
+		if (Harness.TRACE) Harness.trace(String.format("[AdcSim] Update_ADC_Channel_Reg %x", channel));
 	}
 	
-	public void setADNominal ()
-	/* Sets A/D limits to ensure nominal (in-range) readings. */
-	{
-		if(Harness.TRACE) Harness.trace("[AdcSim] Set AD Nominal");
+	/** Sets no A/D limits. */
+	public void setADUnlimited ()	{
+		if(Harness.TRACE) Harness.trace("[AdcSim] Set AD Unlimited");
 
-	  /* SU +5V supply: */
-
-	  ad_limit[16][MIN] = 0xba00;
-	  ad_limit[16][MAX] = 0xe4ff;
-
-	  ad_limit[17][MIN] = 0xba00;
-	  ad_limit[17][MAX] = 0xe4ff;
-
-	  /* SU -5V supply: */
-
-	  ad_limit[20][MIN] = 0x0d00;
-	  ad_limit[20][MAX] = 0x22ff;
-
-	  ad_limit[21][MIN] = 0x0d00;
-	  ad_limit[21][MAX] = 0x22ff;
-
-	  /* SU +50V supply: */
-
-	  ad_limit[18][MIN] = 0xa800;
-	  ad_limit[18][MAX] = 0xe3ff;
-
-	  /* SU -50V supply: */
-
-	  ad_limit[22][MIN] = 0x0e00;
-	  ad_limit[22][MAX] = 0x2cff;
-
-	  /* DPU +5V supply: */
-
-	  ad_limit[19][MIN] = 0xba00;
-	  ad_limit[19][MAX] = 0xe4ff;
-
-	  /* SU 1 temperatures: */
-
-	  ad_limit[5][MIN] = 0x0000;
-	  ad_limit[5][MAX] = 0xfaff;
-	  ad_limit[6][MIN] = 0x0000;
-	  ad_limit[6][MAX] = 0xf4ff;
-
-	  /* SU 2 temperatures: */
-
-	  ad_limit[13][MIN] = 0x0000;
-	  ad_limit[13][MAX] = 0xfaff;
-	  ad_limit[14][MIN] = 0x0000;
-	  ad_limit[14][MAX] = 0xf4ff;
-
-	  /* SU 3 temperatures: */
-
-	  ad_limit[29][MIN] = 0x0000;
-	  ad_limit[29][MAX] = 0xfaff;
-	  ad_limit[30][MIN] = 0x0000;
-	  ad_limit[30][MAX] = 0xf4ff;
-
-	  /* SU 4 temperatures: */
-
-	  ad_limit[37][MIN] = 0x0000;
-	  ad_limit[37][MAX] = 0xfaff;
-	  ad_limit[38][MIN] = 0x0000;
-	  ad_limit[38][MAX] = 0xf4ff;
+		for (int c = 0; c < AD_CHANNELS; c++) {
+			ad_limit[c][MIN] = 0;
+			ad_limit[c][MAX] = 0xffff;
+		}
 	}
 
+	/** Sets A/D limits to ensure nominal (in-range) readings. */
+	public void setADNominal () {
+		if(Harness.TRACE) Harness.trace("[AdcSim] Set AD Nominal");
+
+		/* SU +5V supply: */
+
+		ad_limit[16][MIN] = 0xba00;
+		ad_limit[16][MAX] = 0xe4ff;
+
+		ad_limit[17][MIN] = 0xba00;
+		ad_limit[17][MAX] = 0xe4ff;
+
+		/* SU -5V supply: */
+
+		ad_limit[20][MIN] = 0x0d00;
+		ad_limit[20][MAX] = 0x22ff;
+
+		ad_limit[21][MIN] = 0x0d00;
+		ad_limit[21][MAX] = 0x22ff;
+
+		/* SU +50V supply: */
+
+		ad_limit[18][MIN] = 0xa800;
+		ad_limit[18][MAX] = 0xe3ff;
+
+		/* SU -50V supply: */
+
+		ad_limit[22][MIN] = 0x0e00;
+		ad_limit[22][MAX] = 0x2cff;
+
+		/* DPU +5V supply: */
+
+		ad_limit[19][MIN] = 0xba00;
+		ad_limit[19][MAX] = 0xe4ff;
+
+		/* SU 1 temperatures: */
+
+		ad_limit[5][MIN] = 0x0000;
+		ad_limit[5][MAX] = 0xfaff;
+		ad_limit[6][MIN] = 0x0000;
+		ad_limit[6][MAX] = 0xf4ff;
+
+		/* SU 2 temperatures: */
+
+		ad_limit[13][MIN] = 0x0000;
+		ad_limit[13][MAX] = 0xfaff;
+		ad_limit[14][MIN] = 0x0000;
+		ad_limit[14][MAX] = 0xf4ff;
+
+		/* SU 3 temperatures: */
+
+		ad_limit[29][MIN] = 0x0000;
+		ad_limit[29][MAX] = 0xfaff;
+		ad_limit[30][MIN] = 0x0000;
+		ad_limit[30][MAX] = 0xf4ff;
+
+		/* SU 4 temperatures: */
+
+		ad_limit[37][MIN] = 0x0000;
+		ad_limit[37][MAX] = 0xfaff;
+		ad_limit[38][MIN] = 0x0000;
+		ad_limit[38][MAX] = 0xf4ff;
+	}
 
 }

@@ -108,7 +108,7 @@ public class AcquisitionTask {
 	/*--- Instance Variables ---*/
 
 	/* FIXME: Static because used in TelecommandExecutionTask */
-	public static int /* sensor_number_t */self_test_SU_number = SensorUnitDev.NO_SU;
+	public int /* sensor_number_t */self_test_SU_number = SensorUnitDev.NO_SU;
 
 	public static int self_test_flag;
 
@@ -236,8 +236,8 @@ public class AcquisitionTask {
 	      {
 	    	  TelecommandExecutionTask.getTelemetryData().hit_budget_exceedings++;
 	      }
-	      // FIXME: no link to sensor unit available
-	      // SensorUnitSim.disableHitTrigger();
+	      
+	      system.getSensorUnitDevice().disableHitTrigger();
 
 	      /* No more hit triggers will be handled before next Health */
 	      /* Monitoring period starts (or DEBIE is reset).           */
@@ -260,15 +260,14 @@ public class AcquisitionTask {
 
 	      conversion_try_count = 0;
 
-	      // FIXME: unimplemented
-//	      while (   conversion_try_count < ADC_MAX_TRIES
-//	             && END_OF_ADC != CONVERSION_ACTIVE )
-//	      {
-//	         conversion_try_count++;
-//	         /*Conversion try counter is increased. If this counter exeeds the*/
-//	         /*maximum number of conversion start tries the conversion will be*/
-//	         /*dropped.                                                       */
-//	      }       
+	      while (conversion_try_count < ADC_MAX_TRIES
+	             && system.getAdcDevice().endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE)
+	      {
+	         conversion_try_count++;
+	         /*Conversion try counter is increased. If this counter exeeds the*/
+	         /*maximum number of conversion start tries the conversion will be*/
+	         /*dropped.                                                       */
+	      }       
 
 	      if (self_test_SU_number != SensorUnitDev.NO_SU)
 	      {
@@ -300,12 +299,12 @@ public class AcquisitionTask {
 	      else
 	      {
 	         /* There is no Sensor Unit Self Test in progress. */
-	    	 // FIXME: no access to sensor units here
 	    	 trigger = SU1;
-//	         trigger = (    sensorUnitDev.trigger_source_0 
-//	                      + 2 
-//	                      * sensorUnitDev.trigger_source_1) 
-//	                   + SU1;
+	    	 SensorUnitDev suDev = system.getSensorUnitDevice();
+	         trigger = (suDev.triggerSource0() 
+	                      + 2 
+	                      * suDev.triggerSource1()) 
+	                   + SU1;
 	         /* Sensor Unit which caused the hit trigger is resolved. */
 	      }   
 
@@ -325,10 +324,9 @@ public class AcquisitionTask {
 	      /* Delay of 100 microseconds (+ function call overhead). */
 
 
-	      for (i = 0; i < SensorUnitDev.NUM_CH; i++)
-	      {
+	      for (i = 0; i < SensorUnitDev.NUM_CH; i++) {
 
-	    	  TaskControl.shortDelay(delay_limit);
+	    	 TaskControl.shortDelay(delay_limit);
 	         /* Delay of 100 microseconds (+ function call overhead). */
 
 	         system.getAdcDevice().startConversion();
@@ -341,15 +339,14 @@ public class AcquisitionTask {
 
 	         conversion_try_count = 0;
 
-	         // FIXME: implement
-//	         while (   conversion_try_count < ADC_MAX_TRIES
-//	                && END_OF_ADC != CONVERSION_ACTIVE )
-//	         {
-//	            conversion_try_count++;
-//	            /*Conversion try counter is increased. If this counter exeeds */
-//	            /*the maximum number of conversion start tries the conversion */
-//	            /*will be dropped.                                            */
-//	         }       
+	         while (conversion_try_count < ADC_MAX_TRIES
+	                && system.getAdcDevice().endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE )
+	         {
+	            conversion_try_count++;
+	            /*Conversion try counter is increased. If this counter exeeds */
+	            /*the maximum number of conversion start tries the conversion */
+	            /*will be dropped.                                            */
+	         }       
 
 	         if (conversion_try_count < ADC_MAX_TRIES)
 	         {
@@ -504,11 +501,11 @@ public class AcquisitionTask {
 
 				/* Unit temperatures are stored into Event Record. */
 
-				event.SU_temperature_1 = TelecommandExecutionTask
+				event.SU_temperature_1 = (byte)TelecommandExecutionTask
 						.getTelemetryData().getSensorUnitTemperature(
 								trigger_unit - SU1, 0);
 
-				event.SU_temperature_2 = TelecommandExecutionTask
+				event.SU_temperature_2 = (byte)TelecommandExecutionTask
 						.getTelemetryData().getSensorUnitTemperature(
 								trigger_unit - SU1, 1);
 

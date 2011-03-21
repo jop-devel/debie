@@ -287,7 +287,6 @@ public class EventRecord {
 	 *                   - class number is read from a look-up table using the
 	 *                     class index and stored in the event record.
 	 *                   - CalculateQualityNumber is called. */
-	/* XXX: maybe should be moved to EventRecord class */
 	public void classify() {
 	
 		int class_index;

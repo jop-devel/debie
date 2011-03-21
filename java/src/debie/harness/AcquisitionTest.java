@@ -242,7 +242,7 @@ public class AcquisitionTest extends HarnessTest {
 
 				hmTask.getInternalTime().incr();
 				system.suSim.randomEvent();
-				system.suSim.event_flag = Dpu.ACCEPT_EVENT;
+				system.suSim.setEventFlag(Dpu.ACCEPT_EVENT);
 
 				acquireHit (Prob3a, Prob5b);
 

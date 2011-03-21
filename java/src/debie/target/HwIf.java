@@ -1,5 +1,7 @@
 package debie.target;
 
+import debie.support.Dpu;
+import debie.support.TaskControl;
 import debie.support.Dpu.ResetClass;
 import debie.target.SensorUnitDev.Delays;
 import debie.telecommand.TelecommandExecutionTask;
@@ -9,10 +11,6 @@ import static debie.telecommand.TelecommandExecutionTask.*;
 public class HwIf {
 	
 	public static final int MAX_EVENTS = 1261;
-	
-	/* These variables store values of these write-only registers. */
-	/* unsigned char */ public static int SUCtrlRegister    = 0;
-	/* unsigned char */ public static int SUSelfTestChannel = 0;
 	
 	/* The test records the address of the first failed cell in the
 	 * code (program) RAM and the external data RAM.
@@ -42,11 +40,9 @@ public class HwIf {
 	 *  Preconditions  :
 	 *  Postconditions :  Data is gained.
 	 *  Algorithm      :  Counter is read with XBYTE.
-	/* XXX: was unsigned char  */ 
+	 */
 	public static byte readRiseTimeCounter() {
-		// TODO: stub. This is a hardware interface
-		//return GET_DATA_BYTE(RISE_TIME_COUNTER);
-		return 0;
+		return Dpu.getDataByte(TaskControl.getSystem().getSensorUnitDevice().getRiseTimeCounter());
 	}
 
 	public static void enableInterruptMaster() {
@@ -54,25 +50,77 @@ public class HwIf {
 	}
 
 	public static void disableInterruptMaster() {
-		// TODO Auto-generated method stub
-		
+		// TODO Auto-generated method stub	
 	}
 
-	public static void resetPeakDetector(int trigger_unit) {
-		// TODO Auto-generated method stub
-		
-	}
-	
-	/* Delay and rise time counters */
-	public static void readDelayCounters(Delays delay_counters) {
-		// TODO Auto-generated method stub
-		
-	}
-	
+	/**
+	 * Purpose        :  Peak detector  is reset.
+	 * Interface      :  -'Sensor unit on/off control register' is used
+	 * Preconditions  :  Resetting takes place after acquisition.
+	 * Postconditions :  Peak detector  is reset.
+	 * Algorithm      :  - Interrupts are disabled
+	 *                   - SignalPeakDetectorReset function is called
+	 *                   - Interrupts are enabled
+	 *
+	 * This function is used by Acquisition and HealthMonitoringTask.
+	 * However, it does not have to be of re-entrant type because collision
+	 * is avoided through design, as follows.
+	 * HealthMonitoring task uses ResetPeakDetector when Hit Budget has been
+	 * exeeded. This means that Acquisitiontask is disabled. When Acquisition
+	 * task uses  ResetPeakDetector HealthMonitoringTask is disabled because
+	 * it is of lower priority .
+	 */
+	public static void resetPeakDetector(int unit) {
+//	     DISABLE_INTERRUPT_MASTER;
+	     /* Disable all interrupts */
 
+	     TaskControl.getSystem().getSensorUnitDevice().signalPeakDetectorReset(
+	        SensorUnitDev.SU_ctrl_register & ~(1 << (unit - SensorUnitDev.SU_1)),
+	        SensorUnitDev.SU_ctrl_register);
+	     /* Generate reset pulse. */
+
+//	     ENABLE_INTERRUPT_MASTER;
+	}
+	
+	/**
+	 * Purpose        :  Read delay counters.
+	 * Interface      :  Results are stored into a given struct.
+	 * Preconditions  :
+	 * Postconditions :  Counters are read.
+	 * Algorithm      :  MSB and LSB are combined to form an 16 bit int.
+	 */
+	public static void readDelayCounters(Delays delay) {
+		int msb, lsb;
+		   
+		SensorUnitDev suDev = TaskControl.getSystem().getSensorUnitDevice();
+		
+		msb = suDev.getMSBCounter() & 0x0F;
+		/* Correct set of four bits are selected in the MSB. */
+		lsb = suDev.getLSB1Counter();
+
+		delay.FromPlasma1Plus = (char)((msb << 8) | lsb);
+
+		msb = suDev.getMSBCounter() >> 4;
+		/* Correct set of four bits are selected in the MSB.  */
+		lsb = suDev.getLSB2Counter();
+		      
+		delay.FromPlasma1Minus = (char)((msb << 8) | lsb);   		
+	}	
+
+	/**
+	 * Purpose        :  Delay counters are reset.
+	 * Interface      :  Port 1 is used.
+	 * Preconditions  :  Resetting takes place after acquisition.
+	 * Postconditions :  Delay counters are reset.
+	 * Algorithm      :  The counter reset output bit at the I/O port 1 is set
+	 *                   first and then high.
+	 */
 	public static void resetDelayCounters() {
-		// TODO Auto-generated method stub
-		
+//		SET_COUNTER_RESET(LOW);
+		/* Counters are reset by setting CNTR_RS bit to low in port 1 */
+
+//		SET_COUNTER_RESET(HIGH);
+		/* The bit is set back to high */
 	}
 	
 	/** Purpose        : Copy results of RAM test to telemetry_data.

@@ -85,7 +85,7 @@ public class TelecommandISRTest extends HarnessTest {
 
 		/* Clear the error manually: */
 
-	    tctmTask.getTelemetryData().setErrorStatus((byte)0);
+	    tctmTask.getTelemetryData().clearErrorStatus();
 
 	    checkNoErrors();
 	}
@@ -108,7 +108,7 @@ public class TelecommandISRTest extends HarnessTest {
 		
 		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);	
-		tctmTask.getTelemetryData().setErrorStatus((byte)0);
+		tctmTask.getTelemetryData().clearErrorStatus();
 	}
 	
 	private void testOnlyEqual() {
@@ -118,7 +118,7 @@ public class TelecommandISRTest extends HarnessTest {
 		
 		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
-		tctmTask.getTelemetryData().setErrorStatus((byte)0);
+		tctmTask.getTelemetryData().clearErrorStatus();
 	}
 	
 	private void testOnOffTc() {
@@ -130,7 +130,7 @@ public class TelecommandISRTest extends HarnessTest {
 		
 		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
-		tctmTask.getTelemetryData().setErrorStatus((byte)0);
+		tctmTask.getTelemetryData().clearErrorStatus();
 	}
 	
 	private void testOnlyEvenOdd() {
@@ -141,7 +141,7 @@ public class TelecommandISRTest extends HarnessTest {
 		checkTcState(TC_State.TC_handling_e);
 		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
-		tctmTask.getTelemetryData().setErrorStatus((byte)0);
+		tctmTask.getTelemetryData().clearErrorStatus();
 	}
 	
 	private void testOnlyEvenTooLarge() {
@@ -152,6 +152,6 @@ public class TelecommandISRTest extends HarnessTest {
 		checkTcState(TC_State.TC_handling_e);
 		checkEquals("error status = TC_ERROR", tctmTask.getErrorStatus(), TcTmDev.TC_ERROR);
 		checkEquals("mail count of tctm mailbox = 0", system.tctmMailbox.getMailCount(), 0);		
-		tctmTask.getTelemetryData().setErrorStatus((byte)0);
+		tctmTask.getTelemetryData().clearErrorStatus();
 	}
 }

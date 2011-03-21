@@ -5,6 +5,7 @@ import static debie.target.SensorUnitDev.NUM_SU;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnitSettings;
 import debie.support.TelemetryObject;
+import debie.target.TcTmDev;
 
 public class TelemetryData implements TelemetryObject {
 
@@ -23,12 +24,12 @@ public class TelemetryData implements TelemetryObject {
 	/* unsigned char */ byte        SW_version;                        /* reg  10       */
 	/* unsigned char */ byte        isr_send_message_error;            /* reg  11       */
 	/* unsigned char */ byte[]      SU_status = new byte[NUM_SU];      /* reg  12 -  15 */
-	/* unsigned char */ byte[]      SU_temperature = new byte[NUM_SU * NUM_TEMP];  /* reg  16 -  23 */
+	/* unsigned char */ int[]       SU_temperature = new int[NUM_SU * NUM_TEMP];  /* reg  16 -  23 */
 	public /* unsigned char */ byte        DPU_plus_5_digital;                /* reg  24       */
 	/* unsigned char */ byte        os_send_message_error;             /* reg  25       */
 	/* unsigned char */ byte        os_create_task_error;              /* reg  26       */
-	/* unsigned char */ byte        SU_plus_50;                        /* reg  27       */
-	/* unsigned char */ byte        SU_minus_50;                       /* reg  28       */
+	/* unsigned char */ public byte        SU_plus_50;                        /* reg  27       */
+	/* unsigned char */ public byte        SU_minus_50;                       /* reg  28       */
 	/* unsigned char */ byte        os_disable_isr_error;              /* reg  29       */
 	/* unsigned char */ byte        not_used_1;                        /* reg  30       */
 	SensorUnitSettings              sensor_unit_1 = new SensorUnitSettings();
@@ -68,8 +69,12 @@ public class TelemetryData implements TelemetryObject {
 	public TelemetryData() {
 	}
 	
-	public byte getSensorUnitTemperature(int sensorUnit, int tempIx) {
+	public int getSensorUnitTemperature(int sensorUnit, int tempIx) {
 		return SU_temperature[(sensorUnit << 1) + (tempIx & 0x01)];
+	}
+
+	public void setSensorUnitTemperature(int sensorUnit, int tempIx, int value) {
+		SU_temperature[(sensorUnit << 1) + (tempIx & 0x01)] = value;
 	}
 
 	public byte getErrorStatus() {
@@ -77,6 +82,10 @@ public class TelemetryData implements TelemetryObject {
 	}
 
 	public void setErrorStatus(byte val) {
+		error_status |= val & ~TcTmDev.TC_ERROR;
+	}	
+
+	public void setErrorStatusRaw(byte val) {
 		error_status = val;
 	}	
 
@@ -272,9 +281,36 @@ public class TelemetryData implements TelemetryObject {
 	 *                  - Write to error status register
 	 */
 	public void clearErrorStatus() {
-		setErrorStatus((byte)0);
+		error_status = 0;
 	    /* Error bits in the error status register are      */
 	    /* cleared.			                  */
+	}
+	
+	/**
+	 * Purpose        : This function will be called always when
+	 *                  bit(s) in the software error status
+	 *                  register are set.
+	 * Interface      : inputs      - software error status register
+	 *                              - measurement_error, which specifies what
+	 *                                bits are set in software error status.
+	 *                                Value is as follows,
+	 *
+	 *                                MEASUREMENT_ERROR
+	 *
+	 *                  outputs     - software error status register
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      : - Disable interrupts
+	 *                  - Write to software error status register
+	 *                  - Enable interrupts
+	 */
+	public void setSoftwareError(int error) {
+//	   DISABLE_INTERRUPT_MASTER;
+
+	   software_error |= error;
+
+//	   ENABLE_INTERRUPT_MASTER;
 	}
 	
 	/**

@@ -457,23 +457,23 @@ public class TelecommandExecutionTask {
 			else
 			{
 				/* XXX: work around ticket #9 for JOP, broken switch/case for enums */
-				switch (TC_state) {
-				case read_memory_e:
-					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
-						setTCError();
-						TC_state = TC_State.TC_handling_e;
-					}
-					break;
-				case write_memory_e:
-					writeMemory (received_command);
-					break;
-				case memory_patch_e:
-					memoryPatch (received_command);
-					break;
-				case TC_handling_e:
-					executeCommand(received_command);
-					break;
-				}
+//				switch (TC_state) {
+//				case read_memory_e:
+//					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
+//						setTCError();
+//						TC_state = TC_State.TC_handling_e;
+//					}
+//					break;
+//				case write_memory_e:
+//					writeMemory (received_command);
+//					break;
+//				case memory_patch_e:
+//					memoryPatch (received_command);
+//					break;
+//				case TC_handling_e:
+//					executeCommand(received_command);
+//					break;
+//				}
 
 				if (TC_state == TC_State.read_memory_e) {
 					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
@@ -2201,7 +2201,7 @@ public class TelecommandExecutionTask {
 	}
 
 	/*--- ported from measure.c:543-EOF */
-	public static void switchSensorUnitState(SensorUnit sensorUnit) 
+	public void switchSensorUnitState(SensorUnit sensorUnit) 
 	/* Purpose        : Used when only the SU_state variable must be modified.   */
 	/* Interface      : inputs      - SU_state                                   */
 	/*                              - An Address of 'sensor_unit_t' type of a    */
@@ -2227,7 +2227,7 @@ public class TelecommandExecutionTask {
 		}
 
 		else if (sensorUnit.state == SensorUnitState.self_test_mon_e &&
-				AcquisitionTask.self_test_SU_number    != SensorUnitDev.NO_SU)
+				system.getAcquisitionTask().self_test_SU_number    != SensorUnitDev.NO_SU)
 		{
 			/* There is a self test sequence running already */
 
@@ -2241,13 +2241,13 @@ public class TelecommandExecutionTask {
 
 			if (sensorUnit.state == SensorUnitState.self_test_mon_e)
 			{
-				AcquisitionTask.self_test_SU_number = sensorUnit.number;
+				system.getAcquisitionTask().self_test_SU_number = sensorUnit.number;
 				/* Number of the SU under self test is recorded. */
 			}
 
-			else if (sensorUnit.number == AcquisitionTask.self_test_SU_number)
+			else if (sensorUnit.number == system.getAcquisitionTask().self_test_SU_number)
 			{
-				AcquisitionTask.self_test_SU_number = SensorUnitDev.NO_SU;
+				system.getAcquisitionTask().self_test_SU_number = SensorUnitDev.NO_SU;
 				/* Reset self test state i.e. no self test is running. */
 			}
 
@@ -2326,7 +2326,7 @@ public class TelecommandExecutionTask {
 		}   
 	}
 
-public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
+	public void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//
 	//		void SetSensorUnitOff(
 	//		         sensor_index_t SU,
@@ -2375,7 +2375,7 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 			sensorUnitSetting.number = index + SensorUnitDev.SU_1;
 			sensorUnitSetting.expected_source_state = AcquisitionTask.sensorUnitState[index]; 
 			sensorUnitSetting.state = SensorUnitState.off_e;
-			switchSensorUnitState (sensorUnitSetting);
+			switchSensorUnitState(sensorUnitSetting);
 			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
 		}
 
@@ -2426,7 +2426,6 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 
 		else if (AcquisitionTask.sensorUnitState[idx] == SensorUnitState.switching_e)
 		{
-			// TODO
 			HwIf.resetPeakDetector(idx + SensorUnitDev.SU_1);
 			/*Peak detector for this Sensor Unit is resetted. */       
 

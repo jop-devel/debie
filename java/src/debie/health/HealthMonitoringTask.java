@@ -4,13 +4,17 @@ import debie.Version;
 import debie.particles.AcquisitionTask;
 import debie.particles.EventClassifier;
 import debie.particles.SensorUnit;
+import debie.particles.SensorUnitSettings;
+import debie.particles.SensorUnit.SensorUnitState;
 import debie.support.DebieSystem;
 import debie.support.Dpu;
+import debie.support.KernelObjects;
 import debie.support.TaskControl;
 import debie.support.Dpu.ResetClass;
 import debie.support.Dpu.Time;
 import debie.target.HwIf;
 import debie.target.SensorUnitDev;
+import debie.target.SensorUnitDev.TriggerSet;
 import debie.telecommand.TelecommandExecutionTask;
 import debie.telecommand.TelemetryData;
 import joprt.RtThread;
@@ -110,6 +114,30 @@ public class HealthMonitoringTask implements Runnable {
 
 	private static int self_test_flag = SELF_TEST_DONE;
 
+	private static class ADCParameters {
+		/* channel_t */       int ADC_channel;
+		/* uint_least8_t */   int ADC_max_tries;
+		/* uint_least8_t */   int conversion_max_tries;
+		/* unsigned int */    int unsigned_ADC;
+		/* signed   int */    int signed_ADC;
+		/* unsigned char */   int AD_execution_result;
+		/* sensor_number_t */ int sensor_unit;
+	};
+	
+	private static class Channel {
+		static final int channel_0_e = 0;
+		static final int channel_1_e = 1;
+		static final int channel_2_e = 2;
+		static final int channel_3_e = 3;
+		static final int channel_4_e = 4;
+		static final int channel_5_e = 5;
+		static final int channel_6_e = 6;
+	}
+	
+	private static final int RESULT_OK = 1;
+	public static final int CONVERSION_ACTIVE = 0;
+	private static final int HIT_OCCURRED = 2;
+	
 	/* === Configuration === */
 	/** Health Monitoring loop count. */
 	public static final int HEALTH_COUNT = 9;
@@ -151,9 +179,17 @@ public class HealthMonitoringTask implements Runnable {
 	private static final int SU_INDEX_4 = 3;
 
 	/* === types === */
-	private enum Round {
-		round_0_e, round_1_e, round_2_e, round_3_e, round_4_e,
-		round_5_e, round_6_e, round_7_e, round_8_e, round_9_e
+	private static class Round {
+		static final int round_0_e = 0;
+		static final int round_1_e = 1;
+		static final int round_2_e = 2;
+		static final int round_3_e = 3;
+		static final int round_4_e = 4;
+		static final int round_5_e = 5;
+		static final int round_6_e = 6;
+		static final int round_7_e = 7;
+		static final int round_8_e = 8;
+		static final int round_9_e = 9;
 	};
 
 	/* === instance variables === */
@@ -286,24 +322,26 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	public void boot() {
 		
-		HwIf.SUCtrlRegister |= 0x0F;
-		Dpu.setDataByte(SU_CONTROL, (byte)HwIf.SUCtrlRegister);
+		system.getSensorUnitDevice().SU_ctrl_register |= 0x0F;
+		Dpu.setDataByte(SU_CONTROL, (byte)system.getSensorUnitDevice().SU_ctrl_register);
 		/* Set all Peak detector reset signals to high */
 
 		TelecommandExecutionTask.max_events = HwIf.MAX_EVENTS;
 		
 		HwIf.resetDelayCounters();
 		
-		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_1, new SensorUnit());
+		TelecommandExecutionTask tctmTask = system.getTelecommandExecutionTask();
+		
+		tctmTask.setSensorUnitOff(SU_INDEX_1, new SensorUnit());
 		/* Set Sensor Unit 1 to Off state */
 
-		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_2, new SensorUnit());
+		tctmTask.setSensorUnitOff(SU_INDEX_2, new SensorUnit());
 		/* Set Sensor Unit 2 to Off state */
 
-		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_3, new SensorUnit());
+		tctmTask.setSensorUnitOff(SU_INDEX_3, new SensorUnit());
 		/* Set Sensor Unit 3 to Off state */
 
-		TelecommandExecutionTask.setSensorUnitOff(SU_INDEX_4, new SensorUnit());
+		tctmTask.setSensorUnitOff(SU_INDEX_4, new SensorUnit());
 		/* Set Sensor Unit 4 to Off state */
 
 		ADCChannelRegister |= 0x80;
@@ -350,14 +388,14 @@ public class HealthMonitoringTask implements Runnable {
 			/* Record watchdog failure in telemetry. */
 
 			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-			tmData.setErrorStatus((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.WATCHDOG_ERROR));
+			tmData.setErrorStatusRaw((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.WATCHDOG_ERROR));
 
 			tmData.incrementWatchdogFailures();
 		} else if (reset_class == ResetClass.checksum_reset_e) {
 			/* Record checksum failure in telemetry. */	
 			
 			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-			tmData.setErrorStatus((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.CHECKSUM_ERROR));
+			tmData.setErrorStatusRaw((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.CHECKSUM_ERROR));
 
 			tmData.incrementChecksumFailures();
 	   } else {
@@ -390,7 +428,7 @@ public class HealthMonitoringTask implements Runnable {
 		   /* Initializes thresholds, classification levels and */
 		   /* min/max times related to classification.          */
 
-		   AcquisitionTask.self_test_SU_number = NO_SU;
+		   system.getAcquisitionTask().self_test_SU_number = NO_SU;
 		   /* Self test SU number indicating parameter */
 		   /* is set to its default value.             */                       
 	   }
@@ -406,13 +444,15 @@ public class HealthMonitoringTask implements Runnable {
 		HwIf.signalMemoryErrors();
 		/* Copy results of RAM tests to telemetry_data. */
 
-		system.getSensorUnitDevice().setTestPulseLevel(DEFAULT_TEST_PULSE_LEVEL);
+		SensorUnitDev suDev = system.getSensorUnitDevice();
+		
+		suDev.setTestPulseLevel(DEFAULT_TEST_PULSE_LEVEL);
 		/* Initializes test pulse level. */
 
-		system.getSensorUnitDevice().setSUTriggerLevels(SU_1, tmData.getSensorUnit1());
-		system.getSensorUnitDevice().setSUTriggerLevels(SU_2, tmData.getSensorUnit2());
-		system.getSensorUnitDevice().setSUTriggerLevels(SU_3, tmData.getSensorUnit3());
-		system.getSensorUnitDevice().setSUTriggerLevels(SU_4, tmData.getSensorUnit4());
+		suDev.setSUTriggerLevels(SU_1, tmData.getSensorUnit1());
+		suDev.setSUTriggerLevels(SU_2, tmData.getSensorUnit2());
+		suDev.setSUTriggerLevels(SU_3, tmData.getSensorUnit3());
+		suDev.setSUTriggerLevels(SU_4, tmData.getSensorUnit4());
 	}
 	
 	
@@ -488,128 +528,486 @@ public class HealthMonitoringTask implements Runnable {
 	 *                       in telemetry_data.
 	 */
 	void measureVoltage(int channel_selector) {
-		// TODO port
-		
-//		   ADC_parameters_t EXTERNAL AD_voltage_parameters;
-//		   /* This struct is used to hold parameters for Reading AD channels.        */
-//
-//		   unsigned char EXTERNAL voltage_channel[] = {
-//		      0x10,0x11,0x12,0x13,0x54,0x55,0x56};
-//		   /* This array holds parameters for setting the ADC channel for the        */
-//		   /* measurement.                                                           */
-//
-//		   AD_voltage_parameters.ADC_channel = voltage_channel[channel_selector];
-//		   /* Select the channel to be measured:                                     */
-//		   /* channel_selector ->  ADC channel                                       */
-//		   /*                0 ->  0x10                                              */
-//		   /*                1 ->  0x11                                              */
-//		   /*                2 ->  0x12                                              */
-//		   /*                3 ->  0x13                                              */
-//		   /*                4 ->  0x54                                              */
-//		   /*                5 ->  0x55                                              */
-//		   /*                6 ->  0x56                                              */
-//
-//		   AD_voltage_parameters.ADC_max_tries = ADC_VOLTAGE_MAX_TRIES; 
-//		   /* When voltages are measured this variable defines the maximum        */
-//		   /* amount of tries to be used in reading and handling an AD channel in */
-//		   /* 'Read_AD_Channel()'.                                                */ 
-//
-//		   AD_voltage_parameters.conversion_max_tries = 
-//		      CONVERSION_VOLTAGE_MAX_TRIES;
-//		   /* When voltages are measured this variable defines the maximum        */
-//		   /* amount of tries to be used when End Of Conversion indication is     */
-//		   /* waited in function 'Convert_AD()'.                                  */ 
-//		                                 
-//		   Read_AD_Channel(&AD_voltage_parameters);
-//		   /* Voltage channel is read.                                            */
-//		 
-//		   if (AD_voltage_parameters.AD_execution_result != RESULT_OK) 
-//		   {
-//		      /* An anomaly has occurred during the measurement. */
-//
-//		      SetSoftwareError(MEASUREMENT_ERROR);         
-//		      /* Set measurement error indication bit in */
-//		      /* software error status register.         */
-//
-//		   }
-//
-//		   else
-//		   {
-//
-//		      switch (channel_selector)
-//		      {
-//		         /* Measurement result bits 8..15 from channels involving positive      */
-//		         /* voltages are written to telemetry.                                  */
-//
-//		         case channel_0_e:
-//
-//		            telemetry_data.sensor_unit_1.plus_5_voltage = 
-//		               AD_voltage_parameters.unsigned_ADC >> 8; 
-//			   
-//		            telemetry_data.sensor_unit_2.plus_5_voltage =	
-//		               AD_voltage_parameters.unsigned_ADC >> 8;
-//
-//		            break;
-//
-//		         case channel_1_e:
-//
-//		            telemetry_data.sensor_unit_3.plus_5_voltage = 
-//		               AD_voltage_parameters.unsigned_ADC >> 8; 
-//			   
-//		            telemetry_data.sensor_unit_4.plus_5_voltage =	
-//		               AD_voltage_parameters.unsigned_ADC >> 8;
-//
-//		            break;
-//
-//		         case channel_2_e:
-//			   
-//		            telemetry_data.SU_plus_50 = AD_voltage_parameters.unsigned_ADC >> 8; 
-//		         
-//		            break;
-//
-//		         case channel_3_e:
-//
-//		            telemetry_data.DPU_plus_5_digital = 
-//		               AD_voltage_parameters.unsigned_ADC >> 8;
-//
-//		            break;
-//
-//
-//		        /* Measurement result bits 8..15 from channels involving negative      */
-//		        /* voltages are written to telemetry.                                  */
-//		        /* Note that even here, the "unsigned" or "raw" conversion result is   */
-//		        /* used; this is a requirement.                                        */
-//		 
-//		         case channel_4_e:
-//
-//		            telemetry_data.sensor_unit_1.minus_5_voltage = 
-//		               AD_voltage_parameters.unsigned_ADC >> 8; 
-//			   
-//		            telemetry_data.sensor_unit_2.minus_5_voltage =	
-//		               AD_voltage_parameters.unsigned_ADC >> 8;
-//
-//		            break;
-//
-//		         case channel_5_e:
-//			   
-//		            telemetry_data.sensor_unit_3.minus_5_voltage = 
-//		               AD_voltage_parameters.unsigned_ADC >> 8; 
-//			   
-//		            telemetry_data.sensor_unit_4.minus_5_voltage =	
-//		               AD_voltage_parameters.unsigned_ADC >> 8;
-//
-//		            break;
-//
-//		         case channel_6_e:
-//
-//		            telemetry_data.SU_minus_50 =
-//		               AD_voltage_parameters.unsigned_ADC >> 8;
-//		      
-//		            break;
-//		      }
-//		   }   
+
+		ADCParameters AD_voltage_parameters = new ADCParameters();
+		/* This struct is used to hold parameters for Reading AD channels.        */
+
+		final int voltage_channel [] = {
+				0x10,0x11,0x12,0x13,0x54,0x55,0x56};
+		/* This array holds parameters for setting the ADC channel for the        */
+		/* measurement.                                                           */
+
+		AD_voltage_parameters.ADC_channel = voltage_channel[channel_selector];
+		/* Select the channel to be measured:                                     */
+		/* channel_selector ->  ADC channel                                       */
+		/*                0 ->  0x10                                              */
+		/*                1 ->  0x11                                              */
+		/*                2 ->  0x12                                              */
+		/*                3 ->  0x13                                              */
+		/*                4 ->  0x54                                              */
+		/*                5 ->  0x55                                              */
+		/*                6 ->  0x56                                              */
+
+		AD_voltage_parameters.ADC_max_tries = ADC_VOLTAGE_MAX_TRIES; 
+		/* When voltages are measured this variable defines the maximum        */
+		/* amount of tries to be used in reading and handling an AD channel in */
+		/* 'Read_AD_Channel()'.                                                */ 
+
+		AD_voltage_parameters.conversion_max_tries = 
+			CONVERSION_VOLTAGE_MAX_TRIES;
+		/* When voltages are measured this variable defines the maximum        */
+		/* amount of tries to be used when End Of Conversion indication is     */
+		/* waited in function 'Convert_AD()'.                                  */ 
+
+		readADChannel(AD_voltage_parameters);
+		/* Voltage channel is read.                                            */
+
+		if (AD_voltage_parameters.AD_execution_result != RESULT_OK) {
+			/* An anomaly has occurred during the measurement. */
+
+			TelecommandExecutionTask.getTelemetryData()
+				.setSoftwareError(TelecommandExecutionTask.MEASUREMENT_ERROR);         
+			/* Set measurement error indication bit in */
+			/* software error status register.         */
+		} else {
+
+			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+			
+			switch (channel_selector) {
+			/* Measurement result bits 8..15 from channels involving positive      */
+			/* voltages are written to telemetry.                                  */
+
+			case Channel.channel_0_e:
+
+				tmData.getSensorUnit1().plus_5_voltage = 
+					AD_voltage_parameters.unsigned_ADC >>> 8; 
+			   
+				tmData.getSensorUnit2().plus_5_voltage =	
+					AD_voltage_parameters.unsigned_ADC >>> 8;
+
+					break;
+
+			case Channel.channel_1_e:
+
+				tmData.getSensorUnit3().plus_5_voltage = 
+					AD_voltage_parameters.unsigned_ADC >>> 8; 
+			   
+				tmData.getSensorUnit4().plus_5_voltage =	
+					AD_voltage_parameters.unsigned_ADC >>> 8;
+
+					break;
+
+			case Channel.channel_2_e:
+			   
+				tmData.SU_plus_50 = (byte)(AD_voltage_parameters.unsigned_ADC >>> 8); 
+		         
+				break;
+
+			case Channel.channel_3_e:
+
+				tmData.DPU_plus_5_digital = 
+					(byte)(AD_voltage_parameters.unsigned_ADC >>> 8);
+
+				break;
+
+
+				/* Measurement result bits 8..15 from channels involving negative      */
+				/* voltages are written to telemetry.                                  */
+				/* Note that even here, the "unsigned" or "raw" conversion result is   */
+				/* used; this is a requirement.                                        */
+
+			case Channel.channel_4_e:
+
+				tmData.getSensorUnit1().minus_5_voltage = 
+					AD_voltage_parameters.unsigned_ADC >>> 8; 
+			   
+				tmData.getSensorUnit2().minus_5_voltage =	
+					AD_voltage_parameters.unsigned_ADC >>> 8;
+
+					break;
+
+			case Channel.channel_5_e:
+			   
+				tmData.getSensorUnit3().minus_5_voltage = 
+					AD_voltage_parameters.unsigned_ADC >>> 8; 
+			   
+				tmData.getSensorUnit4().minus_5_voltage =	
+            	   AD_voltage_parameters.unsigned_ADC >>> 8;
+
+            	   break;
+
+			case Channel.channel_6_e:
+
+				tmData.SU_minus_50 =
+					(byte)(AD_voltage_parameters.unsigned_ADC >>> 8);
+		      
+				break;
+			}
+		}   
 	}
 	
+	/**
+	 * Purpose        : Delay for a (brief) duration.
+	 * Interface      : inputs      - delay duration, in ShortDelay() units.
+	 *                  outputs     - none.
+	 *                  subroutines - ShortDelay()
+	 * Preconditions  : none.
+	 * Postconditions : at least "duration" time units have passed.
+	 * Algorithm      : Call ShortDelay() as many times as necessary to delay
+	 *                  for at least the desired duration.
+	 */
+	private void delayAWhile(int duration) {
+	   while (duration > TaskControl.MAX_SHORT_DELAY) {
+		   TaskControl.shortDelay(TaskControl.MAX_SHORT_DELAY);
+	      duration = duration - TaskControl.MAX_SHORT_DELAY;
+	      /* Since ShortDelay() has a positive constant delay term, the  */
+	      /* actual total delay will be a little larger than 'duration'. */
+	   }
+
+	   if (duration > 0) {
+	      /* Some delay left after the loop above. */
+		   TaskControl.shortDelay (duration);
+	   }
+	}
+
+	/**
+	 * Purpose        : Reading an ADC channel
+	 * Interface      : inputs      - Address of a struct which contains
+	 *                                parameters for this function.
+	 *                  outputs     - Results are stored to the previously
+	 *                                mentioned structure.
+	 *                  subroutines - Convert()
+	 * Preconditions  : Health monitoring is on.
+	 *                  ADC_parameters.ADC_max_tries > 0.
+	 * Postconditions : AD channels are measured and results written to a given
+	 *                  structure.
+	 * Algorithm      :
+	 *                  while
+	 *                     - Hit trigger interrupt indicating flag is resetted.
+	 *                     - Handling of the given channel is started in a while
+	 *                       loop.
+	 *                     - Channel to be converted is selected by setting bits
+	 *                       0 - 6 from ADC Channel register to value of channel.
+	 *                       Channel value includes BP_UP bit to select
+	 *                       unipolar/bipolar mode.t
+	 *                     - Convert_AD() function executes the conversion and
+	 *                       stores the results in the given struct mentioned
+	 *                       earlier.
+	 *                     - If Hit trigger interrupt flag indicates that no
+	 *                       hit trigger interrupts have occurred during the
+	 *                       channel reading, exit the while loop.
+	 *                       Else continue loop from beginning, if
+	 *                       predefined limit for executing the loop has not been
+	 *                       reached.
+	 *                     - If all the conversion tries have been used up and
+	 *                       Hit trigger interrupt has corrupted the results,
+	 *                       only a zero is stored with an indication of this
+	 *                       occurred anomaly.
+	 *                  End of loop
+	 */
+	private void readADChannel (ADCParameters ADC_parameters) {
+	   int tries_left;
+	   /* Number of attempts remaining to try conversion without */
+	   /* interference from a particle hit.                      */
+
+	   int delay_limit;
+	   /* Delay between channel selection and start of conversion in */
+	   /* ShortDelay() units.                                        */
+
+	   delay_limit = TaskControl.DELAY_LIMIT(2000);
+	   /* Set delay limit to 2ms. */
+
+	   tries_left = ADC_parameters.ADC_max_tries;
+	   /* Limits the number of conversion attempts repeated because */
+	   /* of particle hit interrupts. Assumed to be at least 1.     */
+
+	   while (tries_left > 0) {
+		   AcquisitionTask.confirm_hit_result = 0;
+	      /* Clear interrupt indicating flag.                                    */
+
+	      ADCChannelRegister = (ADCChannelRegister & 0x80) | ADC_parameters.ADC_channel;
+	      system.getAdcDevice().updateADCChannelReg(ADCChannelRegister);
+	      /* AD Channel register is set. */
+	      
+	      system.getAdcDevice().startConversion();
+	      /* Initiate dummy cycle to set AD mode to unipolar or bipolar.         */
+
+	      delayAWhile(delay_limit);
+	      /* Wait for analog signal and MUX to settle. */
+
+	      convertAD(ADC_parameters);
+	      /* Start conversion and measurement.                                   */
+
+	      tries_left--;
+	      /* Repeat while-loop until the max number of tries. */
+
+	      if (AcquisitionTask.confirm_hit_result == 0)
+	      {
+	         /* Conversion has NOT been interrupted by a hit trigger interrupt.  */
+	         /* Exit from the while-loop.                                        */
+
+	         tries_left = 0;
+	      }
+	   }
+
+	   if (AcquisitionTask.confirm_hit_result != 0) {
+	      /* Conversion has been interrupted by a hit trigger interrupt. Discard */
+	      /* corrupted results.                                                  */
+	              
+	      ADC_parameters.unsigned_ADC = 0;
+	      ADC_parameters.signed_ADC   = 0;
+
+	      ADC_parameters.AD_execution_result = HIT_OCCURRED;
+	      /* Store indication of an unsuccessful measurement.                  */
+
+	   } else if (ADC_parameters.AD_execution_result == CONVERSION_ACTIVE 
+			   && AcquisitionTask.confirm_hit_result == 0) {
+	      setModeStatusError(TelecommandExecutionTask.ADC_ERROR);
+	      /* ADC error indication is set because a time-out has          */
+	      /* occurred during AD conversion and no hit trigger interrupt  */
+	      /* has occurred.                                               */
+	   }
+
+	   /* Either RESULT_OK or CONVERSION_ACTIVE indications are already */
+	   /* stored in the 'ADC_parameters -> AD_execution_result' field   */
+	   /* as a result from conversion in the Convert() function.        */  
+	}
+	
+	/**
+	 * Purpose        : Monitors SU voltages
+	 * Interface      : inputs      - self_test_SU_index
+	 *                                telemetry_data, sensor voltages
+	 *                  outputs     - telemetry_data.SU_error
+	 *                  subroutines -  ExceedsLimit
+	 *                                 Set_SU_Error
+	 * Preconditions  : SU voltages are measured
+	 * Postconditions : SU voltages are monitored.
+	 * Algorithm      :
+	 *                  - Channels are checked one by one and in case of an error
+	 *                    corresponding error bit is set.
+	 */
+	private void monitorSUVoltage(int self_test_SU_index)
+	{
+		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+		
+	   switch (self_test_SU_index) {
+	      case SU_INDEX_1:
+	      case SU_INDEX_2:
+
+	         /* Result of voltage measurement from SU_1/2 +5V is compared against */
+	         /* limits.          						      */
+
+	         if (exceedsLimit(tmData.getSensorUnit1().plus_5_voltage,
+	               SU_P5V_ANA_LOWER_LIMIT,
+	               SU_P5V_ANA_UPPER_LIMIT)) {
+	        	 tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.LV_LIMIT_ERROR);   
+	         }
+
+	         /* Result of voltage measurement from SU_1/2 -5V is compared against */
+	         /* limits.          						      */
+	         if (exceedsLimit(tmData.getSensorUnit1().minus_5_voltage,
+	               SU_M5V_ANA_LOWER_LIMIT,
+	               SU_M5V_ANA_UPPER_LIMIT)) {
+	        	 tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.LV_LIMIT_ERROR);   
+	         }
+	        
+	         break;
+
+	      case SU_INDEX_3:
+	      case SU_INDEX_4:
+
+	         /* Result of voltage measurement from SU_3/4 +5V is compared against */
+	         /* limits.          						      */
+
+	         if (exceedsLimit(tmData.getSensorUnit3().plus_5_voltage,
+	               SU_P5V_ANA_LOWER_LIMIT,
+	               SU_P5V_ANA_UPPER_LIMIT)) {
+	        	 tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.LV_LIMIT_ERROR);   
+	         }
+
+	         /* Result of voltage measurement from SU_3/4 -5V is compared against */
+	         /* limits.          						      */
+
+	         if (exceedsLimit(tmData.getSensorUnit3().minus_5_voltage,
+	               SU_M5V_ANA_LOWER_LIMIT,
+	               SU_M5V_ANA_UPPER_LIMIT)) {
+	        	 tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.LV_LIMIT_ERROR);   
+	         }
+
+	         break;
+	   }
+
+	   /* Result of voltage measurement from SU +50V is compared against */
+	   /* limits.          						     */
+
+	   if (exceedsLimit(tmData.SU_plus_50,
+	         SU_P50V_LOWER_LIMIT,
+	         SU_P50V_UPPER_LIMIT)) {
+	      tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.HV_LIMIT_ERROR);
+	   }
+
+	   /* Result of voltage measurement from SU -50V is compared against */
+	   /* limits.          						     */
+
+	   if (exceedsLimit(tmData.SU_minus_50,
+	         SU_M50V_LOWER_LIMIT,
+	         SU_M50V_UPPER_LIMIT)) {
+		   tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.HV_LIMIT_ERROR);
+	   }
+	}
+	
+	/**
+	 * Purpose        : Execute SU self tests
+	 * Interface      : inputs      - self_test_SU_index
+	 *                  outputs     - none
+	 *                  subroutines -  LowVoltageCurrent()
+	 *                                 MeasureVoltage()
+	 *                                 MeasureTemperature()
+	 *                                 HighVoltageCurrent()
+	 * Preconditions  : none
+	 * Postconditions : Part of the Self Test sequence regarding temperatures,
+	 *                  voltages and overcurrents is completed.
+	 * Algorithm      : - V_DOWN is checked
+	 *                  - Voltage channels are checked one by one and in case of
+	 *                    an error corresponding error bit is set.
+	 *                  - SU Temperatures and HV Status Register is checked.
+	 */
+	private void selfTestSU(int self_test_SU_index) {
+
+		lowVoltageCurrent();
+		/* V_DOWN is checked. */
+
+		highVoltageCurrent(self_test_SU_index);
+		/* HV Status register is checked. */
+
+		/* SU voltages are measured */
+		for (int i = Channel.channel_0_e; i <= Channel.channel_6_e; i++)
+		{
+			measureVoltage(i);
+			/* All voltage channels are measured. */
+		}
+
+		monitorSUVoltage(self_test_SU_index);
+		/* Voltage measurement results are monitored against limits. */
+
+		measureTemperature(self_test_SU_index);
+		/* SU temperatures are measured and monitored. */
+	}
+	
+	/**
+	 * Purpose        : Conversion is executed on a selected AD channel
+	 * Interface      : inputs      - Address of a struct for storing the ADC
+	 *                                results.
+	 *                  outputs     - ADC results are stored to the given struct
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : ADC results are written to a struct
+	 * Algorithm      : - AD Conversion is started on the selected channel.
+	 *                  - End of conversion is polled, EOC bit at I/O port 1,
+	 *                    as long as the preset limit is not exceeded.
+	 *                  - If limit has not been exeeded, resulting MSB and LSB of
+	 *                    the conversion are read from the HW registers and
+	 *                    combined into one word.
+	 *                    Else end of conversion can no longer be waited. No
+	 *                    results are gained, instead a zero is stored with an
+	 *                    indication of this occurred anomaly.
+	 */
+	private void convertAD (ADCParameters ADC_parameters) {
+	   int conversion_count;
+
+	   /* Counts the amount of end of conversion polls.                          */
+
+	   int  msb, lsb;                        
+	   /* MSB and LSB of the conversion result                                   */
+
+	   int word;
+	   /*This variable is used to combine MSB and LSB bytes into one word.       */
+	 
+	   system.getAdcDevice().startConversion();
+	 
+	   conversion_count = 0;
+	 
+	   while(conversion_count < ADC_parameters.conversion_max_tries  
+	          && (system.getAdcDevice().endOfADC() != CONVERSION_ACTIVE)) {
+	      /* Previous conversion is still active.                                */
+	      conversion_count++;
+	   }
+
+	   /* There is a slight chance for the following occurrence:                 */
+	   /* Conversion has ended after max_tries has been reached but before the   */
+	   /* following condition loop is entered. As a result measurement is failed */
+	   /* even if conversion has ended in time. The effect is dimished if the    */
+	   /* max_tries is a large value i.e. end of conversion has been waited long */
+	   /* enough.                                                                */
+
+	   if (conversion_count < ADC_parameters.conversion_max_tries) {
+	      /* Conversion has ended. Read AD result.                               */
+
+	      msb = system.getAdcDevice().getResult();
+	      lsb = system.getAdcDevice().getResult();
+
+	      word = msb*256+lsb; 
+	      /* Combine MSB and LSB as type 'unsigned int' in the given struct.    */
+
+	      ADC_parameters.signed_ADC = word^0xffff8000; // XXX: is this really correct?
+	      /* Store result as of type 'signed int'.                            */
+
+	      ADC_parameters.unsigned_ADC = word;
+	      /* Store result as of type 'unsigned int'.                             */
+
+	      ADC_parameters.AD_execution_result = RESULT_OK;
+	      /* Store indication of an successful measurement.                       */
+	   
+	   } else {
+	      
+	      /* Conversion has not ended in time. No results gained, store zero.    */
+	      ADC_parameters.unsigned_ADC = 0;
+	      ADC_parameters.signed_ADC = 0;
+
+	      /* Store indication of an unsuccesful measurement.                     */
+	      ADC_parameters.AD_execution_result = CONVERSION_ACTIVE;
+	   }
+	}
+
+	/**
+	 * Purpose        : Takes care of resulting actions in case of a failed
+	 *                  measurement.
+	 * Interface      : inputs      - 'SU_index' which contains sensor unit
+	 *                                index number related to failed measurement
+	 *                                or overheated SU.
+	 *                  outputs     - telemetry_data.error_status register
+	 *                                telemetry_data.SU_status register
+	 *                  subroutines - SetSensorUnitOff()
+	 * Preconditions  : There has been an anomaly
+	 *                  during an ADC temperature channel measurement or
+	 *                  measurement has revealed that the given SU is
+	 *                  overheated.
+	 * Postconditions : Selected Sensor unit is switched off and error indication
+	 *                  bit is set in error_status register and SU_status
+	 *                  register.
+	 * Algorithm      : Following actions are taken,
+	 *                     - switch off given sensor unit
+	 *                     - Set Error status bit of the related SU in error
+	 *                       status register.
+	 *                     - Set high temperature error indicating bit in the
+	 *                       SU_Status register.
+	 */
+	private void temperatureFailure(int SU_index)
+	{
+	   /* Temperature measurement has failed, actions are taken accordingly. */
+
+	   system.getTelecommandExecutionTask().setSensorUnitOff(SU_index, new SensorUnit());
+	   /* Switch off given sensor unit. */    
+
+	   TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+	   
+	   tmData.setErrorStatus((byte)(TelecommandExecutionTask.ERROR_STATUS_OFFSET << SU_index));
+	   /* Set Error status bit of the related SU in error status register. */
+
+	   tmData.setSUError(SU_index, (byte)TelecommandExecutionTask.TEMPERATURE_ERROR);
+	   /* Set high temperature error indicating bit in the SU_Status */
+	   /* register.                                                  */
+	}	
 	
 	/**
 	 * Purpose        : Initialize system after RTX system is started.
@@ -638,18 +1036,18 @@ public class HealthMonitoringTask implements Runnable {
 
 //		new_task.rtx_task_number    = TC_TM_INTERFACE_TASK;
 //		new_task.task_main_function = TC_task;
-//		CreateTask(&new_task);
-//		/* Activate the Telecommand Execution task */
-//
+		TaskControl.createTask(KernelObjects.TC_TM_INTERFACE_TASK);
+		/* Activate the Telecommand Execution task */
+
 //		new_task.rtx_task_number    = ACQUISITION_TASK;
 //		new_task.task_main_function = acq_task;
-//		CreateTask(&new_task);
-//		/* Activate the Acquisition task */
-//
+		TaskControl.createTask(KernelObjects.ACQUISITION_TASK);
+		/* Activate the Acquisition task */
+
 //		new_task.rtx_task_number    = HIT_TRIGGER_ISR_TASK;
 //		new_task.task_main_function = hit_task;
-//		CreateTask(&new_task);
-//		/* Activate Hit Trigger Interrupt Service task */	
+		TaskControl.createTask(KernelObjects.HIT_TRIGGER_ISR_TASK);
+		/* Activate Hit Trigger Interrupt Service task */	
 	}
 
 	/**
@@ -878,131 +1276,149 @@ public class HealthMonitoringTask implements Runnable {
 	 * </pre>
 	 */
 	private void monitor(int health_mon_round) {
-	   calculateChecksum(checksum_count);
-	   /* A 1/60th part of the memory checksum is calculated.                 */
+		calculateChecksum(checksum_count);
+		/* A 1/60th part of the memory checksum is calculated.                 */
 
-	   checksum_count = updatePeriodCounter(checksum_count, CHECK_COUNT);
-	   /* Decrease or reset checksum counter                                  */
-	   /* depending on its current and limiting values.                       */
+		checksum_count = updatePeriodCounter(checksum_count, CHECK_COUNT);
+		/* Decrease or reset checksum counter                                  */
+		/* depending on its current and limiting values.                       */
 
-	   AcquisitionTask acqTask = system.getAcquisitionTask();
-	   SensorUnitDev suDev = system.getSensorUnitDevice();
-	   
-	   if (health_mon_round == Round.round_0_e.ordinal()) {
-		   highVoltageCurrent(health_mon_round);
-		   /* Overcurrent indicating bits related to sensor unit 1 in HV       */
-		   /* status register are checked.                                     */
+		AcquisitionTask acqTask = system.getAcquisitionTask();
+		SensorUnitDev suDev = system.getSensorUnitDevice();
 
-		   temp_meas_count = updatePeriodCounter(temp_meas_count, TEMP_COUNT);
-		   voltage_meas_count = updatePeriodCounter(voltage_meas_count, VOLTAGE_COUNT);
-		   /* Decrease or reset temperature, checksum and voltage counters     */
-		   /* depending on their current and limiting values.                  */		   
-		   
-		   acqTask.setHitBudgetLeft(acqTask.getHitBudget());
-		   /* Health Monitoring period ends and new hit budget can be started. */
+		switch (health_mon_round) {
 
-		   if (suDev.getHitTriggerFlag() == 0) {
-			   /* Hit budget was exceeded during this ending Health Monitoring */
-			   /* period.                                                      */
+		case Round.round_0_e:
+			highVoltageCurrent(health_mon_round);
+			/* Overcurrent indicating bits related to sensor unit 1 in HV       */
+			/* status register are checked.                                     */
 
-			   HwIf.resetPeakDetector(SU_1);
-			   HwIf.resetPeakDetector(SU_2);
-			   HwIf.resetPeakDetector(SU_3);
-			   HwIf.resetPeakDetector(SU_4);
-			   /* Reset all Peak detectors */
+			temp_meas_count = updatePeriodCounter(temp_meas_count, TEMP_COUNT);
+			voltage_meas_count = updatePeriodCounter(voltage_meas_count, VOLTAGE_COUNT);
+			/* Decrease or reset temperature, checksum and voltage counters     */
+			/* depending on their current and limiting values.                  */		   
 
-			   TaskControl.waitTimeout(AcquisitionTask.COUNTER_RESET_MIN_DELAY);
+			acqTask.setHitBudgetLeft(acqTask.getHitBudget());
+			/* Health Monitoring period ends and new hit budget can be started. */
 
-			   suDev.enableHitTrigger();
-			   /* Allows a later falling edge on T2EX to cause */
-			   /* a Hit Trigger interrupt (i.e. to set EXF2).  */
+			if (suDev.getHitTriggerFlag() == 0) {
+				/* Hit budget was exceeded during this ending Health Monitoring */
+				/* period.                                                      */
 
-			   HwIf.resetDelayCounters();
-			   /* Resets the SU logic that generates Hit Triggers.    */
-			   /* Brings T2EX to a high level, making a new falling   */
-			   /* edge possible.                                      */
-			   /* This statement must come after the above "enable",  */
-			   /* since T2EX edges are not remembered by the HW from  */
-			   /* before the "enable", unlike normal interrupt enable */
-			   /* and disable masking.                                */
-		   }
-	   } else if (health_mon_round == Round.round_1_e.ordinal()) {
-		   highVoltageCurrent(health_mon_round);
-	       /* Overcurrent indicating bits related to sensor unit 2 in HV       */
-		   /* status register are checked.                                     */		   
-	   } else if (health_mon_round == Round.round_2_e.ordinal()) {
-		   highVoltageCurrent(health_mon_round);
-	       /* Overcurrent indicating bits related to sensor unit 3 in HV       */
-		   /* status register are checked.                                     */		   
-	   } else if (health_mon_round == Round.round_3_e.ordinal()) {
-		   highVoltageCurrent(health_mon_round);
-	       /* Overcurrent indicating bits related to sensor unit 4 in HV       */
-		   /* status register are checked.                                     */		   
-	   } else if (health_mon_round == Round.round_4_e.ordinal()) {
-		   lowVoltageCurrent();
-		   /* 'V_DOWN' indicator bit is checked.                               */
-	   } else if (health_mon_round == Round.round_5_e.ordinal()) {
-		   if (voltage_meas_count < 7) {
-			   /* Seven Secondary voltage channels are measured starting when   */
-			   /* 'voltage_meas_count' reaches a value of 6. Last measurement is*/
-			   /*  executed on voltage_meas_count value 0.                      */
-	 
-			   measureVoltage(voltage_meas_count);
-		   }
-	   } else if (health_mon_round == Round.round_6_e.ordinal()) {
-		   
-		   if ((acqTask.self_test_SU_number != NO_SU) &&
-				   acqTask.sensorUnitState[acqTask.self_test_SU_number - AcquisitionTask.SU1]
-				                           == SensorUnit.SensorUnitState.self_test_e) {
-			   /* SU self test sequence continues   */
+				HwIf.resetPeakDetector(SU_1);
+				HwIf.resetPeakDetector(SU_2);
+				HwIf.resetPeakDetector(SU_3);
+				HwIf.resetPeakDetector(SU_4);
+				/* Reset all Peak detectors */
 
-			   // TODO prt
-//			   SelfTestChannel(system.acqTask.self_test_SU_number - AcquisitionTask.SU1);
-			   /* SU channels are monitored in this round. */
-	 
-			   acqTask.self_test_SU_number = NO_SU;
-			   /* SU self test sequence ends here  */			   
-		   }
-		   
-	   } else if (health_mon_round == Round.round_7_e.ordinal()) {
+				TaskControl.waitTimeout(AcquisitionTask.COUNTER_RESET_MIN_DELAY);
 
-		   if (acqTask.self_test_SU_number != NO_SU) {
-			   /* SU self test sequence has started   */
-			   
-			   self_test_flag = SELF_TEST_RUNNING;
-			   /* Indication of a started test. */
+				suDev.enableHitTrigger();
+				/* Allows a later falling edge on T2EX to cause */
+				/* a Hit Trigger interrupt (i.e. to set EXF2).  */
 
-			   // TODO port
-//			   SelfTest_SU(system.acqTask.self_test_SU_number - AcquisitionTask.SU1);
-			   /* Supply voltages and SU temperatures are monitored in this round. */
+				HwIf.resetDelayCounters();
+				/* Resets the SU logic that generates Hit Triggers.    */
+				/* Brings T2EX to a high level, making a new falling   */
+				/* edge possible.                                      */
+				/* This statement must come after the above "enable",  */
+				/* since T2EX edges are not remembered by the HW from  */
+				/* before the "enable", unlike normal interrupt enable */
+				/* and disable masking.                                */
+			}
+			break;
 
-			   if (acqTask.self_test_SU_number != NO_SU) {
-				   acqTask.sensorUnitState[acqTask.self_test_SU_number - AcquisitionTask.SU1]
-				                           = SensorUnit.SensorUnitState.self_test_e;
-			   }   
-		   }
-	   } else if (health_mon_round == Round.round_8_e.ordinal()) {
-		   
-//	         SET_WD_RESET_HIGH;
+		case Round.round_1_e:
+			highVoltageCurrent(health_mon_round);
+			/* Overcurrent indicating bits related to sensor unit 2 in HV       */
+			/* status register are checked.                                     */
+			break;
 
-		   /* The Watch Dog time out signal state is reset HIGH state, as it is*/
-		   /* falling edge active.                                             */		   
-	   } else if (health_mon_round == Round.round_9_e.ordinal()) {
-		   
-		   if (temp_meas_count < NUM_SU) {
-			   /* Two channels of one sensor unit are measured when             */
-			   /* 'temp_meas_count' reaches 3 -> 2 -> 1 -> 0. I.e. measuring    */
-			   /*  begins after 10 secs and is finished after 50 secs.          */
-	 
-			   measureTemperature(temp_meas_count);
-		   }
+		case Round.round_2_e:
+			highVoltageCurrent(health_mon_round);
+			/* Overcurrent indicating bits related to sensor unit 3 in HV       */
+			/* status register are checked.                                     */
+			break;
 
-//		   SET_WD_RESET_LOW;
+		case Round.round_3_e:
+			highVoltageCurrent(health_mon_round);
+			/* Overcurrent indicating bits related to sensor unit 4 in HV       */
+			/* status register are checked.                                     */		   
+			break;
 
-		   /* The Watch Dog timer is reset by setting WD_RESET bit low at I/O  */
-		   /* port 1. This is done here with 10 sec interval. The watch dog    */
-		   /* time-out is 12.1 secs.                                           */
-	   }
+		case Round.round_4_e:
+			lowVoltageCurrent();
+			/* 'V_DOWN' indicator bit is checked.                               */
+			break;
+
+		case Round.round_5_e:
+			if (voltage_meas_count < 7) {
+				/* Seven Secondary voltage channels are measured starting when   */
+				/* 'voltage_meas_count' reaches a value of 6. Last measurement is*/
+				/*  executed on voltage_meas_count value 0.                      */
+
+				measureVoltage(voltage_meas_count);
+			}
+			break;
+
+		case Round.round_6_e:		   
+
+			if ((acqTask.self_test_SU_number != NO_SU) &&
+					acqTask.sensorUnitState[acqTask.self_test_SU_number - AcquisitionTask.SU1]
+					                        == SensorUnit.SensorUnitState.self_test_e) {
+				/* SU self test sequence continues   */
+
+				selfTestChannel(acqTask.self_test_SU_number - AcquisitionTask.SU1);
+				/* SU channels are monitored in this round. */
+
+				acqTask.self_test_SU_number = NO_SU;
+				/* SU self test sequence ends here  */			   
+			}
+			break;
+
+		case Round.round_7_e:
+
+			if (acqTask.self_test_SU_number != NO_SU) {
+				/* SU self test sequence has started   */
+
+				self_test_flag = SELF_TEST_RUNNING;
+				/* Indication of a started test. */
+
+				selfTestSU(acqTask.self_test_SU_number - AcquisitionTask.SU1);
+				/* Supply voltages and SU temperatures are monitored in this round. */
+
+				if (acqTask.self_test_SU_number != NO_SU) {
+					acqTask.sensorUnitState[acqTask.self_test_SU_number - AcquisitionTask.SU1]
+					                        = SensorUnit.SensorUnitState.self_test_e;
+				}   
+			}	   
+			break;
+
+		case Round.round_8_e:
+
+			//	         SET_WD_RESET_HIGH;
+
+			/* The Watch Dog time out signal state is reset HIGH state, as it is*/
+			/* falling edge active.                                             */		   
+			break;
+
+		case Round.round_9_e:
+
+			if (temp_meas_count < NUM_SU) {
+				/* Two channels of one sensor unit are measured when             */
+				/* 'temp_meas_count' reaches 3 -> 2 -> 1 -> 0. I.e. measuring    */
+				/*  begins after 10 secs and is finished after 50 secs.          */
+
+				measureTemperature(temp_meas_count);
+			}
+
+			//		   SET_WD_RESET_LOW;
+
+			/* The Watch Dog timer is reset by setting WD_RESET bit low at I/O  */
+			/* port 1. This is done here with 10 sec interval. The watch dog    */
+			/* time-out is 12.1 secs.                                           */
+			break;
+		}
 	}
 	   
 	/**
@@ -1041,84 +1457,66 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private void measureTemperature(int SU_index) {
 	
-		// TODO port
-//	   ADC_parameters_t EXTERNAL AD_temperature_parameters;
-//	   /* This struct is used to hold parameters for Reading AD channels.        */
-//	 
-//	   int temp_limit_value;
-//
-//	   for (int j=0; j < NUM_TEMP; j++)
-//
-//	   {
-//	      AD_temperature_parameters.ADC_channel = 
-//	         5 + (SU_index&1)*8 + (SU_index&2)*12 + j;
-//	      /* Select the channel to be measured.                                  */
-//	      
-//	      AD_temperature_parameters.ADC_max_tries = ADC_TEMPERATURE_MAX_TRIES; 
-//	      /* When temperatures are measured this variable defines the maximum    */
-//	      /* amount of tries to be used in reading and handling an AD channel in */
-//	      /* 'Read_AD_Channel()'.                                                */
-//
-//	      AD_temperature_parameters.conversion_max_tries = 
-//	         CONVERSION_TEMPERATURE_MAX_TRIES;
-//	      /* When temperatures are measured this variable defines the maximum    */
-//	      /* amount of tries to be used when End Of Conversion indication is     */
-//	      /* waited in function 'Convert_AD()'.                                  */
-//	                                 
-//	      Read_AD_Channel(&AD_temperature_parameters);
-//	      /* Get ADC temperature measurement result.                             */
-//
-//
-//						
-//	      if (AD_temperature_parameters.unsigned_ADC & 0x8000)
-//
-//	      {
-//	         /* Temperature is stored in the telemetry.                          */
-//	       	            
-//	         telemetry_data.SU_temperature[SU_index][j] = 
-//	         (unsigned char)((AD_temperature_parameters.unsigned_ADC
-//	         & 0x7FFF) >> 7);
-//	         /* Store bits 7 .. 14 */
-//	      }
-//
-//	      else
-//
-//	      {                  
-//
-//	         telemetry_data.SU_temperature[SU_index][j] = 0;
-//	         /* Temperature too small -> store zero */
-//
-//	      }
-//	  
-//	      temp_limit_value = ( j==0 ? MAX_TEMP_1 : MAX_TEMP_2 );
-//	 
-//	      if (telemetry_data.SU_temperature[SU_index][j] > temp_limit_value)
-//	         
-//	      {
-//	         /* Temperature has exeeded a predefined limit                       */
-//
-//	         TemperatureFailure(SU_index);
-//	         /* Given SU is switched off, error and SU status registers are      */
-//	         /* updated in telemetry.                                            */
-//
-//	      }	
-//
-//	      if (AD_temperature_parameters.AD_execution_result != RESULT_OK) 
-//
-//	      {
-//	         /* An anomaly has occurred during the measurement.                  */
-//
-//	         SetSoftwareError(MEASUREMENT_ERROR);         
-//	         /* Set measurement error indication bit in   */
-//	         /* software error status register.           */   
-//	                 
-//	         TemperatureFailure(SU_index);
-//	         /* Given SU is switched off and error and SU status registers are   */
-//	         /* updated in telemetry.                                            */
-//	                                        
-//	 	}	      
-//
-//	   }
+		ADCParameters AD_temperature_parameters = new ADCParameters();
+		/* This struct is used to hold parameters for Reading AD channels.        */
+	 
+	   int temp_limit_value;
+
+	   for (int j=0; j < TelecommandExecutionTask.NUM_TEMP; j++) {
+		   AD_temperature_parameters.ADC_channel = 
+			   5 + (SU_index&1)*8 + (SU_index&2)*12 + j;
+		   /* Select the channel to be measured.                                  */
+
+		   AD_temperature_parameters.ADC_max_tries = ADC_TEMPERATURE_MAX_TRIES; 
+		   /* When temperatures are measured this variable defines the maximum    */
+		   /* amount of tries to be used in reading and handling an AD channel in */
+		   /* 'Read_AD_Channel()'.                                                */
+
+		   AD_temperature_parameters.conversion_max_tries = 
+			   CONVERSION_TEMPERATURE_MAX_TRIES;
+		   /* When temperatures are measured this variable defines the maximum    */
+		   /* amount of tries to be used when End Of Conversion indication is     */
+		   /* waited in function 'Convert_AD()'.                                  */
+
+		   readADChannel(AD_temperature_parameters);
+		   /* Get ADC temperature measurement result.                             */
+
+		   TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+
+		   if ((AD_temperature_parameters.unsigned_ADC & 0x8000) != 0) {
+			   /* Temperature is stored in the telemetry.                          */
+
+			   tmData.setSensorUnitTemperature(SU_index, j, 
+					   (AD_temperature_parameters.unsigned_ADC & 0x7FFF) >>> 7);
+			   /* Store bits 7 .. 14 */
+		   } else {                  
+
+			   tmData.setSensorUnitTemperature(SU_index, j, 0);
+			   /* Temperature too small -> store zero */
+		   }
+
+		   temp_limit_value = ( j==0 ? MAX_TEMP_1 : MAX_TEMP_2 );
+
+		   if (tmData.getSensorUnitTemperature(SU_index, j) > temp_limit_value) {
+			   /* Temperature has exeeded a predefined limit                       */
+
+			   temperatureFailure(SU_index);
+			   /* Given SU is switched off, error and SU status registers are      */
+			   /* updated in telemetry.                                            */
+		   }	
+
+		   if (AD_temperature_parameters.AD_execution_result != RESULT_OK) {
+			   /* An anomaly has occurred during the measurement.                  */
+
+			   tmData.setSoftwareError(TelecommandExecutionTask.MEASUREMENT_ERROR);         
+			   /* Set measurement error indication bit in   */
+			   /* software error status register.           */   
+
+			   temperatureFailure(SU_index);
+			   /* Given SU is switched off and error and SU status registers are   */
+			   /* updated in telemetry.                                            */
+		   }
+	   }
 	}
 	
 	/**
@@ -1189,7 +1587,7 @@ public class HealthMonitoringTask implements Runnable {
 			for (int i = 0; i < NUM_SU; i++) {
 				/* Switch off all Sensor Units. */
 
-				TelecommandExecutionTask.setSensorUnitOff(i, new SensorUnit());
+				system.getTelecommandExecutionTask().setSensorUnitOff(i, new SensorUnit());
 				/* Switch off given sensor unit.                                 */
 
 				TelecommandExecutionTask.getTelemetryData().setSUError(i, (byte)TelecommandExecutionTask.LV_SUPPLY_ERROR);
@@ -1280,6 +1678,355 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private boolean exceedsLimit(int value, int lowerLimit, int upperLimit) {
 		return (value < lowerLimit || value > upperLimit);
+	}
+	
+	
+	/**
+	 * Purpose        : Starts channel tests
+	 * Interface      : inputs      - self_test_SU_index
+	 *                  outputs     - none
+	 *                  subroutines -  SetTestPulseLevel
+	 *                                 SetTriggerLevel
+	 *                                 RestoreSettings
+	 *                                 ExecuteChannelTest
+	 *                                 DisableAnalogSwitch
+	 * Preconditions  : none
+	 * Postconditions : SU channels are self tested.
+	 *                  voltages and overcurrents is completed.
+	 * Algorithm      : - Threshold level is set high.
+	 *                  - Test pulse level for a given channel is set high.
+	 *                  - Channels are tested.
+	 *                  - Threshold level is set low.
+	 *                  - Test pulse level for a given channel is set low .
+	 *                  - Channels are tested.
+	 *                  - A pseudo trigger is generated in order to reset peak
+	 *                    detector and delay counter in AcquisitionTask.
+	 *                  - Threshold levels are restored to the level prior to
+	 *                    the test. SU state for the SU under test is restored
+	 *                    to ON.
+	 */
+	private void selfTestChannel(int self_test_SU_index) {
+		
+	   TriggerSet test_threshold = new TriggerSet();
+
+	   SensorUnitDev suDev = system.getSensorUnitDevice();
+	
+	   suDev.disableHitTrigger();
+
+	   /* Initial parameters for SetTriggerLevel function. */
+	   test_threshold.sensor_unit = system.getAcquisitionTask().self_test_SU_number;
+	   test_threshold.level       = MAX_PLASMA_SELF_TEST_THRESHOLD;
+	   test_threshold.channel     = PLASMA_1_PLUS;
+	   suDev.setTriggerLevel(test_threshold);
+	   test_threshold.channel     = PLASMA_1_MINUS;
+	   suDev.setTriggerLevel(test_threshold);
+	   test_threshold.channel     = PLASMA_2_PLUS;
+	   suDev.setTriggerLevel(test_threshold);
+
+	   test_threshold.level       = MAX_PIEZO_SELF_TEST_THRESHOLD;
+	   test_threshold.channel     = PZT_1_2;
+	   suDev.setTriggerLevel(test_threshold);
+
+
+	   /* Set initial test pulse value to 0. Test pulse value is also zeroed    */
+	   /* before returning from ExecuteChannelTest procedure also.              */
+	   suDev.setTestPulseLevel(0);
+
+	   /* Test threshold level is set before each channel test for every channel*/
+	   /* and value is set back to the maximum threshold level before returning */
+	   /* from the following ExecuteChannelTest procedure calls.                */
+
+	   test_threshold.channel     = PLASMA_1_PLUS;
+	   test_threshold.level       = HIGH_PLASMA_1_PLUS_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PLASMA_1_PLUS, PLASMA_1_PLUS_HIGH);
+
+	   test_threshold.channel     = PLASMA_1_MINUS;
+	   test_threshold.level       = HIGH_PLASMA_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PLASMA_1_MINUS, PLASMA_1_MINUS_HIGH);
+
+	   executeChannelTest(self_test_SU_index, PLASMA_2_PLUS, PLASMA_2_PLUS_HIGH);
+
+	   test_threshold.channel     = PZT_1_2;
+	   test_threshold.level       = HIGH_PIEZO_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PZT_1, PZT_1_HIGH);
+
+	   test_threshold.channel     = PZT_1_2;
+	   test_threshold.level       = HIGH_PIEZO_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PZT_2, PZT_2_HIGH);
+
+	   test_threshold.channel     = PLASMA_1_PLUS;
+	   test_threshold.level       = LOW_PLASMA_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PLASMA_1_PLUS, PLASMA_1_PLUS_LOW);
+
+	   test_threshold.channel     = PLASMA_1_MINUS;
+	   test_threshold.level       = LOW_PLASMA_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PLASMA_1_MINUS, PLASMA_1_MINUS_LOW);
+
+	   executeChannelTest(self_test_SU_index, PLASMA_2_PLUS, PLASMA_2_PLUS_LOW); 
+
+	   test_threshold.channel     = PZT_1_2;
+	   test_threshold.level       = LOW_PIEZO_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PZT_1, PZT_1_LOW);
+
+	   test_threshold.channel     = PZT_1_2;
+	   test_threshold.level       = LOW_PIEZO_SELF_TEST_THRESHOLD;
+	   suDev.setTriggerLevel(test_threshold);
+	   executeChannelTest(self_test_SU_index, PZT_2, PZT_2_LOW);
+
+	   suDev.enableHitTrigger();
+
+//	   SET_HIT_TRIGGER_ISR_FLAG;
+	   /* A pseudo trigger is generated in order to reset peak   */
+	   /* detector and delay counter in AcquisitionTask.         */  
+	   /* No event is recorded i.e. event processing is disabled */
+	   /* because SU state is 'self_test_e'.                     */
+
+	   restoreSettings(self_test_SU_index);
+	}
+	
+	/**
+	 * Purpose        : Execute SU self tests
+	 * Interface      : inputs      - self_test_SU_index, test_channel
+	 *                  outputs     - telemetry_data.SU# Status
+	 *                  subroutines -  SelectSelfTestChannel
+	 *                                 SelectStartSwitchLevel
+	 *                                 WaitTimeout
+	 *                                 DelayAwhile
+	 *                                 SelectTriggerSwitchLevel
+	 * Preconditions  : none
+	 * Postconditions : Self test trigger siggnal is generated.
+	 *                  voltages and overcurrents is completed.
+	 * Algorithm      : - Self test channel is selected.
+	 *                  - Analog switch starting level is selected depending on
+	 *                    the channel.
+	 *                  - A pseudo trigger is generated in order to reset peak
+	 *                    detector and delay counter in AcquisitionTask.
+	 *                  - Hit trigger processing is waited for 40 ms.
+	 *                  - Hit trigger processing for this self test pulse is
+	 *                    enabled by setting SU state to 'self_test_trigger_e'
+	 *                  - Analog switch triggering level is selected depending
+	 *                    on the channel (rising or falliing edge).
+	 *                  - If self test trigger pulse did not cause an interrupt,
+	 *                    set SELF_TEST_ERROR indication in SU status register
+	 *                    and restore SU state to 'self_test_e'.
+	 */
+	private void executeChannelTest(int self_test_SU_index,	int test_channel, int test_pulse_level) {
+		int delay_limit;
+		TriggerSet test_threshold = new TriggerSet();
+
+		SensorUnitDev suDev = system.getSensorUnitDevice();
+		AcquisitionTask acqTask = system.getAcquisitionTask();
+		
+		if (test_channel == PLASMA_1_PLUS || 
+				test_channel == PLASMA_1_MINUS || 
+				test_channel == PLASMA_2_PLUS) {
+			
+			suDev.selectSelfTestChannel(test_channel);
+
+			suDev.enableAnalogSwitch(self_test_SU_index);
+
+			TaskControl.waitTimeout(1);
+
+			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
+
+			TaskControl.waitTimeout(1);
+
+			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
+
+			TaskControl.waitTimeout(1);
+
+//			CLEAR_HIT_TRIGGER_ISR_FLAG;
+
+			HwIf.resetDelayCounters();
+
+			acqTask.sensorUnitState[self_test_SU_index] = SensorUnitState.self_test_trigger_e;
+			/* Enable hit trigger processing for this self test pulse. */
+
+			suDev.enableHitTrigger();
+
+			suDev.setTestPulseLevel(test_pulse_level);
+
+			/* Set at least 1ms test pulse    */
+			delay_limit = TaskControl.DELAY_LIMIT(1000);
+			delayAWhile(delay_limit);
+
+			/* For plasma 1i channel triggering must take place in 1ms after */
+			/* rising edge.                                                  */
+			if (test_channel == PLASMA_1_MINUS &&
+					acqTask.sensorUnitState[self_test_SU_index] == SensorUnitState.self_test_trigger_e)
+			{
+				TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+
+				/* Self test trigger pulse did not cause an interrupt. */    
+				tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.SELF_TEST_ERROR);
+
+				acqTask.sensorUnitState[self_test_SU_index] = SensorUnitState.self_test_e;
+				/* Triggering of a self test pulse is disabled by restoring */
+				/* the self_test_e state.                                   */
+			}
+
+			/* Test pulse is always at least 3ms (=1ms+2ms) */
+			delay_limit = TaskControl.DELAY_LIMIT(2000);
+			delayAWhile(delay_limit);
+
+			suDev.setTestPulseLevel(0);
+
+			if (test_channel == PLASMA_2_PLUS)
+			{
+//				SET_HIT_TRIGGER_ISR_FLAG;
+			}
+
+			/* If channel is plasma 1e or 2e then wait at least 1ms after */
+			/* falling edge.                                              */
+			if (test_channel != PLASMA_1_MINUS)
+			{
+				delay_limit = TaskControl.DELAY_LIMIT(1000);
+				/* Set at least 1ms test pulse    */
+				delayAWhile(delay_limit);
+			}
+
+			suDev.disableHitTrigger();
+
+			if (test_channel != PLASMA_2_PLUS)
+			{
+				test_threshold.sensor_unit = self_test_SU_index + AcquisitionTask.SU1;
+				test_threshold.channel     = test_channel;
+				test_threshold.level       = MAX_PLASMA_SELF_TEST_THRESHOLD;
+				suDev.setTriggerLevel(test_threshold);
+			}
+
+			suDev.disableAnalogSwitch(self_test_SU_index);
+		}
+		else
+		{
+			suDev.selectSelfTestChannel(test_channel);
+
+			suDev.setTestPulseLevel(test_pulse_level);
+
+			TaskControl.waitTimeout(1);
+
+			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
+
+			TaskControl.waitTimeout(1);
+
+			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
+
+			TaskControl.waitTimeout(1);
+
+//			CLEAR_HIT_TRIGGER_ISR_FLAG;
+
+			HwIf.resetDelayCounters();
+
+			acqTask.sensorUnitState[self_test_SU_index] = SensorUnitState.self_test_trigger_e;
+			/* Enable hit trigger processing for this self test pulse. */
+
+			suDev.enableHitTrigger();
+
+			suDev.enableAnalogSwitch(self_test_SU_index);
+
+			/* Set at least 1ms test pulse    */
+			delay_limit = TaskControl.DELAY_LIMIT(1000);
+			delayAWhile(delay_limit);
+
+			suDev.disableHitTrigger();
+
+			suDev.setTestPulseLevel(0);
+
+			suDev.disableAnalogSwitch(self_test_SU_index);
+
+			test_threshold.sensor_unit = self_test_SU_index + AcquisitionTask.SU1;
+			test_threshold.level       = MAX_PIEZO_SELF_TEST_THRESHOLD;
+			test_threshold.channel     = PZT_1_2;
+			suDev.setTriggerLevel(test_threshold);
+		}
+
+		if (acqTask.sensorUnitState[self_test_SU_index] == SensorUnitState.self_test_trigger_e)
+		{
+			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
+			
+			/* Self test trigger pulse did not cause an interrupt. */    
+			tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.SELF_TEST_ERROR);
+
+			acqTask.sensorUnitState[self_test_SU_index] = SensorUnitState.self_test_e;
+			/* Triggering of a self test pulse is disabled by restoring */
+			/* the self_test_e state.                                   */
+		}
+	}
+
+	/**
+	 * Purpose        : Restores settings after SU self tests.
+	 * Interface      : inputs      - self_test_SU_index,
+	 *                                telemetry_data, SU threshold levels
+	 *                  outputs     - HW registers, thresholds
+	 *                                SU state
+	 *                  subroutines -  SetTriggerLevel
+	 *                                 Switch_SU_State
+	 * Preconditions  : none
+	 * Postconditions : - Threshold levels are restored to the level prior to
+	 *                    the test. SU state for the SU under test is restored
+	 *                    to ON.
+	 * Algorithm      : - Original threshold levels are copied from
+	 *                    telemetry_data and written in to HW registers with
+	 *                    SetTriggerLevel.
+	 *                  - SU state is restored to ON with Switch_SU_State.
+	 */
+	private void restoreSettings(int self_test_SU_index) {
+		
+		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();		
+
+		final SensorUnitSettings setting_map_c[] = {
+				tmData.getSensorUnit1(),
+				tmData.getSensorUnit2(),
+				tmData.getSensorUnit3(),
+				tmData.getSensorUnit4()
+		};
+		/* Pointers to Sensor Unit configuration data in telemetry */
+		/* data area.                                              */
+
+		SensorUnitSettings SU_setting;
+		/* Pointer to configuration data of the Sensor Unit being */
+		/* Self Tested.                                           */
+
+		SensorUnit SU_switch = new SensorUnit();
+		TriggerSet threshold = new TriggerSet();
+		/* Parameters for subroutines. */
+
+		SensorUnitDev suDev = system.getSensorUnitDevice();
+		
+		SU_setting = setting_map_c[self_test_SU_index];
+
+		threshold.sensor_unit = system.getAcquisitionTask().self_test_SU_number; 
+
+		threshold.level   = 
+			SU_setting.plasma_1_plus_threshold;
+		threshold.channel = PLASMA_1_PLUS;
+		suDev.setTriggerLevel(threshold);
+		/* Restore Plasma 1 Plus trigger threshold. */
+
+		threshold.level   = 
+			SU_setting.plasma_1_minus_threshold;
+		threshold.channel = PLASMA_1_MINUS;
+		suDev.setTriggerLevel(threshold);
+		/* Restore Plasma 1 Minus trigger threshold. */
+
+		threshold.level   = 
+			SU_setting.piezo_threshold;
+		threshold.channel = PZT_1_2;
+		suDev.setTriggerLevel(threshold);
+		/* Restore Piezo trigger threshold. */
+
+		SU_switch.number                = system.getAcquisitionTask().self_test_SU_number;
+		SU_switch.state                 = SensorUnitState.on_e;
+		SU_switch.expected_source_state = SensorUnitState.self_test_e;
+		system.getTelecommandExecutionTask().switchSensorUnitState(SU_switch);
+		/* Switch SU State back to On. */
 	}
 	
 	/**
