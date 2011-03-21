@@ -156,7 +156,6 @@ public class AcquisitionTest extends HarnessTest {
 		testcase("Hits with Science Data not full");
 
 		system.adcSim.setADDelay(2);
-		//_AD_Delay (2);
 
 		int hits = 0;
 		while (tctmTask.hasFreeSlot())

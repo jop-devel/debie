@@ -316,7 +316,7 @@ public class AcquisitionTask {
 	      /* Delay before converting first channel. */
 
 	      system.getHealthMonitoringTask().ADCChannelRegister =
-	    	  system.getHealthMonitoringTask().ADCChannelRegister | CH_base;
+	    	  (system.getHealthMonitoringTask().ADCChannelRegister & 0xC0) | CH_base;
 	      system.getAdcDevice().updateADCChannelReg(system.getHealthMonitoringTask().ADCChannelRegister);   
 	      /* First channel is selected. */
 
