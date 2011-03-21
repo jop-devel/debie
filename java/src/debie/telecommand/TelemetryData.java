@@ -17,8 +17,8 @@ public class TelemetryData implements TelemetryObject {
 
 	/* unsigned char */ byte        error_status;                      /* reg   0       */
 	/* unsigned char */ byte        mode_status;                       /* reg   1       */
-	/* uint16_t */ char             TC_word;                           /* reg   2 -   3 */
-	/* dpu_time_t */ int            TC_time_tag;                       /* reg   4 -   7 */
+	/* uint16_t */      char        TC_word;                           /* reg   2 -   3 */
+	/* dpu_time_t */    int         TC_time_tag;                       /* reg   4 -   7 */
 	/* unsigned char */ int         watchdog_failures;                 /* reg   8       */
 	/* unsigned char */ int         checksum_failures;                 /* reg   9       */
 	/* unsigned char */ byte        SW_version;                        /* reg  10       */
@@ -49,7 +49,7 @@ public class TelemetryData implements TelemetryObject {
 	/* tm_dpu_time_t */ int         time;                              /* reg 106 - 109 */
 
 	/* unsigned char */ byte        software_error;                    /* reg 110       */
-	/* unsigned char */ public byte        hit_budget_exceedings;             /* reg 111       */
+	/* unsigned char */ public byte hit_budget_exceedings;             /* reg 111       */
 	/* unsigned char */ byte[]      coefficient = new byte[NUM_QCOEFF];/* reg 112 - 116 */
 //	/* unsigned char */ byte        not_used;                          /* reg 117       */
 
@@ -59,11 +59,76 @@ public class TelemetryData implements TelemetryObject {
 
 	public static final int TIME_INDEX = 106;
 
+	public static final int SIZE_OF = 118;
+	
 	/** FIXME: this is just a stub, but is there a good solution for serialization in Java? */
 	public int getByte(int index) {
-		if(index == 0) return error_status;
-		/* and so on, can't we use some internal magic for this ?? */
-		return 0; // not_used;		
+		switch (index) {
+		case 0: return error_status & 0xff;
+		case 1: return mode_status & 0xff;
+		case 2: return TC_word & 0xff;
+		case 3: return (TC_word >> 8) & 0xff;
+		case 4: return TC_time_tag & 0xff;
+		case 5: return (TC_time_tag >> 8) & 0xff;
+		case 6: return (TC_time_tag >> 16) & 0xff;
+		case 7: return (TC_time_tag >> 24) & 0xff;
+		case 8: return watchdog_failures & 0xff;
+		case 9: return checksum_failures & 0xff;
+		case 10: return SW_version & 0xff;
+		case 11: return isr_send_message_error & 0xff;
+		case 12: case 13: case 14: case 15:
+			return SU_status[index-12] & 0xff;
+		case 16: case 17: case 18: case 19:
+		case 20: case 21: case 22: case 23:
+			return SU_temperature[index-16] & 0xff;
+		case 24: return DPU_plus_5_digital & 0xff;
+		case 25: return os_send_message_error & 0xff;
+		case 26: return os_create_task_error & 0xff;
+		case 27: return SU_plus_50 & 0xff;
+		case 28: return SU_minus_50 & 0xff;
+		case 29: return os_disable_isr_error & 0xff;
+		case 30: return not_used_1 & 0xff;
+		case 31: case 32: case 33: case 34:
+		case 35: case 36: case 37: case 38:
+		case 39: case 40: case 41: case 42:
+		case 43: case 44: case 45:
+			return sensor_unit_1.getByte(index-31);
+		case 46: return os_wait_error & 0xff;
+		case 47: case 48: case 49: case 50:
+		case 51: case 52: case 53: case 54:
+		case 55: case 56: case 57: case 58:
+		case 59: case 60: case 61:
+			return sensor_unit_2.getByte(index-47);
+		case 62: return os_attach_interrupt_error & 0xff;
+		case 63: case 64: case 65: case 66:
+		case 67: case 68: case 69: case 70:
+		case 71: case 72: case 73: case 74:
+		case 75: case 76: case 77:
+			return sensor_unit_3.getByte(index-63);
+		case 78: return os_enable_isr_error & 0xff;
+		case 79: case 80: case 81: case 82:
+		case 83: case 84: case 85: case 86:
+		case 87: case 88: case 89: case 90:
+		case 91: case 92: case 93:
+			return sensor_unit_4.getByte(index-79);
+		case 94: return failed_code_address & 0xff;
+		case 95: return (failed_code_address >> 8) & 0xff;
+		case 96: return failed_data_address & 0xff;
+		case 97: return (failed_data_address >> 8) & 0xff;
+		case 98: case 100: case 102: case 104:
+			return SU_hits[(index-98) >> 1] & 0xff;
+		case 99: case 101: case 103: case 105:
+			return (SU_hits[(index-98) >> 1] >> 8) & 0xff;
+		case 106: return time & 0xff;
+		case 107: return (time >> 8) & 0xff;
+		case 108: return (time >> 16) & 0xff;
+		case 109: return (time >> 24) & 0xff;
+		case 110: return software_error & 0xff;
+		case 111: return hit_budget_exceedings & 0xff;
+		case 112: case 113: case 114: case 115: case 116:
+			return coefficient[index-112];
+		}
+		return -1; // not_used;		
 	}
 	
 	public TelemetryData() {
@@ -357,9 +422,9 @@ public class TelemetryData implements TelemetryObject {
 	public SensorUnitSettings getSuConfig(int sensorUnitIndex) {
 		switch(sensorUnitIndex) {
 		case 0: return this.sensor_unit_1;
-		case 1: return this.sensor_unit_1;
-		case 2: return this.sensor_unit_1;
-		case 3: return this.sensor_unit_1;
+		case 1: return this.sensor_unit_2;
+		case 2: return this.sensor_unit_3;
+		case 3: return this.sensor_unit_4;
 		default: throw new RuntimeException("getSuConfig: invalid index");
 		}
 	}
