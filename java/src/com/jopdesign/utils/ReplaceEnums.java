@@ -1,7 +1,17 @@
 /** Requires the following two libraries:
  *   - eclipse jdt-core
  *   - apache commons-io
- */
+ *
+ *  Testing Branch/Rollback Loop:
+ *   (i) git checkout -b tmp
+ *   
+ *   (1) git commit [--amend] ...ReplaceEnums.java
+ *   (2) git diff --stat  // paranoid mode
+ *   (3) git reset --hard HEAD
+ *   (4) try out replace enums
+ *   (5) change ReplaceEnums
+ *   (6) rinse and repeat from (1)
+ */	
 package com.jopdesign.utils;
 import java.io.File;
 import java.io.FileReader;
@@ -9,6 +19,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.CharBuffer;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 
 import static org.eclipse.jdt.core.compiler.ITerminalSymbols.*;
@@ -48,9 +59,8 @@ public class ReplaceEnums {
 		}
 	}
 
-	public abstract class Pass extends DirectoryWalker<String> {
+	public abstract static class Pass extends DirectoryWalker<String> {
 		private int passId;
-
 		public Pass(int id) {
 			this.passId = id;
 		}
@@ -79,7 +89,7 @@ public class ReplaceEnums {
 			FileReader fr = new FileReader(inputFile);
 			fr.read(cbuf);
 			cbuf.position(0);
-			setSource(cbuf);
+			setInput(cbuf);
 
 			try {
 				executePassOnFile();
@@ -87,23 +97,89 @@ public class ReplaceEnums {
 				throw new IOException(e);
 			}
 			
-			/* Rename file, and write output */
-//			File bakFile = new File(inputFile.toString() + "~" + passId);
-//			if(! inputFile.renameTo(bakFile)) {
-//				throw new IOException("backup rename failed for "+inputFile);
-//			}
-			
+			/* Rename file? Better use git for backups */
+
+			/* Write output */
 			FileWriter output = new FileWriter(inputFile);
-			output.append(dest);
+			output.append(getResult());
 			output.close();
-			dest = null;
 		}
 
 		public abstract void executePassOnFile() throws Exception;
+		public abstract void setInput(CharBuffer cbuf);
+		public abstract CharSequence getResult();
+	}
+	
+
+	private HashSet<String> enums;
+	private PublicScanner scanner;
+	private StringBuffer dest;
+	private int offset;
+
+	/* token buffer */
+	private class TokenBuffer {
+		public class Token {
+			int name = -1, start = 0, end = 0;
+			String str = "<invalid>";
+		}
+		private Token[] tokenBuffer;
+		private int tokenPtr;
+
+		public TokenBuffer(int size) {
+			this.tokenBuffer = new Token[size];
+			for(int i = 0; i < size; i++) tokenBuffer[i] = new Token();
+			this.tokenPtr = 0;
+		}
+		public void add(int name) {
+			Token current = new Token();
+			current.name = name;
+			current.start = scanner.getCurrentTokenStartPosition();
+			current.end = scanner.getCurrentTokenEndPosition();
+			try {
+				current.str = scanner.getCurrentTokenString();
+			} catch(StringIndexOutOfBoundsException _) {
+				
+			}
+			--tokenPtr;
+			if(tokenPtr < 0) tokenPtr = tokenBuffer.length - 1;
+			this.tokenBuffer[tokenPtr] = current;
+		}
+		public Token current() { return get(0); }
+		public Token last()    { return get(1); }
+		public Token prev(int dist) { return get(2); }
+		private Token get(int dist) {
+			if(dist >= tokenBuffer.length) {
+				throw new AssertionError("TokenBuffer: Bounded History, but requested of token t - "+dist);
+			}
+			return tokenBuffer[(tokenPtr+dist) % TOKEN_BUFFER_SIZE];
+		}
+	}
+	
+	public static final int TOKEN_BUFFER_SIZE = 16;
+	private TokenBuffer tokenBuffer = new TokenBuffer(TOKEN_BUFFER_SIZE);
+	private HashMap<String,String> enumIds;
+	
+	
+	public ReplaceEnums(PublicScanner scanner) {
+		this.scanner = scanner;
+		this.enums = new HashSet<String>();
+		this.enumIds = new HashMap<String,String>();
+	}
+	
+	public abstract class ReplEnumsPass extends Pass {
+		public ReplEnumsPass(int id) {
+			super(id);
+		}
+		public CharSequence getResult() {
+			return dest;
+		}
+		public void setInput(CharBuffer cbuf) {
+			setSource(cbuf);
+		}		
 	}
 	
 	public void runPass1(File root) throws IOException {
-		new Pass(1) {
+		new ReplEnumsPass(1) {
 			public void executePassOnFile() throws Exception {
 				executePass1();
 			}
@@ -111,21 +187,11 @@ public class ReplaceEnums {
 	}
 
 	public void runPass2(File root) throws IOException {
-		new Pass(2) {
+		new ReplEnumsPass(2) {
 			public void executePassOnFile() throws Exception {
 				executePass2();
 			}
 		}.runPass(root);
-	}
-
-	private HashSet<String> enums;
-	private PublicScanner scanner;
-	private StringBuffer dest;
-	private int offset;
-
-	public ReplaceEnums(PublicScanner scanner) {
-		this.scanner = scanner;
-		this.enums = new HashSet<String>();
 	}
 
 	private void executePass1() throws InvalidInputException {
@@ -135,10 +201,16 @@ public class ReplaceEnums {
 		while(! scanner.atEnd()) {
 			
 			if(nextToken() != TokenNameenum) continue;
-			replaceToken("static class");
+			/* check whether the enum was already declared static */
+			if(tokenBuffer.last().name == TokenNamestatic || tokenBuffer.prev(2).name == TokenNamestatic) {
+				replaceToken("class");
+			} else {
+				replaceToken("static class");
+			}
 			/* expect identifier, recording it */
 			expectNext(TokenNameIdentifier);
-			enums.add(scanner.getCurrentTokenString());
+			String enumName = tokenBuffer.current().str;
+			enums.add(enumName);
 			System.out.println("Found enum: "+scanner.getCurrentTokenString());
 			
 			expectNext(TokenNameLBRACE);
@@ -150,8 +222,9 @@ public class ReplaceEnums {
 				/* replace 'identifier' by 'public static final int identifier' */
 				expect(tok, TokenNameIdentifier);
 
-				char[] enumIdName = scanner.getCurrentTokenSource();
-				replaceToken("public static final int "+new String(enumIdName)+ " = "+enumId+";");
+				String enumIdName = tokenBuffer.current().str;
+				addEnumId(enumName, enumIdName);
+				replaceToken("public static final int " + enumIdName + " = "+enumId+";");
 				enumId++;
 
 				/* expect comma (removed) or } */
@@ -163,19 +236,47 @@ public class ReplaceEnums {
 		}
 	}
 	
+	private void addEnumId(String enumName, String enumIdName) {
+		if(! this.enumIds.containsKey(enumName)) {
+			this.enumIds.put(enumIdName, enumName);
+		} else {
+			throw new AssertionError("The same enum identifier is used twice in your program. This is not support yet.");
+		}
+	}
+
 	private void executePass2() throws InvalidInputException {
 
-		/* a little bit to aggresive ?*/
 		while(! scanner.atEnd()) {
+			
 			if(nextToken() != TokenNameIdentifier) continue;
-			if(enums.contains(scanner.getCurrentTokenString())) {
+			
+			if(enums.contains(tokenBuffer.current().str)) {			
 				int oldStart = scanner.getCurrentTokenStartPosition();
 				int oldEnd = scanner.getCurrentTokenEndPosition();
-				if(nextToken() == TokenNameIdentifier) {
+				int t2 = nextToken();
+				if(t2 == TokenNameIdentifier) {
+					/* MyEnum x ==> int x */
 					replaceAt(oldStart,oldEnd,"int");
+				} else if(t2 == TokenNameDOT) {
+					/* MyEnum. [enum members] */
 				}
+			} else if(tokenBuffer.last().name == TokenNamecase &&
+					  enumIds.containsKey(tokenBuffer.current().str)) {
+				/* Need to qualify the name, if we are in a switch statement */
+				/* enum_x => MyEnum . enum_x */
+				String enumId = tokenBuffer.current().str;
+				replaceToken(enumIds.get(enumId) + "." + enumId);
+			} else if(tokenBuffer.last().name == TokenNameDOT &&
+					  tokenBuffer.current().str.equals("ordinal")) {
+				/* heuristic: remove '.ordinal()' */
+				/* MyEnum.value.ordinal() => MyEnum.value */
+				int memberStart = tokenBuffer.last().start;
+				expectNext(TokenNameLPAREN);
+				expectNext(TokenNameRPAREN);
+				replaceAt(memberStart, scanner.getCurrentTokenEndPosition(), "");				
 			}
-		}		
+		}
+		
 	}
 
 	
@@ -196,6 +297,7 @@ public class ReplaceEnums {
 	
 	private int nextToken() throws InvalidInputException {
 		int tok = scanner.getNextToken();
+		tokenBuffer.add(tok);
 		return tok;
 	}
 	
