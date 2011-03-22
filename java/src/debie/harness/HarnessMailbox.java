@@ -53,7 +53,7 @@ public class HarnessMailbox extends Mailbox {
 	 */
 	private int isrSendMessage(char message) {
 		if (Harness.TRACE)
-			Harness.trace(String.format("[HarnessMailbox] isrSendMessage to %d, message %d = 0x%x",
+			Harness.trace(String.format("[HarnessMailbox] isr_send_message to %d, message %d = 0x%x",
 										(int)mailbox_number, (int)message, (int)message)); 
 		sendTaskMail(message, (byte)0);
 		return TaskControl.OK;
@@ -110,6 +110,10 @@ public class HarnessMailbox extends Mailbox {
 	}
 
 	void flushMail() {
+		if (Harness.TRACE)
+			Harness.trace(String.format("[HarnessMailbox] FlushMail from box %d, which had %d messages.",
+										(int)mailbox_number, (int)mail_count[mailbox_number])); 
+
 		mail_count[mailbox_number] = 0;
 	}
 

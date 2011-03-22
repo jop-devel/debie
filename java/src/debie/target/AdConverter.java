@@ -3,7 +3,13 @@ package debie.target;
 /** ported from harness/target_ad_conv.h */
 public interface AdConverter {
 	
-	public static int BP_DOWN = 0xBF;
+	/** Number of possible ADC channels (includes GND channels) */
+	public static final int AD_CHANNELS = 0x28;
+	
+	public static final int BP_UP   = 0x40;
+	public static final int BP_DOWN = 0xBF;
+	
+	public void clearADConverting();
 	
 	void          updateADCChannelReg (/* unsigned char */ int channel);
 	void          startConversion      ();

@@ -1,5 +1,6 @@
 package debie.telecommand;
 
+import static debie.target.SensorUnitDev.NUM_SU;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.particles.EventRecord;
@@ -118,11 +119,12 @@ public class TelecommandExecutionTask {
 	 */
 	public static class ScienceDataFile implements TelemetryObject {
 		private char /*unsigned short int*/ length; /* byte: 0-1 */
-		private char[][] /*unsigned char*/ event_counter = new char[SensorUnitDev.NUM_SU][NUM_CLASSES]; /* byte: 2-(2+NUM_SU*NUM_CLASSES-1) */
-		private char /*unsigned char*/  not_used;         /* (2+NUM_SU*NUM_CLASSES) */
-		private char /*unsigned char*/  counter_checksum; /* (3+NUM_SU*NUM_CLASSES) */
+		private char[][] /*unsigned char*/ event_counter = new char[NUM_SU][NUM_CLASSES]; /* byte: 2-(2+NUM_SU*NUM_CLASSES-1) */
+		private byte /*unsigned char*/  not_used;         /* (2+NUM_SU*NUM_CLASSES) */
+		private int /*unsigned char*/  counter_checksum; /* (3+NUM_SU*NUM_CLASSES) */
 		private EventRecord[] event = new EventRecord[HwIf.MAX_EVENTS]; /* (4+NUM_SU*NUM_CLASSES)-(4+NUM_SU*NUM_CLASSES+MAX_EVENTS*26-1) */
-		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (SensorUnitDev.NUM_SU * NUM_CLASSES);
+
+		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (NUM_SU * NUM_CLASSES);
 		
 		public ScienceDataFile() {
 			/* Java only: Array initialization */
@@ -132,17 +134,25 @@ public class TelecommandExecutionTask {
 		}
 		
 		public int getByte(int index) {
-			/* FIXME: just a stub */
-			if(index == 0) return length & 0xff;
-			else if(index == 1) return (length >>> 8);
-			else return event_counter[0][0];
+			if (index == 0) return length & 0xff;
+			else if (index == 1) return (length >> 8) & 0xff;
+			else if (index < 2+NUM_SU*NUM_CLASSES) {
+				int realIdx = index - 2;
+				return event_counter[realIdx/NUM_CLASSES][realIdx%NUM_CLASSES] & 0xff;
+			} else if (index == 2+NUM_SU*NUM_CLASSES) return not_used & 0xff;
+			else if (index == 3+NUM_SU*NUM_CLASSES) return counter_checksum & 0xff;
+			else if (index < 4+NUM_SU*NUM_CLASSES+HwIf.MAX_EVENTS*EventRecord.sizeInBytes()) {
+				int realIdx = index - (4+NUM_SU*NUM_CLASSES);
+				return event[realIdx/EventRecord.sizeInBytes()].getByte(realIdx%EventRecord.sizeInBytes());
+			}
+			else return 0;
 		}
 
 		public int getEventCounter(int sensor_unit, int classification) {
 			return event_counter[sensor_unit][classification];
 		}
 
-		public void setEventCounter(int sensor_unit, byte classification,
+		public void setEventCounter(int sensor_unit, int classification,
 				char counter) {
 			event_counter[sensor_unit][classification] = counter;
 		}
@@ -457,23 +467,23 @@ public class TelecommandExecutionTask {
 			else
 			{
 				/* XXX: work around ticket #9 for JOP, broken switch/case for enums */
-				switch (TC_state) {
-				case read_memory_e:
-					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
-						setTCError();
-						TC_state = TC_State.TC_handling_e;
-					}
-					break;
-				case write_memory_e:
-					writeMemory (received_command);
-					break;
-				case memory_patch_e:
-					memoryPatch (received_command);
-					break;
-				case TC_handling_e:
-					executeCommand(received_command);
-					break;
-				}
+//				switch (TC_state) {
+//				case read_memory_e:
+//					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
+//						setTCError();
+//						TC_state = TC_State.TC_handling_e;
+//					}
+//					break;
+//				case write_memory_e:
+//					writeMemory (received_command);
+//					break;
+//				case memory_patch_e:
+//					memoryPatch (received_command);
+//					break;
+//				case TC_handling_e:
+//					executeCommand(received_command);
+//					break;
+//				}
 
 				if (TC_state == TC_State.read_memory_e) {
 					if (received_command.TC_address != TcAddress.READ_DATA_MEMORY_LSB) {
@@ -535,7 +545,7 @@ public class TelecommandExecutionTask {
 
 		int /* sensor_index_t */ SU_index;
 
-		SU_index = ((command. TC_address) >> 4) - 2;
+		SU_index = ((command.TC_address) >> 4) - 2;
 
 
 		switch (command.TC_address)
@@ -546,7 +556,7 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_COEFFICIENT_4:
 		case TcAddress.SET_COEFFICIENT_5:
 
-			telemetry_data.coefficient[(command. TC_address)&0x07] =
+			telemetry_data.coefficient[(command.TC_address)&0x07] =
 				(byte) command.TC_code;
 			break;
 
@@ -555,8 +565,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_1E_1I_MAX_TIME:
 		case TcAddress.SET_SU_4_PLASMA_1E_1I_MAX_TIME:
 
-			telemetry_data.getSuConfig(SU_index). plasma_1_plus_to_minus_max_time =
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_1_plus_to_minus_max_time =
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_1E_PZT_MIN_TIME:
@@ -564,8 +574,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_1E_PZT_MIN_TIME:
 		case TcAddress.SET_SU_4_PLASMA_1E_PZT_MIN_TIME:
 
-			telemetry_data.getSuConfig(SU_index). plasma_1_plus_to_piezo_min_time =
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_1_plus_to_piezo_min_time =
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_1E_PZT_MAX_TIME:
@@ -573,8 +583,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_1E_PZT_MAX_TIME:
 		case TcAddress.SET_SU_4_PLASMA_1E_PZT_MAX_TIME:
 
-			telemetry_data.getSuConfig(SU_index). plasma_1_plus_to_piezo_max_time =
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_1_plus_to_piezo_max_time =
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_1I_PZT_MIN_TIME:
@@ -582,8 +592,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_1I_PZT_MIN_TIME:
 		case TcAddress.SET_SU_4_PLASMA_1I_PZT_MIN_TIME:
 
-			telemetry_data.getSuConfig(SU_index). plasma_1_minus_to_piezo_min_time =
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_1_minus_to_piezo_min_time =
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_1I_PZT_MAX_TIME:
@@ -591,8 +601,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_1I_PZT_MAX_TIME:
 		case TcAddress.SET_SU_4_PLASMA_1I_PZT_MAX_TIME:
 
-			telemetry_data.getSuConfig(SU_index). plasma_1_minus_to_piezo_max_time =
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_1_minus_to_piezo_max_time =
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_1P_CLASS_LEVEL:
@@ -600,8 +610,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_1P_CLASS_LEVEL:
 		case TcAddress.SET_SU_4_PLASMA_1P_CLASS_LEVEL:
 
-			telemetry_data.getSuConfig(SU_index). plasma_1_plus_classification = 
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_1_plus_classification = 
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_1M_CLASS_LEVEL:
@@ -609,8 +619,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_1M_CLASS_LEVEL:
 		case TcAddress.SET_SU_4_PLASMA_1M_CLASS_LEVEL:
 
-			telemetry_data.getSuConfig(SU_index). plasma_1_minus_classification = 
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_1_minus_classification = 
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_2P_CLASS_LEVEL:
@@ -618,8 +628,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PLASMA_2P_CLASS_LEVEL:
 		case TcAddress.SET_SU_4_PLASMA_2P_CLASS_LEVEL:
 
-			telemetry_data.getSuConfig(SU_index). plasma_2_plus_classification = 
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).plasma_2_plus_classification = 
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PIEZO_1_CLASS_LEVEL:
@@ -627,8 +637,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PIEZO_1_CLASS_LEVEL:
 		case TcAddress.SET_SU_4_PIEZO_1_CLASS_LEVEL:
 
-			telemetry_data.getSuConfig(SU_index). piezo_1_classification = 
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).piezo_1_classification = 
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PIEZO_2_CLASS_LEVEL:
@@ -636,8 +646,8 @@ public class TelecommandExecutionTask {
 		case TcAddress.SET_SU_3_PIEZO_2_CLASS_LEVEL:
 		case TcAddress.SET_SU_4_PIEZO_2_CLASS_LEVEL:
 
-			telemetry_data.getSuConfig(SU_index). piezo_2_classification = 
-				command. TC_code;
+			telemetry_data.getSuConfig(SU_index).piezo_2_classification = 
+				command.TC_code;
 			break;
 
 		case TcAddress.ERROR_STATUS_CLEAR:
@@ -649,14 +659,14 @@ public class TelecommandExecutionTask {
 			telemetry_data.clearSUError();
 
 			/* Clear Error Status register, RTX and software error indicating bits  */
-			/* and Mode and SU Status registers.                                    */
+			/* and Mode and SU Status registers.                                   */
 
 			break;
 
 
 		case TcAddress.SET_TIME_BYTE_3:
 
-			// new_time = ((dpu_time_t) command. TC_code) << 24;
+			// new_time = ((dpu_time_t) command.TC_code) << 24;
 			// COPY (internal_time, new_time);
 			system.getInternalTime().updateWithMask(0xFFFFFFFF, (int)command.TC_code << 24);
 			TC_timeout = SET_TIME_TC_TIMEOUT;
@@ -764,7 +774,7 @@ public class TelecommandExecutionTask {
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.plasma_1_plus_threshold = 
@@ -775,117 +785,117 @@ public class TelecommandExecutionTask {
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.plasma_1_plus_threshold = 
-				command. TC_code;
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_3_PLASMA_1P_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.plasma_1_plus_threshold = 
-				command. TC_code;
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_4_PLASMA_1P_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_PLUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.plasma_1_plus_threshold = 
-				command. TC_code;
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PLASMA_1M_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_1.plasma_1_minus_threshold = 
-				command. TC_code;
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_2_PLASMA_1M_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_2.plasma_1_minus_threshold = 
-				command. TC_code;
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_3_PLASMA_1M_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_3.plasma_1_minus_threshold = 
-				command. TC_code;
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_4_PLASMA_1M_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PLASMA_1_MINUS;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
 			telemetry_data.sensor_unit_4.plasma_1_minus_threshold = 
-				command. TC_code;
+				command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_1_PIEZO_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_1;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
-			telemetry_data.sensor_unit_1.piezo_threshold = command. TC_code;
+			telemetry_data.sensor_unit_1.piezo_threshold = command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_2_PIEZO_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_2;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
-			telemetry_data.sensor_unit_2.piezo_threshold = command. TC_code;
+			telemetry_data.sensor_unit_2.piezo_threshold = command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_3_PIEZO_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_3;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
-			telemetry_data.sensor_unit_3.piezo_threshold = command. TC_code;
+			telemetry_data.sensor_unit_3.piezo_threshold = command.TC_code;
 			break;
 
 		case TcAddress.SET_SU_4_PIEZO_THRESHOLD:
 
 			new_threshold.sensor_unit = SensorUnitDev.SU_4;
 			new_threshold.channel     = SensorUnitDev.PZT_1_2;
-			new_threshold.level       = command. TC_code;
+			new_threshold.level       = command.TC_code;
 			system.getSensorUnitDevice().setTriggerLevel(new_threshold);
 
-			telemetry_data.sensor_unit_4.piezo_threshold = command. TC_code;
+			telemetry_data.sensor_unit_4.piezo_threshold = command.TC_code;
 			break;
 
 		default:
@@ -2057,7 +2067,7 @@ public class TelecommandExecutionTask {
 
 	private void incrementCounters(
 			/* sensor_index_t */ int  sensor_unit,
-			/* unsigned char */  byte classification)
+			/* unsigned char */  int  classification)
 
 	/* Purpose        : Increments given event counters.                         */
 	/* Interface      : inputs      - sensor_unit (parameter)                    */
@@ -2135,7 +2145,7 @@ public class TelecommandExecutionTask {
 		/* Telecommand Execution task has higher priority than */
 		/* Acquisition task.                                   */
 
-		for(i=0;i<SensorUnitDev.NUM_SU;i++)
+		for(i=0;i<NUM_SU;i++)
 		{
 			telemetry_data.SU_hits[i] = 0;
 
@@ -2201,7 +2211,7 @@ public class TelecommandExecutionTask {
 	}
 
 	/*--- ported from measure.c:543-EOF */
-	public static void switchSensorUnitState(SensorUnit sensorUnit) 
+	public void switchSensorUnitState(SensorUnit sensorUnit) 
 	/* Purpose        : Used when only the SU_state variable must be modified.   */
 	/* Interface      : inputs      - SU_state                                   */
 	/*                              - An Address of 'sensor_unit_t' type of a    */
@@ -2227,7 +2237,7 @@ public class TelecommandExecutionTask {
 		}
 
 		else if (sensorUnit.state == SensorUnitState.self_test_mon_e &&
-				AcquisitionTask.self_test_SU_number    != SensorUnitDev.NO_SU)
+				system.getAcquisitionTask().self_test_SU_number    != SensorUnitDev.NO_SU)
 		{
 			/* There is a self test sequence running already */
 
@@ -2241,13 +2251,13 @@ public class TelecommandExecutionTask {
 
 			if (sensorUnit.state == SensorUnitState.self_test_mon_e)
 			{
-				AcquisitionTask.self_test_SU_number = sensorUnit.number;
+				system.getAcquisitionTask().self_test_SU_number = sensorUnit.number;
 				/* Number of the SU under self test is recorded. */
 			}
 
-			else if (sensorUnit.number == AcquisitionTask.self_test_SU_number)
+			else if (sensorUnit.number == system.getAcquisitionTask().self_test_SU_number)
 			{
-				AcquisitionTask.self_test_SU_number = SensorUnitDev.NO_SU;
+				system.getAcquisitionTask().self_test_SU_number = SensorUnitDev.NO_SU;
 				/* Reset self test state i.e. no self test is running. */
 			}
 
@@ -2326,7 +2336,7 @@ public class TelecommandExecutionTask {
 		}   
 	}
 
-public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
+	public void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//
 	//		void SetSensorUnitOff(
 	//		         sensor_index_t SU,
@@ -2375,7 +2385,7 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 			sensorUnitSetting.number = index + SensorUnitDev.SU_1;
 			sensorUnitSetting.expected_source_state = AcquisitionTask.sensorUnitState[index]; 
 			sensorUnitSetting.state = SensorUnitState.off_e;
-			switchSensorUnitState (sensorUnitSetting);
+			switchSensorUnitState(sensorUnitSetting);
 			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
 		}
 
@@ -2426,7 +2436,6 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 
 		else if (AcquisitionTask.sensorUnitState[idx] == SensorUnitState.switching_e)
 		{
-			// TODO
 			HwIf.resetPeakDetector(idx + SensorUnitDev.SU_1);
 			/*Peak detector for this Sensor Unit is resetted. */       
 
@@ -2482,6 +2491,11 @@ public static  void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	/** returns true if telemetry_pointer is exactly at the end */
 	public boolean telemetryIndexAtEndExactly() {
 		return telemetry_index == telemetry_end_index;
+	}
+
+	/** returns true if telemetry_pointer is exactly at given index */
+	public boolean telemetryIndexEquals(int index) {
+		return telemetry_index == index;
 	}
 
 }

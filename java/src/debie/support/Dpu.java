@@ -245,7 +245,7 @@ public class Dpu {
 	       	break;
 		
 	      case 0x5A:
-// XXX: We cannot really jump to the patch, unless we do somereally dirty hacking
+// XXX: We cannot really jump to the patch, unless we do some really dirty hacking
 //	          /* Jump to the patched memory. */
 //
 //	          patch_function = (fptr_t)(patch_variables -> destination);
@@ -265,22 +265,21 @@ public class Dpu {
 	/* Function prototypes: */
 //	extern void Init_DPU (reset_class_t reset_class);
 
-	// XXX: todo
 	public static void reboot(ResetClass boot_type) {
-		if (Harness.TRACE) Harness.trace(String.format("Reboot %d", boot_type.ordinal())); 
+		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Reboot %d", boot_type.ordinal())); 
 		
 		if (boot_type == ResetClass.checksum_reset_e) {
 			/* Make it not happen (at once) again: */
-			reference_checksum = HealthMonitoringTask.getCodeChecksum();
-		   
-			System.out.println("Target Reboot.");
+			reference_checksum = HealthMonitoringTask.getCodeChecksum();		   
 		}		
+
+		System.out.println("Target Reboot.");
 	}
 
 	private static byte data_memory[] = new byte[65536];
 	
 	public static void setDataByte(int addr, byte value) {
-		if (Harness.TRACE) Harness.trace(String.format("setDataByte 0x%x to %d = 0x%x",
+		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Set_Data_Byte 0x%x to %d = 0x%x",
 													   addr, (int)value & 0xff, (int)value & 0xff));
 		
 		data_memory[addr] = value;
@@ -288,7 +287,7 @@ public class Dpu {
 	
 	public static byte getDataByte(int addr) {
 		byte value = data_memory[addr];
-		if (Harness.TRACE) Harness.trace(String.format("getDataByte 0x%x is %d = 0x%x",
+		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Get_Data_Byte 0x%x is %d = 0x%x",
 													   addr, (int)value & 0xff, (int)value & 0xff));
 		return value;
 	}
@@ -310,7 +309,7 @@ public class Dpu {
 	}
 	
 	public static int checkCurrent (int bits) {
-		if (Harness.TRACE) Harness.trace(String.format("Check_Current 0x%x", bits));
+		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Check_Current 0x%x", bits));
 			
 		int val;
 	
@@ -320,7 +319,7 @@ public class Dpu {
 		case  48: val = 16; break;
 		case 192: val = 64; break;
 		default : val =  0;
-		if (Harness.TRACE) Harness.trace(String.format("Check_Current param error"));
+		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Check_Current param error"));
 		break;
 		}
 

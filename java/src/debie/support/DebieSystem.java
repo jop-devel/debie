@@ -2,6 +2,7 @@ package debie.support;
 
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
+import debie.particles.HitTriggerTask;
 import debie.target.AdConverter;
 import debie.target.SensorUnitDev;
 import debie.target.TcTmDev;
@@ -18,6 +19,7 @@ public interface DebieSystem {
 	public AcquisitionTask          getAcquisitionTask();
 	public HealthMonitoringTask     getHealthMonitoringTask();
 	public TelecommandExecutionTask getTelecommandExecutionTask();
+	public HitTriggerTask           getHitTriggerTask();
 
 	public Mailbox                  getAcqMailbox();
 	public Mailbox                  getTcTmMailbox();

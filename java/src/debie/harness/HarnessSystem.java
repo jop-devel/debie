@@ -3,6 +3,7 @@ package debie.harness;
 import static debie.support.KernelObjects.*;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
+import debie.particles.HitTriggerTask;
 import debie.support.DebieSystem;
 import debie.support.TaskControl;
 import debie.support.Dpu.Time;
@@ -17,6 +18,7 @@ public class HarnessSystem implements DebieSystem {
 	AcquisitionTask acqTask;
 	HealthMonitoringTask hmTask;
 	TelecommandExecutionTask tctmTask;
+	HitTriggerTask htTask;
 
 	HarnessMailbox acqMailbox;
 	HarnessMailbox tctmMailbox;
@@ -31,13 +33,14 @@ public class HarnessSystem implements DebieSystem {
 		this.adcSim = new AdcSim();
 
 		this.acqMailbox = new HarnessMailbox(ACQUISITION_MAILBOX);
-		TaskControl.setMailbox(ACQUISITION_MAILBOX, acqMailbox);
 		this.tctmMailbox = new HarnessMailbox(TCTM_MAILBOX);
-		TaskControl.setMailbox(TCTM_MAILBOX, tctmMailbox);
+
+		TaskControl.setSystem(this);
 
 		this.hmTask = new HealthMonitoringTask(this);
 		this.acqTask = new AcquisitionTask(this);
 		this.tctmTask = new TelecommandExecutionTask(this);
+		this.htTask = new HitTriggerTask(this);
 	}
 
 	@Override
@@ -80,6 +83,11 @@ public class HarnessSystem implements DebieSystem {
 		return tctmTask;
 	}
 
+	@Override
+	public HitTriggerTask getHitTriggerTask() {
+		return htTask;
+	}
+	
 	@Override
 	public Time getInternalTime() {
 		return hmTask.getInternalTime();

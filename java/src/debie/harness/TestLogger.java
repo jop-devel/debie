@@ -7,9 +7,11 @@ public class TestLogger {
 		"------------------------------------------------------------------------------";
 	
 	void startTest(String name) {
-		System.out.print("Running Test: ");
-		System.out.println(name);
-		if(Harness.TRACE) System.out.println(SEP2);
+		System.out.println();
+		System.out.print("CASE: ");
+		System.out.print(name);
+		System.out.println(":");
+		System.out.println();
 	}
 
 	public void endTestSuite(String name, TestSuite testSuite) {

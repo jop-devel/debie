@@ -100,8 +100,14 @@ public class Harness {
 		TelecommandTaskTest tcTaskTest = new TelecommandTaskTest(system, defaultLogger);
 		tcTaskTest.runTests();
 		
-		MonitoringTaskTest monTaskTest = new MonitoringTaskTest(system,defaultLogger);
+		MonitoringTaskTest monTaskTest = new MonitoringTaskTest(system, defaultLogger);
 		monTaskTest.runTests();
+		
+		TelemetryTest tmTest = new TelemetryTest(system, defaultLogger);
+		tmTest.runTests();
+		
+		HitISRTest hitTest = new HitISRTest(system, defaultLogger);
+		hitTest.runTests();
 		
 		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
 		acqTest.runTests();

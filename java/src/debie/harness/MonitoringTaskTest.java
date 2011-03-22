@@ -3,9 +3,13 @@ package debie.harness;
 import static debie.harness.Harness.*;
 import static debie.health.HealthMonitoringTask.*;
 import debie.particles.AcquisitionTask;
+import debie.support.Dpu;
+import debie.telecommand.TelecommandExecutionTask;
 
 public class MonitoringTaskTest extends HarnessTest {
 
+	private static final int max_errors = 20; 
+	
 	public MonitoringTaskTest(HarnessSystem sys, TestLogger tl) {
 		super(sys, tl);
 	}
@@ -23,14 +27,16 @@ public class MonitoringTaskTest extends HarnessTest {
 		system.adcSim.setADNominal();
 		/* To avoid monitoring alarms. */
 	
-		testMonitorNoErrorsOrHits();
+		testMonitorNoErrorsNoHits();
 		testMonitorNoErrorsOneHit();
 		testMonitorNoErrorsManyHits();
+		testMonitorSUErrorsNoHits();
+		testMonitorWithErrorsAndHits();
 		
 		reportTestResults("MonitoringTaskTest");
 	}
 
-	private void testMonitorNoErrorsOrHits() {		
+	private void testMonitorNoErrorsNoHits() {		
 		testcase("Monitoring without errors or interrupting hits");
 		
 		/* A/D conversions ready on second poll: */
@@ -117,5 +123,72 @@ public class MonitoringTaskTest extends HarnessTest {
 		checkEquals("checksum_count = CHECK_COUNT", hmTask.getChecksumCount(), CHECK_COUNT);
 
 		checkNoErrors();
+	}
+	
+	private void testMonitorSUErrorsNoHits() {
+		testcase("Monitoring with SU errors, no interrupting hits");
+		
+		system.adcSim.setADUnlimited();
+		system.adcSim.max_adc_hits = 0;
+		
+		int tot_errors = 0;
+		
+		do {
+			if (tot_errors == 4) Dpu.setCheckCurrentErrors(5);
+
+			if (tot_errors == max_errors - 1) system.suSim.v_down_errors = 1;
+			/* The V_DOWN error has a dramatic effect, so
+			 * we save it for last.
+			 */
+
+			for (int sec = 1; sec <= 180; sec ++) {
+				monitorHealth (Prob6d);
+			}
+
+			if (TelecommandExecutionTask.getTelemetryData().getErrorStatus() != 0) {
+				tot_errors++;
+
+				if (Harness.TRACE)
+					Harness.trace(String.format("Monitoring (6d) error %d, error status %x",
+							tot_errors, (int)TelecommandExecutionTask.getTelemetryData().getErrorStatus() & 0xff));
+				clearErrors ();
+			}
+		} while (tot_errors < max_errors);
+
+		checkNoErrors ();
+	}
+	
+	private void testMonitorWithErrorsAndHits() {
+		testcase("Monitoring with any kind of error and interrupting hit");
+
+		system.adcSim.setADUnlimited();
+
+		int tot_errors = 0;
+
+		do {
+			if (tot_errors == 4) Dpu.setCheckCurrentErrors(5);
+
+			if (tot_errors == max_errors - 1) system.suSim.v_down_errors = 1;
+			/* The V_DOWN error has a dramatic effect, so
+			 * we save it for last.
+			 */
+
+			for (int sec = 1; sec <= 180; sec ++) {
+				system.adcSim.max_adc_hits = AcquisitionTask.HIT_BUDGET_DEFAULT;
+				if (sec > 2*tot_errors) system.adcSim.ad_random_failures = 2;
+				monitorHealth (Prob6e);
+			}
+
+			if (TelecommandExecutionTask.getTelemetryData().getErrorStatus() != 0) {
+				tot_errors ++;
+
+				if (Harness.TRACE)
+					Harness.trace(String.format("Monitoring (6e) error %d, error status %x",
+							tot_errors, (int)TelecommandExecutionTask.getTelemetryData().getErrorStatus() & 0xff));
+				clearErrors ();
+			}
+		} while (tot_errors < max_errors);
+
+		checkNoErrors ();
 	}
 }

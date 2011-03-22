@@ -66,7 +66,7 @@ public class TelecommandTaskTest extends HarnessTest {
 		testcase("TC = ERROR_STATUS_CLEAR, ok");
 		
 		/* Flag an error manually: */
-		tctmTask.getTelemetryData().setErrorStatus((byte)TcTmDev.PARITY_ERROR);
+		tctmTask.getTelemetryData().setErrorStatusRaw((byte)TcTmDev.PARITY_ERROR);
 		
 		sendTC(ERROR_STATUS_CLEAR, ERROR_STATUS_CLEAR);
 		/* The parity-error flag is not yet reset, because */
@@ -434,7 +434,7 @@ public class TelecommandTaskTest extends HarnessTest {
 
 		int chsum;
 
-		chsum = sendPatchCode(0x2300);
+		chsum = sendPatchData(0x2300);
 
 		chsum ^= 0x11;   /* Correct checksum. */
 		chsum ^= 0xff;   /* Wrong   checksum. */

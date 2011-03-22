@@ -92,6 +92,52 @@ public abstract class HarnessTest extends TestSuite {
 	   checkEquals ("[handleTC] TC mailbox has 0 msgs", system.tctmMailbox.getMailCount(), 0);
 	}
 
+	/** Executes HandleHealthMonitoring for a particular analysis problem. */
+	protected void monitorHealth (int problem)
+	{
+	   system.adcSim.start_conversion_count = 0;
+	   system.adcSim.end_of_adc_count       = 0;
+	   
+	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
+	   system.hmTask.handleHealthMonitor();
+	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
+
+	   reportStartConversionCount (problem);
+	   reportEndOfADCCount        (problem);
+	}
+
+	/**
+	 * Invoke HandleHitTrigger. 
+	 * The problem parameter defines the analysis problem for this test.
+	 */
+	protected void triggerHit(int problem) {
+	   checkEquals("no acq mail", system.acqMailbox.getMailCount(), 0);
+	   if(Harness.TRACE) Harness.trace("[HarnessTest] Hit!");
+	
+	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
+	
+	   system.acqTask.handleHitTrigger();
+	
+	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
+	
+	   if(Harness.TRACE) {
+		   if(system.acqMailbox.getMailCount() == 0) {
+			   Harness.trace("[HarnessTest] - hit rejected");
+		   } else {   
+			   Harness.trace("[HarnessTest] - hit accepted");
+		   }
+	   }
+	}
+	
+	/**
+	 * Invoke HandleHitTrigger with the given SU in trigger_source_0/1. 
+	 * The problem parameter defines the analysis problem for this test.
+	 */
+	protected void triggerSUHit (int SU, int problem) {
+		system.suSim.setTriggerSU (SU);
+		triggerHit (problem);
+	}
+
 	/**
 	 * Sends the multi-word TC to patch code memory at the given address,
 	 * with some arbitary contents. Returns the checksum of the patch,
@@ -264,20 +310,6 @@ public abstract class HarnessTest extends TestSuite {
 
 	/*--- Common Tests ---*/
 	
-	protected void monitorHealth (int problem)
-	/* Executes HandleHealthMonitoring for a particular analysis problem. */
-	{
-	   system.adcSim.start_conversion_count = 0;
-	   system.adcSim.end_of_adc_count       = 0;
-	   
-	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
-	   system.hmTask.handleHealthMonitor();
-	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
-
-	   reportStartConversionCount (problem);
-	   reportEndOfADCCount        (problem);
-	}
-
 	/** Reports and then clears the count of Start_Conversion calls.
 	 * The problem parameter associates this count with a given
 	 * analysis problem for this benchmark.
@@ -296,7 +328,7 @@ public abstract class HarnessTest extends TestSuite {
 	 * The problem parameter associates this count with a given
 	 * analysis problem for this benchmark.
 	 */
-	void reportEndOfADCCount (int problem)
+	protected void reportEndOfADCCount (int problem)
 	{
 		if(Harness.TRACE) {
 			Harness.trace(String.format("[HarnessTest] Called End_Of_ADC %d times in problem %d.",

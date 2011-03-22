@@ -65,4 +65,25 @@ public class SensorUnitSettings {
 		plasma_1_minus_to_piezo_min_time = 0;
 		plasma_1_minus_to_piezo_max_time = 0;		
 	}
+	
+	public int getByte(int index) {
+		switch (index) {
+		case 0: return plus_5_voltage & 0xff;
+		case 1: return minus_5_voltage & 0xff;
+		case 2: return plasma_1_plus_threshold & 0xff;
+		case 3: return plasma_1_minus_threshold & 0xff;
+		case 4: return piezo_threshold & 0xff;
+		case 5: return plasma_1_plus_classification & 0xff;
+		case 6: return plasma_1_minus_classification & 0xff;
+		case 7: return piezo_1_classification;
+		case 8: return piezo_2_classification;
+		case 9: return plasma_2_plus_classification & 0xff;
+		case 10: return plasma_1_plus_to_minus_max_time & 0xff;
+		case 11: return plasma_1_plus_to_piezo_min_time & 0xff;
+		case 12: return plasma_1_plus_to_piezo_max_time & 0xff;
+		case 13: return plasma_1_minus_to_piezo_min_time & 0xff;
+		case 14: return plasma_1_minus_to_piezo_max_time & 0xff;
+		default: return 0;
+	}
+	}
 }

@@ -135,32 +135,12 @@ public abstract class SensorUnitDev {
 	/* Function prototypes */
 	public static int SU_ctrl_register = 0;
 
-	/* Sensor Unit status */
-
-	/* read delay counters --> HwIf.java */
-
-	//	void readDelayCounters (delays_t delay);
-	//	extern unsigned char ReadRiseTimeCounter(void) COMPACT REENTRANT_FUNC;
-	//	extern void ResetDelayCounters(void) COMPACT REENTRANT_FUNC;
-	//	extern void ResetPeakDetector(sensor_number_t unit);
-	//	extern void SignalPeakDetectorReset(
-	//	   unsigned char low_reset_value,
-	//	   unsigned char high_reset_value);
-	//
-	//
-	//	/* Trigger levels */
-	//	extern void SetTriggerLevel(trigger_set_t EXTERNAL *setting)
-	//	   COMPACT REENTRANT_FUNC;
-	//
-	//	/* Test pulse level */
-	//	extern void SetTestPulseLevel(unsigned char level)
-	//	   COMPACT REENTRANT_FUNC;
-	//
-	//	extern void GetVoltageStatus(voltage_status_t EXTERNAL *v_status) 
-	//	   COMPACT REENTRANT_FUNC;
-	//
-	//
-	//	/* Sensor Unit power control */
+	private static int SU_self_test_channel;
+	
+	/** This array stores the value to be used when analog switch bit
+	 * corresponding to a given SU is set.                           
+	 */
+	private static final int  analog_switch_bit [] = {0x10, 0x20, 0x40, 0x80};
 
 	public static void switchSensorUnitOn(int number, SensorUnit sensorUnit)
 	//	void Switch_SU_On  (
@@ -212,8 +192,8 @@ public abstract class SensorUnitDev {
 		/*Incorrect SU number has caused an error.                            */
 		break;
 		}
-		// TODO: set data byte
-		//SET_DATA_BYTE(SU_CONTROL,SU_ctrl_register);    
+
+		Dpu.setDataByte(SU_CONTROL, (byte)SU_ctrl_register);    
 
 		// NOTE: Moved telemetry_data status update to the only call site 'Start_SU_SwitchingOn' 
 	}
@@ -269,7 +249,7 @@ public abstract class SensorUnitDev {
 		break;
 		}
 
-		// SET_DATA_BYTE(SU_CONTROL,SU_ctrl_register);       
+		Dpu.setDataByte(SU_CONTROL, (byte)SU_ctrl_register);       
 
 		// NOTE: Moved telemetry_data status update to the only call site 'Start_SU_SwitchingOff' 
 	}
@@ -402,23 +382,92 @@ public abstract class SensorUnitDev {
 	
 	public abstract int getHitTriggerFlag ();
 	
-	/*--- XXX: this used to be in the Dpu module */
 	public abstract int getEventFlag();
 
-	public abstract int VDown();
+	public abstract int getMSBCounter();
+	public abstract int getLSB1Counter();
+	public abstract int getLSB2Counter();	
 	
-	//
-	//	/* Sensor Unit calibration */
-	//
-	//	extern void EnableAnalogSwitch(sensor_index_t self_test_SU_index);
-	//	extern void DisableAnalogSwitch(sensor_index_t self_test_SU_index);
-	//	extern void SelectSelfTestChannel(int /* unsigned char */ channel);
-	//	extern void SelectTriggerSwitchLevel(
-	//	           int /* unsigned char */  test_channel,
-	//	           sensor_index_t self_test_SU_index);
-	//	extern void SelectStartSwitchLevel(
-	//	           int /* unsigned char */  test_channel,
-	//	           sensor_index_t self_test_SU_index);	
+	public abstract int getRiseTimeCounter();
+	
+	public abstract int triggerSource0();
+	public abstract int triggerSource1();
+
+	public abstract int VDown();
+
+	public abstract void signalPeakDetectorReset(
+			int low_reset_value,
+			int high_reset_value);
+	
+	/**
+	 * Purpose        : The analog switch output is enabled in the
+	 *                  self test channel register.
+	 * Interface      : inputs      - self_test_SU_index
+	 *                  outputs     - SU_self_test_channel, HW register
+	 *                  subroutines -  none
+	 * Preconditions  : none
+	 * Postconditions : The analog switch output is enabled for a given
+	 *                  self test SU in the SU_self_test_channel register.
+	 * Algorithm      : - The respective bit is set in the SU_self_test_channel
+	 *                    variable and written to HW.
+	 */
+	public void enableAnalogSwitch(int self_test_SU_index) {
+	   SU_self_test_channel |= analog_switch_bit[self_test_SU_index];
+	   /* The respective bit is set in the variable, preserve other bits.  */
+
+	   setSUSelfTestCh(SU_self_test_channel);
+	}
+
+	/**
+	 * Purpose        : The analog switch output is disabled in the
+	 *                  self test channel register.
+	 * Interface      : inputs      - self_test_SU_index
+	 *                  outputs     - SU_self_test_channel, HW register
+	 *                  subroutines -  none
+	 * Preconditions  : none
+	 * Postconditions : The analog switch output is disabled for a given
+	 *                  self test SU in the SU_self_test_channel register.
+	 * Algorithm      : - The respective bit is reset in the SU_self_test_channel
+	 *                    variable and written to HW.
+	 */
+	public void disableAnalogSwitch(int self_test_SU_index) {
+	   SU_self_test_channel &= ~analog_switch_bit[self_test_SU_index];
+	   /* The respective bit is set in the variable, preserve other bits.  */
+
+	   setSUSelfTestCh(SU_self_test_channel);
+	}
+	
+	/**
+	 * Purpose        : A self test channel is selected in the
+	 *                  self test channel register.
+	 * Interface      : inputs      - channel
+	 *                  outputs     - SU_self_test_channel, HW register
+	 *                  subroutines -  none
+	 * Preconditions  : none
+	 * Postconditions : The given self test channel is selected.
+	 *                  self test SU in the SU_self_test_channel register.
+	 * Algorithm      : - The respective bit is set in the self test channel
+	 *                    register and written to HW.
+	 */
+	public void selectSelfTestChannel(int channel) {
+		int channel_selector_value[] = new int[NUM_CH];
+		/* This array stores the selector bit states related to a given channel. */
+
+		channel_selector_value[PLASMA_1_PLUS]    = 0x00;
+		channel_selector_value[PLASMA_1_MINUS]   = 0x01;
+		channel_selector_value[PZT_1]            = 0x02;
+		channel_selector_value[PZT_2]            = 0x03;
+		channel_selector_value[PLASMA_2_PLUS]    = 0x04;
+
+		SU_self_test_channel = 
+			(SU_self_test_channel & 0xF8) | channel_selector_value[channel]; 
+		/* Set chosen bits preserve others. */
+
+		setSUSelfTestCh(SU_self_test_channel);
+	}
+	
+	public abstract void setSUSelfTestCh (int value);
+
 }
 
 
