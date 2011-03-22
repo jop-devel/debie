@@ -59,7 +59,10 @@ public class TelemetryData implements TelemetryObject {
 
 	public static final int TIME_INDEX = 106;
 
-	public static final int SIZE_OF = 118;
+	private static final int SIZE_IN_BYTES = 120;
+	public static int sizeInBytes() {
+		return SIZE_IN_BYTES;
+	}
 	
 	/** FIXME: this is just a stub, but is there a good solution for serialization in Java? */
 	public int getByte(int index) {
@@ -119,16 +122,17 @@ public class TelemetryData implements TelemetryObject {
 			return SU_hits[(index-98) >> 1] & 0xff;
 		case 99: case 101: case 103: case 105:
 			return (SU_hits[(index-98) >> 1] >> 8) & 0xff;
-		case 106: return time & 0xff;
-		case 107: return (time >> 8) & 0xff;
-		case 108: return (time >> 16) & 0xff;
-		case 109: return (time >> 24) & 0xff;
-		case 110: return software_error & 0xff;
-		case 111: return hit_budget_exceedings & 0xff;
-		case 112: case 113: case 114: case 115: case 116:
-			return coefficient[index-112];
+		// case 106: case 107: padding in original code
+		case 108: return time & 0xff;
+		case 109: return (time >> 8) & 0xff;
+		case 110: return (time >> 16) & 0xff;
+		case 111: return (time >> 24) & 0xff;
+		case 112: return software_error & 0xff;
+		case 113: return hit_budget_exceedings & 0xff;
+		case 114: case 115: case 116: case 117: case 118:
+			return coefficient[index-114];
 		}
-		return -1; // not_used;		
+		return 0; // not_used;		
 	}
 	
 	public TelemetryData() {

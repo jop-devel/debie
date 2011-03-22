@@ -61,10 +61,8 @@ public class EventRecord {
 
 	private static final int MAX_QUALITY = 255;
 	
-	int       quality_number;    /* byte  0  XXX: was unsigned char
-    										 XXX: extended to int to avoid loss of
-    										  	  precision following offsets are wrong now */
-	byte      classification;    /* byte  1  XXX: was unsigned char    */
+	int       quality_number;    /* byte  0  XXX: was unsigned char */
+	int       classification;    /* byte  1  XXX: was unsigned char    */
 	byte      SU_number;         /* byte  2  XXX: was unsigned char    */
 	int       hit_time;          /* byte  3 -  6 XXX: was tm_dpu_time_t */
 	byte      SU_temperature_1;  /* byte  7  XXX: was unsigned char        */
@@ -80,11 +78,45 @@ public class EventRecord {
 	char      delay_3;           /* byte 23 - 24 XXX: was tm_ushort_t */
 	byte      checksum;          /* byte 25 XXX: was unsigned char */
 
-	private static final int SIZE_IN_BYTES = 26;
+	private static final int SIZE_IN_BYTES = 28;
 	public static int sizeInBytes() {
 		return SIZE_IN_BYTES;
 	}
 
+	public int getByte(int index) {
+		switch (index) {
+		case 0: return quality_number & 0xff;
+		case 1: return classification & 0xff;
+		case 2: return SU_number & 0xff;
+		// case 3: padding in original code
+		case 4: return hit_time & 0xff;
+		case 5: return (hit_time >> 8) & 0xff;
+		case 6: return (hit_time >> 16) & 0xff;
+		case 7: return (hit_time >> 24) & 0xff;
+		case 8: return SU_temperature_1 & 0xff;
+		case 9: return SU_temperature_2 & 0xff;
+		case 10: return plasma_1_plus & 0xff;
+		case 11: return (plasma_1_plus >> 8) & 0xff;
+		case 12: return plasma_1_minus & 0xff;
+		case 13: return (plasma_1_minus >> 8) & 0xff;
+		case 14: return piezo_1 & 0xff;
+		case 15: return (piezo_1 >> 8) & 0xff;
+		case 16: return piezo_2 & 0xff;
+		case 17: return (piezo_2 >> 8) & 0xff;
+		case 18: return plasma_2_plus & 0xff;
+		case 19: return (plasma_2_plus >> 8) & 0xff;
+		case 20: return rise_time & 0xff;
+		case 21: return delay_1;
+		case 22: return delay_2 & 0xff;
+		case 23: return (delay_2 >> 8) & 0xff;
+		case 24: return delay_3 & 0xff;
+		case 25: return (delay_3 >> 8) & 0xff;
+		case 26: return checksum & 0xff;		
+		// case 27: padding in original code
+		}
+		return 0;
+	}
+	
 	/* getters/setters to provide access for TelecommandExecutionTask */
 	public int getQualityNumber() {
 		return quality_number;
@@ -95,7 +127,7 @@ public class EventRecord {
 	public int getHitTime() {
 		return hit_time;
 	}
-	public byte getClassification() {
+	public int getClassification() {
 		return classification;
 	}
 	public byte getSUNumber() {
@@ -117,7 +149,8 @@ public class EventRecord {
 //         event_checksum ^= *checksum_pointer;
 //         checksum_pointer++;
 //      }
-        /*--- i=1 ==> quality_number is not part of the checksum */
+        
+        new_checksum ^= quality_number;
         new_checksum ^= classification;
         new_checksum ^= SU_number;
         // XXX: order does not matter, because ^ is commutative
@@ -144,6 +177,7 @@ public class EventRecord {
         new_checksum ^= delay_2 >>> 8;
         new_checksum ^= delay_3 & 0xFF;
         new_checksum ^= delay_3 >>> 8;
+        new_checksum ^= checksum;
         checksum = new_checksum;
 	}
 
@@ -268,7 +302,7 @@ public class EventRecord {
 		quality += getQualityTerm(4, plasma_2_plus);
 		/* Add amplitude term for i=5 (see function algorithm). */
 		
-		quality_number = (byte)(quality + 0.5f);
+		quality_number = (int)(quality + 0.5f) & 0xff;
 		/* Store quality number to the event record */
 	}
 

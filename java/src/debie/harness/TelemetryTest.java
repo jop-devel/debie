@@ -38,7 +38,7 @@ public class TelemetryTest extends HarnessTest {
 
 		checkTcState(TC_State.register_TM_e);
 
-		for (int octets = 0; octets < TelemetryData.SIZE_OF; octets += 2) {
+		for (int octets = 0; octets < TelemetryData.sizeInBytes(); octets += 2) {
 
 			if (!tctmTask.telemetryIndexEquals(TelemetryData.TIME_INDEX)) {					
 				startProblem(Prob2a);

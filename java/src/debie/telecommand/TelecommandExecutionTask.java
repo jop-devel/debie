@@ -1,5 +1,6 @@
 package debie.telecommand;
 
+import static debie.target.SensorUnitDev.NUM_SU;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.particles.EventRecord;
@@ -118,11 +119,12 @@ public class TelecommandExecutionTask {
 	 */
 	public static class ScienceDataFile implements TelemetryObject {
 		private char /*unsigned short int*/ length; /* byte: 0-1 */
-		private char[][] /*unsigned char*/ event_counter = new char[SensorUnitDev.NUM_SU][NUM_CLASSES]; /* byte: 2-(2+NUM_SU*NUM_CLASSES-1) */
-		private char /*unsigned char*/  not_used;         /* (2+NUM_SU*NUM_CLASSES) */
-		private char /*unsigned char*/  counter_checksum; /* (3+NUM_SU*NUM_CLASSES) */
+		private char[][] /*unsigned char*/ event_counter = new char[NUM_SU][NUM_CLASSES]; /* byte: 2-(2+NUM_SU*NUM_CLASSES-1) */
+		private byte /*unsigned char*/  not_used;         /* (2+NUM_SU*NUM_CLASSES) */
+		private int /*unsigned char*/  counter_checksum; /* (3+NUM_SU*NUM_CLASSES) */
 		private EventRecord[] event = new EventRecord[HwIf.MAX_EVENTS]; /* (4+NUM_SU*NUM_CLASSES)-(4+NUM_SU*NUM_CLASSES+MAX_EVENTS*26-1) */
-		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (SensorUnitDev.NUM_SU * NUM_CLASSES);
+
+		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (NUM_SU * NUM_CLASSES);
 		
 		public ScienceDataFile() {
 			/* Java only: Array initialization */
@@ -132,17 +134,25 @@ public class TelecommandExecutionTask {
 		}
 		
 		public int getByte(int index) {
-			/* FIXME: just a stub */
-			if(index == 0) return length & 0xff;
-			else if(index == 1) return (length >>> 8);
-			else return event_counter[0][0];
+			if (index == 0) return length & 0xff;
+			else if (index == 1) return (length >> 8) & 0xff;
+			else if (index < 2+NUM_SU*NUM_CLASSES) {
+				int realIdx = index - 2;
+				return event_counter[realIdx/NUM_CLASSES][realIdx%NUM_CLASSES] & 0xff;
+			} else if (index == 2+NUM_SU*NUM_CLASSES) return not_used & 0xff;
+			else if (index == 3+NUM_SU*NUM_CLASSES) return counter_checksum & 0xff;
+			else if (index < 4+NUM_SU*NUM_CLASSES+HwIf.MAX_EVENTS*EventRecord.sizeInBytes()) {
+				int realIdx = index - (4+NUM_SU*NUM_CLASSES);
+				return event[realIdx/EventRecord.sizeInBytes()].getByte(realIdx%EventRecord.sizeInBytes());
+			}
+			else return 0;
 		}
 
 		public int getEventCounter(int sensor_unit, int classification) {
 			return event_counter[sensor_unit][classification];
 		}
 
-		public void setEventCounter(int sensor_unit, byte classification,
+		public void setEventCounter(int sensor_unit, int classification,
 				char counter) {
 			event_counter[sensor_unit][classification] = counter;
 		}
@@ -2057,7 +2067,7 @@ public class TelecommandExecutionTask {
 
 	private void incrementCounters(
 			/* sensor_index_t */ int  sensor_unit,
-			/* unsigned char */  byte classification)
+			/* unsigned char */  int  classification)
 
 	/* Purpose        : Increments given event counters.                         */
 	/* Interface      : inputs      - sensor_unit (parameter)                    */
@@ -2135,7 +2145,7 @@ public class TelecommandExecutionTask {
 		/* Telecommand Execution task has higher priority than */
 		/* Acquisition task.                                   */
 
-		for(i=0;i<SensorUnitDev.NUM_SU;i++)
+		for(i=0;i<NUM_SU;i++)
 		{
 			telemetry_data.SU_hits[i] = 0;
 

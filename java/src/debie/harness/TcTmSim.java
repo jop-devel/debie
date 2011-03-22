@@ -96,7 +96,7 @@ public class TcTmSim implements TcTmDev {
 
 	@Override
 	public void setTimerOverflowFlag() {
-		if(Harness.TRACE) Harness.trace("[TcTmSim] Set_TC_Timer_Overflow_Flag");			
+//		if(Harness.TRACE) Harness.trace("[TcTmSim] Set_TC_Timer_Overflow_Flag");			
 		tc_timer_overflow = 1;
 	}
 
