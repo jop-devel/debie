@@ -199,8 +199,10 @@ public class ReplaceEnums {
 		int enumId = 0;
 		
 		while(! scanner.atEnd()) {
+			nextToken();			
+			removeOverrideAnnotation();			
+			if(tokenBuffer.current().name != TokenNameenum) continue;
 			
-			if(nextToken() != TokenNameenum) continue;
 			/* check whether the enum was already declared static */
 			if(tokenBuffer.last().name == TokenNamestatic || tokenBuffer.prev(2).name == TokenNamestatic) {
 				replaceToken("class");
@@ -236,6 +238,18 @@ public class ReplaceEnums {
 		}
 	}
 	
+	private void removeOverrideAnnotation() throws InvalidInputException {
+		if(tokenBuffer.current().name != TokenNameAT) return;
+		
+		int rStart = tokenBuffer.current().start;
+		
+		if(nextToken() != TokenNameIdentifier) return;
+		if(tokenBuffer.current().str.equals("Override")) {
+			replaceAt(rStart, tokenBuffer.current().end, "");
+		}
+		nextToken();
+	}
+
 	private void addEnumId(String enumName, String enumIdName) {
 		if(! this.enumIds.containsKey(enumName)) {
 			this.enumIds.put(enumIdName, enumName);
