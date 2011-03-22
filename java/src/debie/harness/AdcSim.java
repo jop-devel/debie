@@ -71,10 +71,14 @@ public class AdcSim implements AdConverter {
 
 	private static final int AD_NUM_CONV = 6;
 	
-	private static int ad_conv_delay [] = new int[AD_NUM_CONV];
+	static int ad_conv_delay [] = new int[AD_NUM_CONV];
 	
 	/** Counts the consecutive conversions for ad_conv_delay[]. */
 	private int ad_conv_num = 0;
+	
+	void setADConvNum(int value) {
+		ad_conv_num = value;
+	}
 	
 	// better to simulate using multi-dim array?
 	//	public static class AdLimit {
@@ -147,6 +151,16 @@ public class AdcSim implements AdConverter {
 			ad_conv_delay[i] = delay;
 	}
 
+	private RandomSim ad_delay_rand = new RandomSim(0);
+	/* A roving index to randomize the A/D delays. */
+
+	/* Sets random ad_conv_delay[]. */
+	public void randomADDelay()	{
+	   for (int i = 0; i < AD_NUM_CONV; i++)
+	      ad_conv_delay[i] = ad_delay_rand.nextRand() % (AcquisitionTask.ADC_MAX_TRIES + 10);
+	}
+
+	
 	@Override
 	/** Is the A/D conversion done, that is, ready for readout?
 	 * 0 (CONVERSION_ACTIVE) means yes, any other value means no.

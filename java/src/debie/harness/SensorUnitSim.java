@@ -52,7 +52,7 @@ public class SensorUnitSim extends SensorUnitDev {
 	   &&  (system.acqTask.self_test_SU_number != NO_SU)
 	   &&  (system.acqTask.sensorUnitState[system.acqTask.self_test_SU_number  - AcquisitionTask.SU1] == SensorUnitState.self_test_trigger_e))
 	   {
-		   if(Harness.TRACE) Harness.trace("SU Self Test trigger!\n");
+		   if(Harness.TRACE) Harness.trace("[SensorUnitSim] SU Self Test trigger!");
 		   system.acqTask.sensorUnitState[system.acqTask.self_test_SU_number - AcquisitionTask.SU1] = SensorUnitState.self_test_e;
 	   }
 	}
@@ -84,7 +84,7 @@ public class SensorUnitSim extends SensorUnitDev {
 	void setTriggerSU(/* sensor_index_t */ int unit) /* Set_Trigger_SU  */
 	/* Sets the given SU in trigger_source_0/1. */
 	{
-		if(Harness.TRACE) Harness.trace(String.format("Set Trigger SU index %d\n", unit));
+		if(Harness.TRACE) Harness.trace(String.format("[SensorUnitSim] Set Trigger SU index %d", unit));
 
 		trigger_source_0 =  unit       & 1;
 		trigger_source_1 = (unit >> 1) & 1;
@@ -93,20 +93,20 @@ public class SensorUnitSim extends SensorUnitDev {
 
 	public void enableHitTrigger  () /* Enable_Hit_Trigger */
 	{
-		if(Harness.TRACE) Harness.trace("Enable_Hit_Trigger");
+		if(Harness.TRACE) Harness.trace("[SensorUnitSim] Enable_Hit_Trigger");
  	    hit_enabled = 1;
 	    simSelfTestTrigger ();
 	}
 
 	public void disableHitTrigger () /* Disable_Hit_Trigger  */
 	{
-		if(Harness.TRACE) Harness.trace("Disable_Hit_Trigger");
+		if(Harness.TRACE) Harness.trace("[SensorUnitSim] Disable_Hit_Trigger");
  	    hit_enabled = 0;
 	    simSelfTestTrigger ();
 	}
 
 	public int getHitTriggerFlag ()	{
-		if(Harness.TRACE) Harness.trace("Hit_Trigger_Flag");
+		if(Harness.TRACE) Harness.trace("[SensorUnitSim] Hit_Trigger_Flag");
 		return trigger_flag;
 		/* 1 means hit trigger ITs are enabled
 		 * 0 means they are disabled.
@@ -114,43 +114,43 @@ public class SensorUnitSim extends SensorUnitDev {
 	}
 
 	public int getMSBCounter() {
-		if (Harness.TRACE) Harness.trace("Get_MSB_Counter");
+		if (Harness.TRACE) Harness.trace("[SensorUnitSim] Get_MSB_Counter");
 		return msb_counter;
 	}
 
 	public int getLSB1Counter() {
-		if (Harness.TRACE) Harness.trace("Get_LSB1_Counter");
+		if (Harness.TRACE) Harness.trace("[SensorUnitSim] Get_LSB1_Counter");
 		return lsb1_counter;
 	}
 
 	public int getLSB2Counter() {
-		if (Harness.TRACE) Harness.trace("Get_LSB2_Counter");
+		if (Harness.TRACE) Harness.trace("[SensorUnitSim] Get_LSB2_Counter");
 		return lsb2_counter;
 	}
 
 	public int getRiseTimeCounter() {
-		if (Harness.TRACE) Harness.trace("Rise_Time_Counter"); 
+		if (Harness.TRACE) Harness.trace("[SensorUnitSim] Rise_Time_Counter"); 
 		return rise_time_counter;
 	}
 
 	public int triggerSource0() {
-		if (Harness.TRACE) Harness.trace("Trigger_Source_0"); 
+		if (Harness.TRACE) Harness.trace("[SensorUnitSim] Trigger_Source_0"); 
 		return trigger_source_0;
 	}
 
 	public int triggerSource1() {
-		if (Harness.TRACE) Harness.trace("Trigger_Source_1"); 
+		if (Harness.TRACE) Harness.trace("[SensorUnitSim] Trigger_Source_1"); 
 		return trigger_source_1;
 	}
 
 	/** Set the SU Self Test Channel selectors. */
 	public void setSUSelfTestCh (int value) {
-		if (Harness.TRACE) Harness.trace(String.format("Set SU Self-Test Channel %x", value)); 
+		if (Harness.TRACE) Harness.trace(String.format("[SensorUnitSim] Set SU Self-Test Channel %x", value)); 
 	}
 
 	/** Set the SU Self Test pulse level. */
 	public void setTestPulseLevel(int level) {
-		if (Harness.TRACE) Harness.trace(String.format("Set SU Self-Test Pulse Level %d", level));
+		if (Harness.TRACE) Harness.trace(String.format("[SensorUnitSim] Set SU Self-Test Pulse Level %d", level));
 
 		self_test_pulse = level;
 		simSelfTestTrigger();
@@ -158,7 +158,7 @@ public class SensorUnitSim extends SensorUnitDev {
 
 	@Override
 	public int getEventFlag() {
-		if (Harness.TRACE) Harness.trace("Event_Flag");
+		if (Harness.TRACE) Harness.trace("[SensorUnitSim] Event_Flag ");
 		return event_flag;
 	}
 
@@ -183,7 +183,7 @@ public class SensorUnitSim extends SensorUnitDev {
 	   else
 	      result = 1;  /* Good. */
 
-	   if (Harness.TRACE) Harness.trace(String.format("V_Down %d", result));
+	   if (Harness.TRACE) Harness.trace(String.format("[SensorUnitSim] V_Down %d", result));
 
 	   return result;
 	}
@@ -192,7 +192,7 @@ public class SensorUnitSim extends SensorUnitDev {
 	   int low_reset_value,
 	   int high_reset_value) {
 		if (Harness.TRACE)
-			Harness.trace(String.format("SignalPeakDetectorReset low %d, high %d",
+			Harness.trace(String.format("[SensorUnitSim] SignalPeakDetectorReset low %d, high %d",
 										low_reset_value, high_reset_value));
 	}
 	

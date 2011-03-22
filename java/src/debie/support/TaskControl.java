@@ -46,19 +46,49 @@ public class TaskControl {
 		system.getAdcDevice().clearADConverting();
 	}
 
-	// void CreateTask(task_info_t EXTERNAL *new_task);
-
+	/**
+	 * Purpose        : Interval is waited with RTX.
+	 * Interface      : input:   - time
+	 *                  output:  - telemetry_data.os_wait_error
+	 * Preconditions  : none
+	 * Postconditions : Interval for wait is set.
+	 * Algorithm      : -In case of an error, 'K_IVL' is stored to telemetry
+	 *                   as an error indication and error bit is set in
+	 *                   software_error register.
+	 */
 	public static void waitInterval(int /* unsigned char */ time) {
-		if (Harness.TRACE) Harness.trace(String.format("[TaskControl] WaitInterval %d", time));				
+		if (Harness.TRACE) Harness.trace(String.format("[TaskControl] WaitInterval %d", time));
 	}
 
-	public static void waitTimeout(int delay) {
-		// TODO Auto-generated method stub		
+	/**
+	 * Purpose        : Timeout is waited with RTX.
+	 * Interface      : input:   - time
+	 *                  output:  - telemetry_data.os_wait_error
+	 * Preconditions  : none
+	 * Postconditions : Specified time has elapsed.
+	 * Algorithm      : -In case of an error, 'K_TMO' is stored to telemetry
+	 *                   as an error indication and error bit is set in
+	 *                   software_error register.
+	 */
+	public static void waitTimeout(int time) {
+		if (Harness.TRACE) Harness.trace(String.format("[TaskControl] WaitTimeout %d", time));		
 	}
 	
+	/**
+	 * Purpose        : Interrupt is waited in the RTX.
+	 * Interface      : input:   - ISR_VectorNumber,timer
+	 *                  output:  - telemetry_data.os_wait_error
+	 * Preconditions  : none
+	 * Postconditions : Interrupt is waited.
+	 * Postconditions : Interrupt is enabled.
+	 * Algorithm      : -In case of an error, 'K_INT' is stored to telemetry 
+	 *                   as an error indication and error bit is set in
+	 *                   software_error register.
+	 */
 	public static void waitInterrupt(byte isrVectorNumber, int timer) {
-		// TODO Auto-generated method stub
-		
+		if (Harness.TRACE)
+			Harness.trace(String.format("[TaskControl] WaitInterrupt %d, time %d",
+										(int)isrVectorNumber, timer));				
 	}
 
 	// extern void SetTimeSlice(unsigned int time_slice);

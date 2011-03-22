@@ -170,7 +170,7 @@ public class AcquisitionTest extends HarnessTest {
 		}
 
 		if(Harness.TRACE) {
-			Harness.trace(String.format("Science Data filled with %d events after %d hits.\n",
+			Harness.trace(String.format("Science Data filled with %d events after %d hits.",
 					tctmTask.getMaxEvents(), hits));
 		}
 		reportEventHisto ();
@@ -256,7 +256,7 @@ public class AcquisitionTest extends HarnessTest {
 			}
 		}
 
-		if(Harness.TRACE) Harness.trace(String.format("Science TM octets sent %d\n", octets));
+		if(Harness.TRACE) Harness.trace(String.format("Science TM octets sent %d", octets));
 
 		checkZero (acqTask.getHitBudgetLeft());
 
@@ -321,7 +321,7 @@ public class AcquisitionTest extends HarnessTest {
 	}
 	/*-- Common Tests --*/
 	
-	protected void acquireHit (
+	private void acquireHit (
 			int hit_problem,
 			int acq_problem)
 	/* Invoke HandleHitTrigger followed by HandleAcquisition if the hit 
@@ -340,32 +340,8 @@ public class AcquisitionTest extends HarnessTest {
 			if(Harness.INSTRUMENTATION) endProblem(hit_problem);
 		}
 	}
-
 	
-	protected void triggerHit (int problem)
-	/* Invoke HandleHitTrigger. 
-	 * The problem parameter defines the analysis problem for this test.
-	 */
-	{
-	   checkEquals("no acq mail", system.acqMailbox.getMailCount(), 0);
-	   if(Harness.TRACE) Harness.trace("[AcquisitionTest] Hit!");
-
-	   if(Harness.INSTRUMENTATION) Harness.startProblem(problem);
-
-	   system.acqTask.handleHitTrigger();
-	   
-	   if(Harness.INSTRUMENTATION) Harness.endProblem(problem);
-
-	   if(Harness.TRACE) {
-		   if(system.acqMailbox.getMailCount() == 0) {
-			   Harness.trace("[AcquisitionTest]  - hit rejected");
-		   } else {   
-			   Harness.trace("[AcquisitionTest]  - hit accepted");
-		   }
-	   }
-	}
-	
-	void reportEventHisto ()
+	private void reportEventHisto ()
 	/* Report the collected event counts per SU and class. */
 	{
 	   int /* sensor_index_t */ sen;
@@ -375,7 +351,7 @@ public class AcquisitionTest extends HarnessTest {
 		   for (sen = 0; sen < NUM_SU; sen ++)
 			   for (klass = 0; klass < TelecommandExecutionTask.NUM_CLASSES; klass ++)
 			   {
-				   Harness.trace(String.format("Events from SU %d, class %d: %d\n",
+				   Harness.trace(String.format("Events from SU %d, class %d: %d",
 						   sen, klass, tctmTask.science_data.getEventCounter(sen,klass)));
 			   }
 	   }

@@ -110,6 +110,10 @@ public class HarnessMailbox extends Mailbox {
 	}
 
 	void flushMail() {
+		if (Harness.TRACE)
+			Harness.trace(String.format("[HarnessMailbox] FlushMail from box %d, which had %d messages.",
+										(int)mailbox_number, (int)mail_count[mailbox_number])); 
+
 		mail_count[mailbox_number] = 0;
 	}
 
