@@ -1,7 +1,16 @@
 /** Requires the following two libraries:
  *   - eclipse jdt-core
  *   - apache commons-io
- */
+ *
+ *  Testing Branch/Rollback Loop:
+ *   (i) git checkout -b tmp
+ *   
+ *   (1) try out replace enums
+ *   (2) git reset --hard HEAD
+ *   (3) change ReplaceEnums
+ *   (4) git commit --amend ...ReplaceEnums.java
+ *   (5) rinse and repeat from (1)
+ */	
 package com.jopdesign.utils;
 import java.io.File;
 import java.io.FileReader;
@@ -87,12 +96,9 @@ public class ReplaceEnums {
 				throw new IOException(e);
 			}
 			
-			/* Rename file, and write output */
-//			File bakFile = new File(inputFile.toString() + "~" + passId);
-//			if(! inputFile.renameTo(bakFile)) {
-//				throw new IOException("backup rename failed for "+inputFile);
-//			}
-			
+			/* Rename file? Better use git for backups */
+
+			/* Write output */
 			FileWriter output = new FileWriter(inputFile);
 			output.append(dest);
 			output.close();
@@ -165,17 +171,46 @@ public class ReplaceEnums {
 	
 	private void executePass2() throws InvalidInputException {
 
-		/* a little bit to aggresive ?*/
+		/* XXX: Can this go wrong (horribly) ?*/
 		while(! scanner.atEnd()) {
+			
 			if(nextToken() != TokenNameIdentifier) continue;
-			if(enums.contains(scanner.getCurrentTokenString())) {
+			
+			if(enums.contains(scanner.getCurrentTokenString())) {			
 				int oldStart = scanner.getCurrentTokenStartPosition();
 				int oldEnd = scanner.getCurrentTokenEndPosition();
-				if(nextToken() == TokenNameIdentifier) {
+				int t2 = nextToken();
+				if(t2 == TokenNameIdentifier) {
+					/* MyEnum x ==> int x */
 					replaceAt(oldStart,oldEnd,"int");
+				} else if(t2 == TokenNameDOT) {
+					/* MyEnum. [enum members] */
+					expectNext(TokenNameIdentifier);
+					pass2_EnumMembers(scanner.getCurrentTokenString());
 				}
 			}
-		}		
+		}
+		
+	}
+
+	/* MyEnum.member */
+	private void pass2_EnumMembers(String member) throws InvalidInputException {
+		if(nextToken() == TokenNameDOT) {
+			int memberStart = scanner.getCurrentTokenStartPosition();
+			expectNext(TokenNameIdentifier);
+			String fun = scanner.getCurrentTokenString();
+			/* MyEnum.member.fun */
+			if(fun.equals("ordinal")) {
+				/* MyEnum.value.ordinal() => MyEnum.value */
+				expectNext(TokenNameLPAREN);
+				expectNext(TokenNameRPAREN);
+				int memberEnd = scanner.getCurrentTokenEndPosition();
+				replaceAt(memberStart, memberEnd, "");
+			} else {
+				/* Uh,uh, calling an unsupported method on an enum */
+				System.err.println("Unexpected Enum operation: "+member+"."+fun);
+			}
+		}
 	}
 
 	
