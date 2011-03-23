@@ -305,7 +305,7 @@ public abstract class HarnessTest extends TestSuite {
 
 
 	protected void checkMode(int expectedMode) {
-		checkEquals ("check telemetry mode", tctmTask.getTelemetryData().getMode(), expectedMode);		
+		checkEquals ("check telemetry mode", system.getTelemetryData().getMode(), expectedMode);		
 	}
 
 	/*--- Common Tests ---*/

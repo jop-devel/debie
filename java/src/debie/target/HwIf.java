@@ -1,10 +1,9 @@
 package debie.target;
 
+import debie.support.DebieSystem;
 import debie.support.Dpu;
-import debie.support.TaskControl;
-import debie.support.Dpu.ResetClass;
 import debie.target.SensorUnitDev.Delays;
-import debie.telecommand.TelecommandExecutionTask;
+import debie.telecommand.TelemetryData;
 
 import static debie.telecommand.TelecommandExecutionTask.*;
 
@@ -24,13 +23,10 @@ public class HwIf {
 	private static char failed_data_address;	
 	private static final int NO_RAM_FAILURE = 0xffff;
 	
-	/* The type of the last DPU reset, as recorded in Init_DPU.
-	 * Note: this variable must _not_ be initialised here (in
-	 * its declaration), since this would overwrite the value
-	 * set in Init_DPU, which is called from the startup module
-	 * before the variable initialisation code.
-	 */
-	private static ResetClass s_w_reset; 
+	private static DebieSystem system;
+	public static void setSystem(DebieSystem sys) {
+		system = sys;
+	}
 	
 	/* Same as in the original DEBIE-1 SW */
 
@@ -42,7 +38,7 @@ public class HwIf {
 	 *  Algorithm      :  Counter is read with XBYTE.
 	 */
 	public static byte readRiseTimeCounter() {
-		return Dpu.getDataByte(TaskControl.getSystem().getSensorUnitDevice().getRiseTimeCounter());
+		return Dpu.getDataByte(system.getSensorUnitDevice().getRiseTimeCounter());
 	}
 
 	/**
@@ -63,15 +59,16 @@ public class HwIf {
 	 * it is of lower priority .
 	 */
 	public static void resetPeakDetector(int unit) {
-		TaskControl.disableInterruptMaster();
+		system.getTaskControl().disableInterruptMaster();
 	     /* Disable all interrupts */
 
-	     TaskControl.getSystem().getSensorUnitDevice().signalPeakDetectorReset(
-	        SensorUnitDev.SU_ctrl_register & ~(1 << (unit - SensorUnitDev.SU_1)),
-	        SensorUnitDev.SU_ctrl_register);
+		SensorUnitDev suDev = system.getSensorUnitDevice();
+		suDev.signalPeakDetectorReset(
+	        suDev.SU_ctrl_register & ~(1 << (unit - SensorUnitDev.SU_1)),
+	        suDev.SU_ctrl_register);
 	     /* Generate reset pulse. */
 
-	     TaskControl.enableInterruptMaster();
+	     system.getTaskControl().enableInterruptMaster();
 	}
 	
 	/**
@@ -84,7 +81,7 @@ public class HwIf {
 	public static void readDelayCounters(Delays delay) {
 		int msb, lsb;
 		   
-		SensorUnitDev suDev = TaskControl.getSystem().getSensorUnitDevice();
+		SensorUnitDev suDev = system.getSensorUnitDevice();
 		
 		msb = suDev.getMSBCounter() & 0x0F;
 		/* Correct set of four bits are selected in the MSB. */
@@ -131,38 +128,24 @@ public class HwIf {
 	 *  Algorithm      : see below. */
 	public static void signalMemoryErrors() {
 		
+		TelemetryData tmData = system.getTelemetryData();
+		
 		if (failed_code_address == NO_RAM_FAILURE) {
-			TelecommandExecutionTask.getTelemetryData().clearModeBits(PROGRAM_MEMORY_ERROR);
-			TelecommandExecutionTask.getTelemetryData().setFailedCodeAddress((char)0x0000);
+			tmData.clearModeBits(PROGRAM_MEMORY_ERROR);
+			tmData.setFailedCodeAddress((char)0x0000);
 		} else {
-			TelecommandExecutionTask.getTelemetryData().setModeBits(PROGRAM_MEMORY_ERROR);
-			TelecommandExecutionTask.getTelemetryData().setFailedCodeAddress(failed_code_address);
+			tmData.setModeBits(PROGRAM_MEMORY_ERROR);
+			tmData.setFailedCodeAddress(failed_code_address);
 		}
 
 		if (failed_data_address == NO_RAM_FAILURE) {
-			TelecommandExecutionTask.getTelemetryData().clearModeBits(DATA_MEMORY_ERROR);
-			TelecommandExecutionTask.getTelemetryData().setFailedDataAddress((char)0x0000);
+			tmData.clearModeBits(DATA_MEMORY_ERROR);
+			tmData.setFailedDataAddress((char)0x0000);
 		} else {
-			TelecommandExecutionTask.getTelemetryData().setModeBits(DATA_MEMORY_ERROR);
-			TelecommandExecutionTask.getTelemetryData().setFailedDataAddress(failed_data_address);
+			tmData.setModeBits(DATA_MEMORY_ERROR);
+			tmData.setFailedDataAddress(failed_data_address);
 		}
 
-	}
-
-	/**
-	 * Purpose        : Reset class is returned.
-	 * Interface      : - inputs:  s_w_reset, type of the occurred reset.
-	 *                  - outputs: s_w_reset
-	 * Preconditions  : Valid only when called first time after reset in boot
-	 *                  sequence.
-	 * Postconditions : s_w_reset is set to error_e value.
-	 * Algorithm      : value of s_w_reset is returned and s_w_reset is set to
-	 *                  error value.
-	 */
-	public static ResetClass getResetClass() {
-		ResetClass occurred_reset = s_w_reset;
-		s_w_reset = ResetClass.error_e;
-		return occurred_reset;
 	}
 	
 }

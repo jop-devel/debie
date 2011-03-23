@@ -2,7 +2,6 @@ package debie.particles;
 
 import debie.support.DebieSystem;
 import debie.support.KernelObjects;
-import debie.support.TaskControl;
 
 public class HitTriggerTask implements Runnable {
 
@@ -22,17 +21,15 @@ public class HitTriggerTask implements Runnable {
 	public HitTriggerTask(DebieSystem system) {
 		this.system = system;
 		
-		TaskControl.attachInterrupt(KernelObjects.HIT_TRIGGER_ISR_SOURCE);
+		this.system.getTaskControl().attachInterrupt(KernelObjects.HIT_TRIGGER_ISR_SOURCE);
 		/*Now 'HitTriggerTask()' will listen for Hit trigger interrupt.           */
 
-		system.getSensorUnitDevice().enableHitTrigger();
+		this.system.getSensorUnitDevice().enableHitTrigger();
 	}
 	
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub		
 	}
-
-
 
 }

@@ -4,6 +4,7 @@ import static debie.telecommand.TelecommandExecutionTask.*;
 import static debie.target.SensorUnitDev.NUM_SU;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnitSettings;
+import debie.support.DebieSystem;
 import debie.support.TaskControl;
 import debie.support.TelemetryObject;
 import debie.target.TcTmDev;
@@ -32,7 +33,7 @@ public class TelemetryData implements TelemetryObject {
 	/* unsigned char */ public int  SU_plus_50;                        /* reg  27       */
 	/* unsigned char */ public int  SU_minus_50;                       /* reg  28       */
 	/* unsigned char */ byte        os_disable_isr_error;              /* reg  29       */
-	/* unsigned char */ byte        not_used_1;                        /* reg  30       */
+//	/* unsigned char */ byte        not_used_1;                        /* reg  30       */
 	SensorUnitSettings              sensor_unit_1 = new SensorUnitSettings();
 	                                                                   /* reg  31 -  45 */
 	/* unsigned char */ byte        os_wait_error;                     /* reg  46       */
@@ -91,7 +92,7 @@ public class TelemetryData implements TelemetryObject {
 		case 27: return SU_plus_50 & 0xff;
 		case 28: return SU_minus_50 & 0xff;
 		case 29: return os_disable_isr_error & 0xff;
-		case 30: return not_used_1 & 0xff;
+		// case 30: return not_used_1 & 0xff;
 		case 31: case 32: case 33: case 34:
 		case 35: case 36: case 37: case 38:
 		case 39: case 40: case 41: case 42:
@@ -136,7 +137,10 @@ public class TelemetryData implements TelemetryObject {
 		return 0; // not_used;		
 	}
 	
-	public TelemetryData() {
+	private TaskControl taskControl;
+	
+	public TelemetryData(DebieSystem system) {
+		this.taskControl = system.getTaskControl();
 	}
 	
 	public int getSensorUnitTemperature(int sensorUnit, int tempIx) {
@@ -204,12 +208,12 @@ public class TelemetryData implements TelemetryObject {
 	 *                  - Enable interrupts
 	 */
 	void clearModeStatusError()	{
-		TaskControl.disableInterruptMaster();
+		taskControl.disableInterruptMaster();
 
 		mode_status &= MODE_BITS_MASK;
 		/* Error bits in the mode status register are cleared. */
 
-		TaskControl.enableInterruptMaster();
+		taskControl.enableInterruptMaster();
 	}
 
 	
@@ -234,7 +238,7 @@ public class TelemetryData implements TelemetryObject {
 		SU_plus_50 = 0;
 		SU_minus_50 = 0;
 		os_disable_isr_error = 0;
-		not_used_1 = 0;
+		// not_used_1 = 0;
 		sensor_unit_1.clearAll();
 		os_wait_error = 0;
 		sensor_unit_2.clearAll();
@@ -287,14 +291,14 @@ public class TelemetryData implements TelemetryObject {
 	 *                  - Enable interrupts
 	 */
 	public void clearSUError() {
-	   TaskControl.disableInterruptMaster();
+	   taskControl.disableInterruptMaster();
 	   for (int i = 0; i < NUM_SU; i++)
 	   {
 	      SU_status[i] &= SUPPLY_VOLTAGE_MASK;
 	      /* Error bits in the SU# status register are cleared. */
 	   }
 
-	   TaskControl.enableInterruptMaster();
+	   taskControl.enableInterruptMaster();
 	}
 
 	/**
@@ -321,7 +325,7 @@ public class TelemetryData implements TelemetryObject {
 	 */
 	public void setSUError(int SU_index, byte SU_error) {
 	 
-		  TaskControl.disableInterruptMaster();
+		  taskControl.disableInterruptMaster();
 	   
 	      SU_status[SU_index] |= (SU_error &(~SUPPLY_VOLTAGE_MASK));
 	      /* Error bits in the SU# status register are cleared. */
@@ -339,7 +343,7 @@ public class TelemetryData implements TelemetryObject {
 	      /* the call of it must be the last operation in the       */ 
 	      /* interrupt blocked area !                               */
 
-	      TaskControl.disableInterruptMaster();
+	      taskControl.disableInterruptMaster();
 	}
 
 	
@@ -380,11 +384,11 @@ public class TelemetryData implements TelemetryObject {
 	 *                  - Enable interrupts
 	 */
 	public void setSoftwareError(int error) {
-	   TaskControl.disableInterruptMaster();
+	   taskControl.disableInterruptMaster();
 
 	   software_error |= error;
 
-	   TaskControl.enableInterruptMaster();
+	   taskControl.enableInterruptMaster();
 	}
 	
 	/**
@@ -403,6 +407,27 @@ public class TelemetryData implements TelemetryObject {
 		software_error = 0;
 	}
 
+	/** Purpose        : Initializes classication coefficients and levels.
+	 *  Interface      : inputs      - none.
+	 *                   outputs     - quality coefficients in telemetry_data.
+	 *                               - classification levels in telemetry_data.
+	 *                               - threshold levels in telemetry_data.
+	 *                               - min time window in telemetry_data
+	 *                               - max time window in telemetry_data
+	 *                   subroutines - Init_SU_Settings
+	 *  Preconditions  : none.
+	 *  Postconditions : outputs have their default values.
+	 *  Algorithm      : see below */
+	public void init() {
+		initCoefficients();
+	
+		getSensorUnit1().init();
+		getSensorUnit2().init();
+		getSensorUnit3().init();
+		getSensorUnit4().init();
+		/* Default values for thresholds, classification levels and min/max times */
+		/* related to classification are set here.                                */
+	}
 	
 	/* getter/setter for coefficient array */
 	public void initCoefficients() {

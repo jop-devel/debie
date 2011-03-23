@@ -3,8 +3,6 @@ package debie.harness;
 import static debie.harness.Harness.*;
 import static debie.health.HealthMonitoringTask.*;
 import debie.particles.AcquisitionTask;
-import debie.support.Dpu;
-import debie.telecommand.TelecommandExecutionTask;
 
 public class MonitoringTaskTest extends HarnessTest {
 
@@ -134,7 +132,7 @@ public class MonitoringTaskTest extends HarnessTest {
 		int tot_errors = 0;
 		
 		do {
-			if (tot_errors == 4) Dpu.setCheckCurrentErrors(5);
+			if (tot_errors == 4) system.hmTask.setCheckCurrentErrors(5);
 
 			if (tot_errors == max_errors - 1) system.suSim.v_down_errors = 1;
 			/* The V_DOWN error has a dramatic effect, so
@@ -145,12 +143,12 @@ public class MonitoringTaskTest extends HarnessTest {
 				monitorHealth (Prob6d);
 			}
 
-			if (TelecommandExecutionTask.getTelemetryData().getErrorStatus() != 0) {
+			if (system.getTelemetryData().getErrorStatus() != 0) {
 				tot_errors++;
 
 				if (Harness.TRACE)
 					Harness.trace(String.format("Monitoring (6d) error %d, error status %x",
-							tot_errors, (int)TelecommandExecutionTask.getTelemetryData().getErrorStatus() & 0xff));
+							tot_errors, (int)system.getTelemetryData().getErrorStatus() & 0xff));
 				clearErrors ();
 			}
 		} while (tot_errors < max_errors);
@@ -166,7 +164,7 @@ public class MonitoringTaskTest extends HarnessTest {
 		int tot_errors = 0;
 
 		do {
-			if (tot_errors == 4) Dpu.setCheckCurrentErrors(5);
+			if (tot_errors == 4) system.hmTask.setCheckCurrentErrors(5);
 
 			if (tot_errors == max_errors - 1) system.suSim.v_down_errors = 1;
 			/* The V_DOWN error has a dramatic effect, so
@@ -179,12 +177,12 @@ public class MonitoringTaskTest extends HarnessTest {
 				monitorHealth (Prob6e);
 			}
 
-			if (TelecommandExecutionTask.getTelemetryData().getErrorStatus() != 0) {
+			if (system.getTelemetryData().getErrorStatus() != 0) {
 				tot_errors ++;
 
 				if (Harness.TRACE)
 					Harness.trace(String.format("Monitoring (6e) error %d, error status %x",
-							tot_errors, (int)TelecommandExecutionTask.getTelemetryData().getErrorStatus() & 0xff));
+							tot_errors, (int)system.getTelemetryData().getErrorStatus() & 0xff));
 				clearErrors ();
 			}
 		} while (tot_errors < max_errors);

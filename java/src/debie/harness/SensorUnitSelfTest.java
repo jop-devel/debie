@@ -2,7 +2,6 @@ package debie.harness;
 
 import debie.particles.AcquisitionTask;
 import debie.particles.SensorUnit.SensorUnitState;
-import debie.support.Dpu;
 import debie.target.TcTmDev;
 import debie.telecommand.TelecommandExecutionTask;
 import debie.telecommand.TelemetryData;
@@ -69,7 +68,7 @@ public class SensorUnitSelfTest extends HarnessTest {
 		adcSim.setADNominal();
 		adcSim.max_adc_hits = 0;
 		adcSim.ad_random_failures = 0;
-		Dpu.setCheckCurrentErrors(0);
+		system.hmTask.setCheckCurrentErrors(0);
 		suSim.v_down_errors = 0;
 
 		/* Run Health Monitoring to drive the SUs ON: */
@@ -107,7 +106,7 @@ public class SensorUnitSelfTest extends HarnessTest {
 		
 		execTC (SWITCH_SU_3, SELF_TEST, Prob4a);
 
-		TelemetryData tmData = tctmTask.getTelemetryData();
+		TelemetryData tmData = system.getTelemetryData();
 		
 		checkNonZero (tmData.getErrorStatus() & TcTmDev.TC_ERROR);
 
@@ -199,8 +198,8 @@ public class SensorUnitSelfTest extends HarnessTest {
 		checkEquals("sensor state 1 == on_e",
 				acqTask.getSensorUnitState(1), SensorUnitState.on_e);
 		
-		checkNonZero(tctmTask.getTelemetryData().getSensorUnitStatus(1) & TelecommandExecutionTask.SELF_TEST_ERROR);
-		checkEquals("error status == 0x20", tctmTask.getTelemetryData().getErrorStatus(), 0x20);
+		checkNonZero(system.getTelemetryData().getSensorUnitStatus(1) & TelecommandExecutionTask.SELF_TEST_ERROR);
+		checkEquals("error status == 0x20", system.getTelemetryData().getErrorStatus(), 0x20);
 		
 		clearErrors();
 	}

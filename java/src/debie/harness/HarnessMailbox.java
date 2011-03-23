@@ -1,13 +1,16 @@
 package debie.harness;
 
+import debie.support.DebieSystem;
 import debie.support.Mailbox;
 import debie.support.TaskControl;
-import debie.telecommand.TelecommandExecutionTask;
 
 public class HarnessMailbox extends Mailbox {
 
-	public HarnessMailbox(byte mailbox_number) {
+	private DebieSystem system;
+	
+	public HarnessMailbox(byte mailbox_number, DebieSystem system) {
 		super(mailbox_number);
+		this.system = system;
 	}
 
 	/** The last message in the mailbox. */
@@ -69,7 +72,7 @@ public class HarnessMailbox extends Mailbox {
 	@Override
 	public void sendISRMail(char message) {
 		if (isrSendMessage(message) == TaskControl.NOT_OK) {
-			TelecommandExecutionTask.getTelemetryData().setISRSendMessageError(mailbox_number);
+			system.getTelemetryData().setISRSendMessageError(mailbox_number);
 		}
 	}
 	

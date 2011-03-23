@@ -2,7 +2,6 @@ package debie.harness;
 
 import static debie.harness.Harness.*;
 import debie.target.TcTmDev;
-import debie.telecommand.TelecommandExecutionTask;
 import debie.telecommand.TelemetryData;
 import debie.telecommand.TelecommandExecutionTask.TC_State;
 import static debie.telecommand.TcAddress.*;
@@ -66,7 +65,7 @@ public class TelecommandTaskTest extends HarnessTest {
 		testcase("TC = ERROR_STATUS_CLEAR, ok");
 		
 		/* Flag an error manually: */
-		tctmTask.getTelemetryData().setErrorStatusRaw((byte)TcTmDev.PARITY_ERROR);
+		system.getTelemetryData().setErrorStatusRaw((byte)TcTmDev.PARITY_ERROR);
 		
 		sendTC(ERROR_STATUS_CLEAR, ERROR_STATUS_CLEAR);
 		/* The parity-error flag is not yet reset, because */
@@ -540,23 +539,23 @@ public class TelecommandTaskTest extends HarnessTest {
 	private void testClearWatchdogFailures() {
 	   testcase("TC = CLEAR_WATCHDOG_FAILURES");
 
-	   TelecommandExecutionTask.getTelemetryData().setWatchdogFailures(3);
+	   system.getTelemetryData().setWatchdogFailures(3);
 
 	   execTC (CLEAR_WATCHDOG_FAILURES, CLEAR_WATCHDOG_FAILURES, Prob4a);
 
 	   checkNoErrors();
-	   checkZero(TelecommandExecutionTask.getTelemetryData().getWatchdogFailures());
+	   checkZero(system.getTelemetryData().getWatchdogFailures());
 	}
 	
 	private void testClearChecksumFailures() {
 	   testcase("TC = CLEAR_CHECKSUM_FAILURES");
 
-	   TelecommandExecutionTask.getTelemetryData().setChecksumFailures(9);
+	   system.getTelemetryData().setChecksumFailures(9);
 
 	   execTC (CLEAR_CHECKSUM_FAILURES, CLEAR_CHECKSUM_FAILURES, Prob4a);
 
 	   checkNoErrors();
-	   checkZero(TelecommandExecutionTask.getTelemetryData().getChecksumFailures());
+	   checkZero(system.getTelemetryData().getChecksumFailures());
 	}
 
 	private void testSetDebieTime() {
@@ -669,10 +668,10 @@ public class TelecommandTaskTest extends HarnessTest {
 	}
 
 	private void checkNoWriteError() {
-		checkZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkZero (system.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
 	}
 
 	private void checkWriteError() {
-		checkNonZero (TelecommandExecutionTask.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
+		checkNonZero (system.getTelemetryData().getModeBits() & MEMORY_WRITE_ERROR);
 	}
 }

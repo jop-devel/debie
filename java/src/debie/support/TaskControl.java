@@ -1,24 +1,9 @@
 package debie.support;
 
-import debie.harness.Harness;
+public interface TaskControl {
 
-public class TaskControl {
+	public int delayLimit(int time);
 
-	private static DebieSystem system;
-	
-	public static DebieSystem getSystem() {
-		return system;
-	}
-	public static void setSystem(DebieSystem sys) {
-		system = sys;
-	}
-	
-	public static final double MACHINE_CYCLE = 1.085;
-	/* The machine (processor) cycle time, in microseconds. */
-
-	public static final int DELAY_LIMIT(int TIME) { 
-		return (int)((((TIME) / MACHINE_CYCLE) - 4) / 2);
-	}
 	/* Computes the number of ShortDelay() argument-units that corresponds */
 	/* to a certain delay TIME in microseconds. Note that this formula can */
 	/* yield values larger than ShortDelay() can implement in one call.    */
@@ -27,24 +12,10 @@ public class TaskControl {
 
 	public static final int MAX_SHORT_DELAY = 255;
 	/* The largest possible argument for ShortDelay(). */
-
-	public static final int OK =     8;
+	public static final int OK = 8;
 	public static final int NOT_OK = 9;
-	
-//	typedef struct {
-//	   unsigned char  rtx_task_number;
-//	   void           (*task_main_function)(void);
-//	} task_info_t;
 
-	public static void shortDelay (int delay_loops) {
-		if (Harness.TRACE) Harness.trace(String.format("[TaskControl] ShortDelay %d", delay_loops));
-		
-		/* Any on-going A/D conversion is assumed to end during the delay.
-		 * ShortDelay is sometimes used, instead of End_Of_ADC, when the
-		 * A/D converter is switched between unipolar and bipolar modes.
-		 */
-		system.getAdcDevice().clearADConverting();
-	}
+	public void shortDelay(int delay_loops);
 
 	/**
 	 * Purpose        : Interval is waited with RTX.
@@ -56,9 +27,7 @@ public class TaskControl {
 	 *                   as an error indication and error bit is set in
 	 *                   software_error register.
 	 */
-	public static void waitInterval(int /* unsigned char */ time) {
-		if (Harness.TRACE) Harness.trace(String.format("[TaskControl] WaitInterval %d", time));
-	}
+	public void waitInterval(int /* unsigned char */time);
 
 	/**
 	 * Purpose        : Timeout is waited with RTX.
@@ -70,10 +39,8 @@ public class TaskControl {
 	 *                   as an error indication and error bit is set in
 	 *                   software_error register.
 	 */
-	public static void waitTimeout(int time) {
-		if (Harness.TRACE) Harness.trace(String.format("[TaskControl] WaitTimeout %d", time));		
-	}
-	
+	public void waitTimeout(int time);
+
 	/**
 	 * Purpose        : Interrupt is waited in the RTX.
 	 * Interface      : input:   - ISR_VectorNumber,timer
@@ -85,27 +52,10 @@ public class TaskControl {
 	 *                   as an error indication and error bit is set in
 	 *                   software_error register.
 	 */
-	public static void waitInterrupt(byte isrVectorNumber, int timer) {
-		if (Harness.TRACE)
-			Harness.trace(String.format("[TaskControl] WaitInterrupt %d, time %d",
-										(int)isrVectorNumber, timer));				
-	}
+	public void waitInterrupt(byte isrVectorNumber, int timer);
 
-	// extern void SetTimeSlice(unsigned int time_slice);
+	public Mailbox getMailbox(byte id);
 
-	// extern void StartSystem(unsigned char task_number);
-	
-	public static Mailbox getMailbox(byte id) {
-		switch (id) {
-		case KernelObjects.ACQUISITION_MAILBOX:
-			return system.getAcqMailbox();
-		case KernelObjects.TCTM_MAILBOX:
-			return system.getTcTmMailbox();
-		default:
-			return null;
-		}
-	}
-	
 	/**
 	 * Purpose        : Task is created in the RTX.
 	 * Interface      : input:   - new_task
@@ -114,46 +64,11 @@ public class TaskControl {
 	 * Algorithm      : -In case of an error, 'new_task' is stored to telemetry
 	 *                   as an error indication.
 	 */
-	public static void createTask(int task_number) {
-		if (Harness.TRACE) Harness.trace(String.format("CreateTask %d", task_number));
-		
-		// XXX: initialization takes actually place in constructors
-		
-		switch (task_number) {
+	public void createTask(int task_number);
 
-		   case KernelObjects.TC_TM_INTERFACE_TASK:
+	public void enableInterruptMaster();
 
-		      // TelecommandExecutionTask.init();
-
-		      break;
-
-		   case KernelObjects.ACQUISITION_TASK:
-
-		      // AcquisitionTask.init();
-
-		      break;
-
-		   case KernelObjects.HIT_TRIGGER_ISR_TASK:
-
-		      // HitTriggerTask.init();
-
-		      break;
-
-		   default:
-
-				if (Harness.TRACE) Harness.trace("CreateTask: unknown task number");
-
-		      break;
-		   }
-	}
-	
-	public static void enableInterruptMaster() {
-		// TODO Auto-generated method stub		
-	}
-	
-	public static void disableInterruptMaster() {
-		// TODO Auto-generated method stub	
-	}
+	public void disableInterruptMaster();
 
 	/**
 	 * Purpose        : Interrupt with a given number is assigned to a task in
@@ -164,9 +79,7 @@ public class TaskControl {
 	 * Algorithm      : -In case of an error, 'ISR_VectorNumber' is stored to
 	 *                   telemetry as an error indication.
 	 */
-	public static void attachInterrupt(int intr) {
-		if (Harness.TRACE) Harness.trace(String.format("AttachInterrupt %d", intr)); 		
-	}
+	public void attachInterrupt(int intr);
 
 	/**
 	 * Purpose        : Interrupt with a given number is enabled in the RTX.
@@ -177,10 +90,8 @@ public class TaskControl {
 	 * Algorithm      : -In case of an error, 'ISR_VectorNumber' is stored to
 	 *                   telemetry as an error indication.
 	 */
-	public static void enableInterrupt(int intr) {
-		if (Harness.TRACE) Harness.trace(String.format("EnableInterrupt %d", intr)); 		
-	}
-	
+	public void enableInterrupt(int intr);
+
 	/**
 	 * Purpose        : Interrupt with a given number is disabled in the RTX.
 	 * Interface      : input:   - ISR_VectorNumber
@@ -190,10 +101,8 @@ public class TaskControl {
 	 * Algorithm      : -In case of an error, 'ISR_VectorNumber' is stored to
 	 *                   telemetry as an error indication.
 	 */
-	public static void disableInterrupt(int intr) {
-		if (Harness.TRACE) Harness.trace(String.format("DisableInterrupt %d", intr));		
-	}
-	
+	public void disableInterrupt(int intr);
+
 	/**
 	 * Purpose        : Interrupt mask bit is set is in the RTX.
 	 * Interface      : Return value, which describes the execution result, is
@@ -207,11 +116,8 @@ public class TaskControl {
 	 * Postconditions : Interrupt mask is set.
 	 * Algorithm      : RTX syntax is used.
 	 */
-	public static int setInterruptMask(int mask) {
-		if (Harness.TRACE) Harness.trace(String.format("SetInterruptMask 0x%x", mask));
-		return 0;  /* Success. */
-	}
-	
+	public int setInterruptMask(int mask);
+
 	/**
 	 * Purpose        : Interrupt mask bit is reset is in the RTX.
 	 * Interface      : Return value, which describes the execution result, is
@@ -225,8 +131,20 @@ public class TaskControl {
 	 * Postconditions : Interrupt mask is reset.
 	 * Algorithm      : RTX syntax is used.
 	 */
-	public static int resetInterruptMask(int mask) {
-		if (Harness.TRACE) Harness.trace(String.format("ResetInterruptMask 0x%x", mask));
-		return 0;  /* Success. */
-	}
+	public int resetInterruptMask(int mask);
+
+	/**
+	 * Purpose        : Time slice in the RTX is set.
+	 * Interface      : input:   - time_slice
+	 *                  output:  - telemetry_data.os_set_slice_error
+	 * Preconditions  : none
+	 * Postconditions : Timeslice which defines the time interval in number of
+	 *                  processor cycles is set.
+	 * Algorithm      :  In case of an error, indication bit is set in
+	 *                   the software_error register.
+	 */
+	public void setTimeSlice(int time_slice);
+
+	public void clearHitTriggerISRFlag();
+
 }

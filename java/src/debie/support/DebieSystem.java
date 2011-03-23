@@ -7,6 +7,7 @@ import debie.target.AdConverter;
 import debie.target.SensorUnitDev;
 import debie.target.TcTmDev;
 import debie.telecommand.TelecommandExecutionTask;
+import debie.telecommand.TelemetryData;
 
 /**
  *  This is the interface used to communicate with other modules in the
@@ -16,6 +17,10 @@ import debie.telecommand.TelecommandExecutionTask;
  *  TODO: Discussion: Is this a good idea w.r.t. encapsulation?
  */
 public interface DebieSystem {
+	public TaskControl				getTaskControl();
+	
+	public TelemetryData            getTelemetryData();
+	
 	public AcquisitionTask          getAcquisitionTask();
 	public HealthMonitoringTask     getHealthMonitoringTask();
 	public TelecommandExecutionTask getTelecommandExecutionTask();

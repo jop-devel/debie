@@ -9,8 +9,14 @@ public interface AdConverter {
 	public static final int BP_UP   = 0x40;
 	public static final int BP_DOWN = 0xBF;
 	
-	public void clearADConverting();
+	int getConfirmHitResult();
+	void setConfirmHitResult(int value);
 	
+	void clearADConverting();
+	
+	int getADCChannelRegister();
+	void setADCChannelRegister(int channel);
+
 	void          updateADCChannelReg (/* unsigned char */ int channel);
 	void          startConversion      ();
 	/* unsigned char */ int endOfADC();

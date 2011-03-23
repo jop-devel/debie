@@ -133,16 +133,16 @@ public abstract class SensorUnitDev {
 
 	/*--- ported from su_ctrl.h:171-219 */
 	/* Function prototypes */
-	public static int SU_ctrl_register = 0;
+	public int SU_ctrl_register = 0;
 
-	private static int SU_self_test_channel;
+	private int SU_self_test_channel;
 	
 	/** This array stores the value to be used when analog switch bit
 	 * corresponding to a given SU is set.                           
 	 */
 	private static final int  analog_switch_bit [] = {0x10, 0x20, 0x40, 0x80};
 
-	public static void switchSensorUnitOn(int number, SensorUnit sensorUnit)
+	public void switchSensorUnitOn(int number, SensorUnit sensorUnit)
 	//	void Switch_SU_On  (
 	//			   sensor_number_t SU_Number, 
 	//			   unsigned char EXTERNAL *execution_result) COMPACT_DATA REENTRANT_FUNC
@@ -199,7 +199,7 @@ public abstract class SensorUnitDev {
 	}
 
 
-	public static void switchSensorUnitOff(int number, SensorUnit sensorUnit)
+	public void switchSensorUnitOff(int number, SensorUnit sensorUnit)
 	//			void Switch_SU_Off (
 	//			   sensor_number_t SU_Number, 
 	//			   unsigned char EXTERNAL *execution_result) COMPACT_DATA REENTRANT_FUNC
