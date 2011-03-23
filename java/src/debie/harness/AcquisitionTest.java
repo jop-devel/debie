@@ -1,7 +1,5 @@
 package debie.harness;
 
-import debie.health.HealthMonitoringTask;
-import debie.particles.AcquisitionTask;
 import debie.particles.SensorUnit.SensorUnitState;
 import debie.support.Dpu;
 import debie.target.SensorUnitDev;
@@ -33,10 +31,7 @@ import debie.telecommand.TelecommandExecutionTask.TC_State;
  * </ul>
  */
 public class AcquisitionTest extends HarnessTest {
-	private AcquisitionTask acqTask;
-	private TelecommandExecutionTask tctmTask;
-	private HealthMonitoringTask hmTask;
-
+	
 	private final int[] switchSUCmd = {			   
 			SWITCH_SU_1,
 			SWITCH_SU_2,
@@ -46,9 +41,6 @@ public class AcquisitionTest extends HarnessTest {
 
 	public AcquisitionTest(HarnessSystem sys, TestLogger tl) {
 		super(sys, tl);		
-		this.acqTask = sys.acqTask;
-		this.tctmTask = sys.tctmTask;
-		this.hmTask = sys.hmTask;
 	}
 
 	@Override

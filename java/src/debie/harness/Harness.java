@@ -112,6 +112,8 @@ public class Harness {
 		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
 		acqTest.runTests();
 
+		SensorUnitSelfTest suSelfTest = new SensorUnitSelfTest(system, defaultLogger);
+		suSelfTest.runTests();
 	}
 	
 	/*   Tracing */

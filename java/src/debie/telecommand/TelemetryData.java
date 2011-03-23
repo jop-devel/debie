@@ -28,8 +28,8 @@ public class TelemetryData implements TelemetryObject {
 	public /* unsigned char */ byte        DPU_plus_5_digital;                /* reg  24       */
 	/* unsigned char */ byte        os_send_message_error;             /* reg  25       */
 	/* unsigned char */ byte        os_create_task_error;              /* reg  26       */
-	/* unsigned char */ public byte        SU_plus_50;                        /* reg  27       */
-	/* unsigned char */ public byte        SU_minus_50;                       /* reg  28       */
+	/* unsigned char */ public int  SU_plus_50;                        /* reg  27       */
+	/* unsigned char */ public int  SU_minus_50;                       /* reg  28       */
 	/* unsigned char */ byte        os_disable_isr_error;              /* reg  29       */
 	/* unsigned char */ byte        not_used_1;                        /* reg  30       */
 	SensorUnitSettings              sensor_unit_1 = new SensorUnitSettings();
@@ -146,6 +146,10 @@ public class TelemetryData implements TelemetryObject {
 		SU_temperature[(sensorUnit << 1) + (tempIx & 0x01)] = value;
 	}
 
+	public byte getSensorUnitStatus(int index) {
+		return SU_status[index];
+	}
+	
 	public byte getErrorStatus() {
 		return error_status;
 	}

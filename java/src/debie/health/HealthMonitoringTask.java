@@ -179,17 +179,17 @@ public class HealthMonitoringTask implements Runnable {
 	private static final int SU_INDEX_4 = 3;
 
 	/* === types === */
-	private static class Round {
-		static final int round_0_e = 0;
-		static final int round_1_e = 1;
-		static final int round_2_e = 2;
-		static final int round_3_e = 3;
-		static final int round_4_e = 4;
-		static final int round_5_e = 5;
-		static final int round_6_e = 6;
-		static final int round_7_e = 7;
-		static final int round_8_e = 8;
-		static final int round_9_e = 9;
+	public static class Round {
+		public static final int round_0_e = 0;
+		public static final int round_1_e = 1;
+		public static final int round_2_e = 2;
+		public static final int round_3_e = 3;
+		public static final int round_4_e = 4;
+		public static final int round_5_e = 5;
+		public static final int round_6_e = 6;
+		public static final int round_7_e = 7;
+		public static final int round_8_e = 8;
+		public static final int round_9_e = 9;
 	};
 
 	/* === instance variables === */
@@ -599,7 +599,7 @@ public class HealthMonitoringTask implements Runnable {
 
 			case Channel.channel_2_e:
 			   
-				tmData.SU_plus_50 = (byte)(AD_voltage_parameters.unsigned_ADC >>> 8); 
+				tmData.SU_plus_50 = (AD_voltage_parameters.unsigned_ADC >>> 8) & 0xff; 
 		         
 				break;
 
@@ -639,7 +639,7 @@ public class HealthMonitoringTask implements Runnable {
 			case Channel.channel_6_e:
 
 				tmData.SU_minus_50 =
-					(byte)(AD_voltage_parameters.unsigned_ADC >>> 8);
+					(AD_voltage_parameters.unsigned_ADC >>> 8) & 0xff;
 		      
 				break;
 			}

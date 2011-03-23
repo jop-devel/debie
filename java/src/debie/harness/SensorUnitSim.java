@@ -27,6 +27,10 @@ public class SensorUnitSim extends SensorUnitDev {
 	private /* unsigned char */ int self_test_pulse = 0;
 	/* The level of the SU Self Test pulse. */
 
+	public void setSimSelfTest(int value) {
+		sim_self_test = value;
+	}
+	
 	private HarnessSystem system;
 
 	public SensorUnitSim(HarnessSystem sys) {
