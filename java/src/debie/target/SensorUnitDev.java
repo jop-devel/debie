@@ -111,12 +111,12 @@ public abstract class SensorUnitDev {
 
 	/* Trigger level register base addresses */
 
-	public static final int SU_1_TRIGGER_BASE =    0xFFB0;
-	public static final int SU_2_TRIGGER_BASE =    0xFFB3;
-	public static final int SU_3_TRIGGER_BASE =    0xFFC0;
-	public static final int SU_4_TRIGGER_BASE =    0xFFC3;
+	public static final int SU_1_TRIGGER_BASE =    0x7FB0;
+	public static final int SU_2_TRIGGER_BASE =    0x7FB3;
+	public static final int SU_3_TRIGGER_BASE =    0x7FC0;
+	public static final int SU_4_TRIGGER_BASE =    0x7FC3;
 
-	public static final int SU_CONTROL = 0xFFD0;
+	public static final int SU_CONTROL = 0x7FD0;
 
 	public static final int SU_1_MINUS_50 =   1;
 	public static final int SU_1_PLUS_50 =    2;
@@ -127,7 +127,7 @@ public abstract class SensorUnitDev {
 	public static final int SU_4_MINUS_50 =   64;
 	public static final int SU_4_PLUS_50 =    128;
 
-	public static final int HV_STATUS =       0xFF70;
+	public static final int HV_STATUS =       0x7F70;
 
 	public static final int NUM_SU = 4;
 

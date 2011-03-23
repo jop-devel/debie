@@ -2,7 +2,6 @@ package debie.support;
 
 import debie.harness.Harness;
 import debie.health.HealthMonitoringTask;
-import debie.target.HwIf;
 
 public class Dpu {
 	public static final int SAME = 1;
@@ -34,9 +33,9 @@ public class Dpu {
 
 	/* memory addresses for patching                                             */
 	public static final int BEGIN_SRAM1 =       0x1000;
-	public static final int END_SRAM1 =         0x7FFF;
-	public static final int BEGIN_SRAM3 =       0x8000;
-	public static final int END_SRAM3 =         0xFEFF;
+	public static final int END_SRAM1 =         0x3FFF;
+	public static final int BEGIN_SRAM3 =       0x4000;
+	public static final int END_SRAM3 =         0x7EFF;
 	public static final int BEGIN_DATA_RAM =    0x0000;
 
 
@@ -276,7 +275,7 @@ public class Dpu {
 		System.out.println("Target Reboot.");
 	}
 
-	private static byte data_memory[] = new byte[65536];
+	private static byte data_memory[] = new byte[0x8000];
 	
 	public static void setDataByte(int addr, byte value) {
 		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Set_Data_Byte 0x%x to %d = 0x%x",
