@@ -1624,7 +1624,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - Enable interrupts
 	 */
 	public void setModeStatusError(int mode_status_error) {
-//		   DISABLE_INTERRUPT_MASTER;
+		TaskControl.disableInterruptMaster();
 
 		TelecommandExecutionTask.getTelemetryData()
 			.setModeBits(mode_status_error & ~MODE_BITS_MASK);
@@ -1632,7 +1632,7 @@ public class HealthMonitoringTask implements Runnable {
 		   /* clearing those bits in 'mode_status_error' before "or":ing   */
 		   /* its value to 'telemetry_data.mode_status'.                   */
 
-//		   ENABLE_INTERRUPT_MASTER;
+		TaskControl.enableInterruptMaster();
     }
 
 	/**
@@ -1655,14 +1655,14 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - Enable interrupts
 	 */
 	public static void setMode(int mode)	{
-//	   DISABLE_INTERRUPT_MASTER;
+		TaskControl.disableInterruptMaster();
 
 		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 		tmData.clearModeBits(MODE_BITS_MASK);
 		tmData.setModeBits(mode & MODE_BITS_MASK);
 	   /* First mode status bits are cleared, and then the given mode is set. */
 
-//	   ENABLE_INTERRUPT_MASTER;
+		TaskControl.enableInterruptMaster();
 	}
 
 	/**
@@ -2042,14 +2042,14 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  is implicitely wrapped-around on overflow.
 	 */
 	private void updateTime() {
-//		DISABLE_INTERRUPT_MASTER;
-//		/* Disable all interrupts.                                             */
+		TaskControl.disableInterruptMaster();
+		/* Disable all interrupts.                                             */
 
 		internal_time.incr();
 		/* Increment internal time. */
 		                                           
-//		ENABLE_INTERRUPT_MASTER;
-//		/* Enable all interrupts.                                              */
+		TaskControl.enableInterruptMaster();
+		/* Enable all interrupts.                                              */
 	}
 	
 	

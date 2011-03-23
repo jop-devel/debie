@@ -353,9 +353,8 @@ public class TelecommandExecutionTask {
 
 		previous_TC = new TeleCommand(0, TcAddress.UNUSED_TC_ADDRESS, 0);
 
-		// FIXME: TODO
-		// disableInterrupt(TM_ISR_SOURCE);
-		// enableInterrupt(TC_ISR_SOURCE);
+		TaskControl.disableInterrupt(KernelObjects.TM_ISR_SOURCE);
+		TaskControl.enableInterrupt(KernelObjects.TC_ISR_SOURCE);
 		
 		/* Java only: Initialize the EventRecord list */
 		event_queue	= new EventRecord[MAX_QUEUE_LENGTH];
@@ -455,7 +454,7 @@ public class TelecommandExecutionTask {
 				/* task in the TC states mentioned.                            */
 
 			{
-				// disableInterrupt(KernelObjects.TM_ISR_SOURCE);
+				TaskControl.disableInterrupt(KernelObjects.TM_ISR_SOURCE);
 
 				if (TC_state == TC_State.SC_TM_e)
 				{
@@ -1326,12 +1325,11 @@ public class TelecommandExecutionTask {
 	/*                  - Write to Error Status register                         */
 	/*                  - Enable interrupts                                      */
 	{
-		// FIXME: add synchronization
-		// DISABLE_INTERRUPT_MASTER;
-
+		TaskControl.disableInterruptMaster();
+		
 		telemetry_data.error_status |= TcTmDev.TC_ERROR;
 
-		// ENABLE_INTERRUPT_MASTER;
+		TaskControl.enableInterruptMaster();
 	}
 
 	public void tmInterruptService () // INTERRUPT(TM_ISR_SOURCE) USED_REG_BANK(2)
@@ -1623,7 +1621,7 @@ public class TelecommandExecutionTask {
 			TC_state = TC_State.TC_handling_e;
 			/* Register TM state is aborted */
 
-			resetInterruptMask(TcTmDev.TM_ISR_MASK);
+			TaskControl.resetInterruptMask(TcTmDev.TM_ISR_MASK);
 			/* Disable TM interrupt mask. Note that DisableInterrupt */
 			/* cannot be called from the C51 ISR.                    */
 		}
@@ -1756,7 +1754,7 @@ public class TelecommandExecutionTask {
 
 			TC_state = TC_State.register_TM_e;
 
-			setInterruptMask(TcTmDev.TM_ISR_MASK);
+			TaskControl.setInterruptMask(TcTmDev.TM_ISR_MASK);
 			/* Enable TM interrupt mask. Note that EnableInterrupt */
 			/* cannot be called from the C51 ISR                   */
 
@@ -1804,7 +1802,7 @@ public class TelecommandExecutionTask {
 
 				TC_state = TC_State.SC_TM_e;
 
-				setInterruptMask(TcTmDev.TM_ISR_MASK);
+				TaskControl.setInterruptMask(TcTmDev.TM_ISR_MASK);
 				/* Enable TM interrupt mask. Note that EnableInterrupt */
 				/* cannot be called from a C51 ISR.                    */
 			}
@@ -1847,7 +1845,7 @@ public class TelecommandExecutionTask {
 				
 				TC_state = TC_State.memory_dump_e;
 				
-				setInterruptMask(TcTmDev.TM_ISR_MASK);
+				TaskControl.setInterruptMask(TcTmDev.TM_ISR_MASK);
 			}
 		}
 
@@ -1859,15 +1857,6 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb (telemetry_data.mode_status);
 			/* Send response to this TC to TM. */
 		}
-
-	}
-
-	private void setInterruptMask(int tmIsrMask) {
-		// TODO Auto-generated method stub
-
-	}
-	private void resetInterruptMask(int tmIsrMask) {
-		// TODO Auto-generated method stub
 
 	}
 
@@ -1922,11 +1911,10 @@ public class TelecommandExecutionTask {
 	/*                  If the Science telemetry is not in progress the event    */
 	/*                  data is copied to the Science Data to the location       */
 	/*                  defined earlier as described above.                      */
-	// FIXME: At the moment, not thread safe (commented (DIS|EN)ABLE_INTERRUPT_MASTER)
 	{
 		/* uint_least16_t INDIRECT_INTERNAL */ int record_index;
 
-		HwIf.disableInterruptMaster();
+		TaskControl.disableInterruptMaster();
 
 		record_index = free_slot_index;
 
@@ -1934,11 +1922,11 @@ public class TelecommandExecutionTask {
 		{
 			/* Science Data memory was full and Science TM was not in progress */
 
-			HwIf.enableInterruptMaster();
+			TaskControl.enableInterruptMaster();
 
 			record_index = findMinQualityRecord();
 
-			HwIf.disableInterruptMaster();
+			TaskControl.disableInterruptMaster();
 		}
 
 		if (TC_state == TC_State.SC_TM_e)
@@ -1956,7 +1944,7 @@ public class TelecommandExecutionTask {
 				event_queue_length++;
 				/* Prevent the event data from being overwritten. */
 			}
-			// ENABLE_INTERRUPT_MASTER;
+			TaskControl.enableInterruptMaster();
 		}
 
 		else
@@ -1976,7 +1964,7 @@ public class TelecommandExecutionTask {
 					event_queue[0].getSUNumber() - 1,
 					event_queue[0].getClassification());
 
-			// ENABLE_INTERRUPT_MASTER;
+			TaskControl.enableInterruptMaster();
 
 			if (event_queue[0].getQualityNumber() >=
 				science_data.event[record_index].getQualityNumber())
@@ -2304,8 +2292,7 @@ public class TelecommandExecutionTask {
 		else
 		{
 			/* The original SU state is correct. */
-			// TODO: synchronization
-			// DISABLE_INTERRUPT_MASTER;
+			TaskControl.disableInterruptMaster();
 
 			/* SU state is still off_e, because there is only one task  */
 			/* which can switch SU state from off_e to any other state. */
@@ -2332,7 +2319,7 @@ public class TelecommandExecutionTask {
 				sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
 			}
 
-			// ENABLE_INTERRUPT_MASTER;
+			TaskControl.enableInterruptMaster();
 		}   
 	}
 
@@ -2369,9 +2356,8 @@ public class TelecommandExecutionTask {
 		/* Must be in external memory, because the parameter to the function */
 		/* is pointer to external memory                                     */
 
-		// TODO: synchronization
-		// DISABLE_INTERRUPT_MASTER;
-
+		TaskControl.disableInterruptMaster();
+		
 		SensorUnitDev.switchSensorUnitOff(index + SensorUnitDev.SU_1, sensorUnit);
 		telemetry_data.SU_status[index] &= (~SensorUnitDev.SU_ONOFF_MASK);
 
@@ -2396,7 +2382,7 @@ public class TelecommandExecutionTask {
 			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
 		}
 
-		//				   ENABLE_INTERRUPT_MASTER;
+		TaskControl.enableInterruptMaster();
 	}
 
 	//		SU_state_t  ReadSensorUnit(unsigned char SU_number) COMPACT_DATA REENTRANT_FUNC
@@ -2426,9 +2412,8 @@ public class TelecommandExecutionTask {
 	/*                    the present one.                                       */
 	/*                  - Enable interrups                                       */
 	{
-		// TODO: add synchronization
-		//	   DISABLE_INTERRUPT_MASTER;
-
+		TaskControl.disableInterruptMaster();
+		
 		if (AcquisitionTask.sensorUnitState[idx] == SensorUnitState.start_switching_e)
 		{
 			AcquisitionTask.sensorUnitState[idx] = SensorUnitState.switching_e;
@@ -2447,7 +2432,7 @@ public class TelecommandExecutionTask {
 			AcquisitionTask.sensorUnitState[idx] = SensorUnitState.on_e;
 		}
 		
-		//		   ENABLE_INTERRUPT_MASTER;
+		TaskControl.enableInterruptMaster();
 	}
 
 

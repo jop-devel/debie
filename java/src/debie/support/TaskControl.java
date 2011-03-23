@@ -146,4 +146,87 @@ public class TaskControl {
 		      break;
 		   }
 	}
+	
+	public static void enableInterruptMaster() {
+		// TODO Auto-generated method stub		
+	}
+	
+	public static void disableInterruptMaster() {
+		// TODO Auto-generated method stub	
+	}
+
+	/**
+	 * Purpose        : Interrupt with a given number is assigned to a task in
+	 * Interface      : input:   - ISR_VectorNumber
+	 *                  output:  - telemetry_data.os_attach_interrupt_error
+	 * Preconditions  : none
+	 * Postconditions : Interrupt is attached to a calling task.
+	 * Algorithm      : -In case of an error, 'ISR_VectorNumber' is stored to
+	 *                   telemetry as an error indication.
+	 */
+	public static void attachInterrupt(int intr) {
+		if (Harness.TRACE) Harness.trace(String.format("AttachInterrupt %d", intr)); 		
+	}
+
+	/**
+	 * Purpose        : Interrupt with a given number is enabled in the RTX.
+	 * Interface      : input:   - ISR_VectorNumber
+	 *                  output:  - telemetry_data.os_enable_isr_error
+	 * Preconditions  : none
+	 * Postconditions : Interrupt is enabled.
+	 * Algorithm      : -In case of an error, 'ISR_VectorNumber' is stored to
+	 *                   telemetry as an error indication.
+	 */
+	public static void enableInterrupt(int intr) {
+		if (Harness.TRACE) Harness.trace(String.format("EnableInterrupt %d", intr)); 		
+	}
+	
+	/**
+	 * Purpose        : Interrupt with a given number is disabled in the RTX.
+	 * Interface      : input:   - ISR_VectorNumber
+	 *                  output:  - telemetry_data.os_disable_isr_error
+	 * Preconditions  : none
+	 * Postconditions : Interrupt is enabled.
+	 * Algorithm      : -In case of an error, 'ISR_VectorNumber' is stored to
+	 *                   telemetry as an error indication.
+	 */
+	public static void disableInterrupt(int intr) {
+		if (Harness.TRACE) Harness.trace(String.format("DisableInterrupt %d", intr));		
+	}
+	
+	/**
+	 * Purpose        : Interrupt mask bit is set is in the RTX.
+	 * Interface      : Return value, which describes the execution result, is
+	 *                  always zero as this function does no parameter checking.
+	 *                  Used to manipulate special bits, which are part of the
+	 *                  interrupt enable registers or to modify interrupt enable
+	 *                  bits from inside a C51 interrupt function.
+	 *                  Not to be used for interrupt sources attached to RTX51
+	 *                  tasks.
+	 * Preconditions  :
+	 * Postconditions : Interrupt mask is set.
+	 * Algorithm      : RTX syntax is used.
+	 */
+	public static int setInterruptMask(int mask) {
+		if (Harness.TRACE) Harness.trace(String.format("SetInterruptMask 0x%x", mask));
+		return 0;  /* Success. */
+	}
+	
+	/**
+	 * Purpose        : Interrupt mask bit is reset is in the RTX.
+	 * Interface      : Return value, which describes the execution result, is
+	 *                  always zero as this function does no parameter checking.
+	 *                  Used to manipulate special bits, which are part of the
+	 *                  interrupt enable registers or to modify interrupt enable
+	 *                  bits from inside a C51 interrupt function.
+	 *                  Not to be used for interrupt sources attached to RTX51
+	 *                  tasks.
+	 * Preconditions  :
+	 * Postconditions : Interrupt mask is reset.
+	 * Algorithm      : RTX syntax is used.
+	 */
+	public static int resetInterruptMask(int mask) {
+		if (Harness.TRACE) Harness.trace(String.format("ResetInterruptMask 0x%x", mask));
+		return 0;  /* Success. */
+	}
 }

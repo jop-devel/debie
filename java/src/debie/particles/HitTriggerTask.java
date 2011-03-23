@@ -1,6 +1,8 @@
 package debie.particles;
 
 import debie.support.DebieSystem;
+import debie.support.KernelObjects;
+import debie.support.TaskControl;
 
 public class HitTriggerTask implements Runnable {
 
@@ -20,8 +22,8 @@ public class HitTriggerTask implements Runnable {
 	public HitTriggerTask(DebieSystem system) {
 		this.system = system;
 		
-//		attachInterrupt(HIT_TRIGGER_ISR_SOURCE);
-//		/*Now 'HitTriggerTask()' will listen for Hit trigger interrupt.           */
+		TaskControl.attachInterrupt(KernelObjects.HIT_TRIGGER_ISR_SOURCE);
+		/*Now 'HitTriggerTask()' will listen for Hit trigger interrupt.           */
 
 		system.getSensorUnitDevice().enableHitTrigger();
 	}

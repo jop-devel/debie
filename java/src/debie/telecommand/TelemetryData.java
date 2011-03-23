@@ -4,6 +4,7 @@ import static debie.telecommand.TelecommandExecutionTask.*;
 import static debie.target.SensorUnitDev.NUM_SU;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnitSettings;
+import debie.support.TaskControl;
 import debie.support.TelemetryObject;
 import debie.target.TcTmDev;
 
@@ -203,12 +204,12 @@ public class TelemetryData implements TelemetryObject {
 	 *                  - Enable interrupts
 	 */
 	void clearModeStatusError()	{
-//	   DISABLE_INTERRUPT_MASTER;
+		TaskControl.disableInterruptMaster();
 
 		mode_status &= MODE_BITS_MASK;
 		/* Error bits in the mode status register are cleared. */
 
-//	   ENABLE_INTERRUPT_MASTER;
+		TaskControl.enableInterruptMaster();
 	}
 
 	
@@ -286,14 +287,14 @@ public class TelemetryData implements TelemetryObject {
 	 *                  - Enable interrupts
 	 */
 	public void clearSUError() {
-//	   DISABLE_INTERRUPT_MASTER;
+	   TaskControl.disableInterruptMaster();
 	   for (int i = 0; i < NUM_SU; i++)
 	   {
 	      SU_status[i] &= SUPPLY_VOLTAGE_MASK;
 	      /* Error bits in the SU# status register are cleared. */
 	   }
 
-//	   ENABLE_INTERRUPT_MASTER;
+	   TaskControl.enableInterruptMaster();
 	}
 
 	/**
@@ -320,7 +321,7 @@ public class TelemetryData implements TelemetryObject {
 	 */
 	public void setSUError(int SU_index, byte SU_error) {
 	 
-//	   DISABLE_INTERRUPT_MASTER;
+		  TaskControl.disableInterruptMaster();
 	   
 	      SU_status[SU_index] |= (SU_error &(~SUPPLY_VOLTAGE_MASK));
 	      /* Error bits in the SU# status register are cleared. */
@@ -338,7 +339,7 @@ public class TelemetryData implements TelemetryObject {
 	      /* the call of it must be the last operation in the       */ 
 	      /* interrupt blocked area !                               */
 
-//	   ENABLE_INTERRUPT_MASTER;
+	      TaskControl.disableInterruptMaster();
 	}
 
 	
@@ -379,11 +380,11 @@ public class TelemetryData implements TelemetryObject {
 	 *                  - Enable interrupts
 	 */
 	public void setSoftwareError(int error) {
-//	   DISABLE_INTERRUPT_MASTER;
+	   TaskControl.disableInterruptMaster();
 
 	   software_error |= error;
 
-//	   ENABLE_INTERRUPT_MASTER;
+	   TaskControl.enableInterruptMaster();
 	}
 	
 	/**

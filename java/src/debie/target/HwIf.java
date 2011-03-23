@@ -45,14 +45,6 @@ public class HwIf {
 		return Dpu.getDataByte(TaskControl.getSystem().getSensorUnitDevice().getRiseTimeCounter());
 	}
 
-	public static void enableInterruptMaster() {
-		// TODO Auto-generated method stub		
-	}
-
-	public static void disableInterruptMaster() {
-		// TODO Auto-generated method stub	
-	}
-
 	/**
 	 * Purpose        :  Peak detector  is reset.
 	 * Interface      :  -'Sensor unit on/off control register' is used
@@ -71,7 +63,7 @@ public class HwIf {
 	 * it is of lower priority .
 	 */
 	public static void resetPeakDetector(int unit) {
-//	     DISABLE_INTERRUPT_MASTER;
+		TaskControl.disableInterruptMaster();
 	     /* Disable all interrupts */
 
 	     TaskControl.getSystem().getSensorUnitDevice().signalPeakDetectorReset(
@@ -79,7 +71,7 @@ public class HwIf {
 	        SensorUnitDev.SU_ctrl_register);
 	     /* Generate reset pulse. */
 
-//	     ENABLE_INTERRUPT_MASTER;
+	     TaskControl.enableInterruptMaster();
 	}
 	
 	/**

@@ -201,8 +201,8 @@ public class Dpu {
 		temp_configuration = getMemoryConfiguration();
 		/* State of the current memory configuration is stored. */
 		
-//		DISABLE_INTERRUPT_MASTER;
-//		/* Disable all interrupts. */
+		TaskControl.disableInterruptMaster();
+		/* Disable all interrupts. */
 
 		setMemoryConfiguration(MemoryConfiguration.PROM_e);
 		/* Enable code patching. */
@@ -257,8 +257,8 @@ public class Dpu {
 	          break;
 		}
 		
-//		ENABLE_INTERRUPT_MASTER;
-//		/* Enable all 'enabled' interrupts. */		
+		TaskControl.enableInterruptMaster();
+		/* Enable all 'enabled' interrupts. */		
 	}
 	
 	/* Function prototypes: */
