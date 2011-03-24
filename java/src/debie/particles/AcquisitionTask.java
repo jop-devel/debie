@@ -363,7 +363,7 @@ public class AcquisitionTask {
 
 	      }
 
-	      tc.getMailbox(KernelObjects.ACQUISITION_MAILBOX).sendTaskMail((char)trigger, (byte)0);
+	      system.getAcqMailbox().sendTaskMail((char)trigger, (byte)0);
 	      /*The number of the Sensor unit that has caused the hit trigger     */
 	      /*interrupt is sent to a mailbox for the acquisition task.          */
 

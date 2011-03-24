@@ -417,8 +417,8 @@ public class TelecommandExecutionTask {
 	/*                        require any functionalites of this task.           */  
 
 	{
-		this.tcMailbox.setTimeout(TC_timeout);
-		this.tcMailbox.waitMail();
+		tcMailbox.setTimeout(TC_timeout);
+		tcMailbox.waitMail();
 
 		TC_timeout = 0;
 		/* Default value */
@@ -1399,12 +1399,12 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb(read_memory_checksum);
 			/* Last two bytes of Read Memory sequence. */
 
-			taskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
+			tcMailbox.sendISRMail((char)TM_READY);
 		}
 		else
 			/* It is time to stop sending telemetry */
 		{
-			taskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
+			tcMailbox.sendISRMail((char)TM_READY);
 		}
 	}
 
@@ -1608,7 +1608,7 @@ public class TelecommandExecutionTask {
 
 		if (TC_state == TC_State.memory_patch_e)
 		{
-			taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+			tcMailbox.sendISRMail((char)TC_word);
 			return;
 			/* This is not a normal telecommand, but word containing two bytes */
 			/* of memory block to be written to data or code memory.           */
@@ -1654,7 +1654,7 @@ public class TelecommandExecutionTask {
 
 			case ALL_VALID:
 				/* All TC Codes are valid */
-				taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+				tcMailbox.sendISRMail((char)TC_word);
 				break;
 
 			case ONLY_EQUAL:
@@ -1666,7 +1666,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					tcMailbox.sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1680,7 +1680,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					tcMailbox.sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1693,7 +1693,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					tcMailbox.sendISRMail((char)TC_word);
 				}
 				break;  
 			}

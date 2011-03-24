@@ -82,17 +82,6 @@ public class TaskControlSim implements TaskControl {
 
 	// extern void StartSystem(unsigned char task_number);
 	
-	public Mailbox getMailbox(byte id) {
-		switch (id) {
-		case KernelObjects.ACQUISITION_MAILBOX:
-			return system.getAcqMailbox();
-		case KernelObjects.TCTM_MAILBOX:
-			return system.getTcTmMailbox();
-		default:
-			return null;
-		}
-	}
-	
 	/**
 	 * Purpose        : Task is created in the RTX.
 	 * Interface      : input:   - new_task
