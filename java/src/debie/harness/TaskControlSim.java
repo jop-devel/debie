@@ -16,9 +16,14 @@ public class TaskControlSim implements TaskControl {
 	private static final double MACHINE_CYCLE = 1.085;
 	/* The machine (processor) cycle time, in microseconds. */
 
+	// XXX: any decent compiler would replace this with compile-time constants
+//	public int delayLimit(int time) { 
+//		return (int)((((time) / MACHINE_CYCLE) - 4) / 2);
+//	}
+	// XXX: we use fixed-point arithmetic to avoid expensive soft-float
 	public int delayLimit(int time) { 
-		return (int)((((time) / MACHINE_CYCLE) - 4) / 2);
-	}
+		return ((((time << 16) / (int)(MACHINE_CYCLE*0x10000)) - 4) / 2);
+	}	
 	/* Computes the number of ShortDelay() argument-units that corresponds */
 	/* to a certain delay TIME in microseconds. Note that this formula can */
 	/* yield values larger than ShortDelay() can implement in one call.    */
