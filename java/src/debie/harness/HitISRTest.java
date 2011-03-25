@@ -16,7 +16,7 @@ public class HitISRTest extends HarnessTest {
 	
 	public HitISRTest(HarnessSystem sys, TestLogger tl) {
 		super(sys, tl);
-		tmData = tctmTask.getTelemetryData();
+		tmData = system.getTelemetryData();
 	}
 
 	@Override

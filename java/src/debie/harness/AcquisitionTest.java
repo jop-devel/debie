@@ -81,7 +81,7 @@ public class AcquisitionTest extends HarnessTest {
 		system.adcSim.setADNominal ();
 		system.adcSim.max_adc_hits = 0;
 		system.adcSim.ad_random_failures   = 0;
-		Dpu.setCheckCurrentErrors(0);
+		system.hmTask.setCheckCurrentErrors(0);
 		system.suSim.v_down_errors        = 0;
 
 		/* Run Health Monitoring to drive the SUs ON: */

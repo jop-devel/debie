@@ -77,7 +77,7 @@ public class TcTmSim implements TcTmDev {
 		tc_word = (char)((tc_msb << 8) | tc_lsb);
 	}
 
-	static /* unsigned char */ int tc_timer_overflow = 1;
+	/* unsigned char */ int tc_timer_overflow = 1;
 	/* Simulated overflow flag on the TC timer. */
 	/* 1 = overflow = good, sufficient interval between TCs. */
 	/* 0 = no overflow = bad. */
@@ -102,26 +102,22 @@ public class TcTmSim implements TcTmDev {
 
 	@Override
 	public void clearTcInterruptFlag() {
-		// TODO Auto-generated method stub
-		
+		// NOP	
 	}
 
 	@Override
 	public void clearTmInterruptFlag() {
-		// TODO Auto-generated method stub
-		
+		// NOP
 	}
 
 	@Override
 	public void initTcTimerLsb() {
-		// TODO Auto-generated method stub
-		
+		// TODO Auto-generated method stub		
 	}
 
 	@Override
 	public void initTcTimerMsb() {
 		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
@@ -133,7 +129,6 @@ public class TcTmSim implements TcTmDev {
 	@Override
 	public void stopTcTimer() {
 		// TODO Auto-generated method stub
-		
 	}
 
 }

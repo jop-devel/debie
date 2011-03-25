@@ -1,8 +1,6 @@
 package debie.support;
 
 import debie.harness.Harness;
-import debie.health.HealthMonitoringTask;
-import debie.target.HwIf;
 
 public class Dpu {
 	public static final int SAME = 1;
@@ -34,9 +32,9 @@ public class Dpu {
 
 	/* memory addresses for patching                                             */
 	public static final int BEGIN_SRAM1 =       0x1000;
-	public static final int END_SRAM1 =         0x7FFF;
-	public static final int BEGIN_SRAM3 =       0x8000;
-	public static final int END_SRAM3 =         0xFEFF;
+	public static final int END_SRAM1 =         0x3FFF;
+	public static final int BEGIN_SRAM3 =       0x4000;
+	public static final int END_SRAM3 =         0x7EFF;
 	public static final int BEGIN_DATA_RAM =    0x0000;
 
 
@@ -47,6 +45,11 @@ public class Dpu {
 	/* A value given to 'reference_checksum' variable at 'Boot()'. */
 	/* It is zero, since one code byte is dedicated to a constant  */
 	/* that ensures that the checksum of the PROM is zero.         */
+
+	private static DebieSystem system;
+	public static void setSystem(DebieSystem sys) {
+		system = sys;
+	}
 
 	/*type definitions*/
 
@@ -65,16 +68,37 @@ public class Dpu {
 	   checksum_reset_e
 	};
 
-	public static ResetClass  s_w_reset;
+	/* The type of the last DPU reset, as recorded in Init_DPU.
+	 * Note: this variable must _not_ be initialised here (in
+	 * its declaration), since this would overwrite the value
+	 * set in Init_DPU, which is called from the startup module
+	 * before the variable initialisation code.
+	 */
+	private static ResetClass  s_w_reset;
 
+	/**
+	 * Purpose        : Reset class is returned.
+	 * Interface      : - inputs:  s_w_reset, type of the occurred reset.
+	 *                  - outputs: s_w_reset
+	 * Preconditions  : Valid only when called first time after reset in boot
+	 *                  sequence.
+	 * Postconditions : s_w_reset is set to error_e value.
+	 * Algorithm      : value of s_w_reset is returned and s_w_reset is set to
+	 *                  error value.
+	 */
+	public static ResetClass getResetClass() {
+		ResetClass occurred_reset = s_w_reset;
+		s_w_reset = ResetClass.error_e;
+		return occurred_reset;
+	}
+	
 	public enum MemoryConfiguration {
 	   PROM_e,
 	   SRAM_e
 	};
 
-	static MemoryConfiguration memory_mode;
-	
-	
+	private static MemoryConfiguration memory_mode;
+		
 	/**
 	 * Purpose        : Information about selected program memory is acquired
 	 *                  and returned.
@@ -202,8 +226,8 @@ public class Dpu {
 		temp_configuration = getMemoryConfiguration();
 		/* State of the current memory configuration is stored. */
 		
-//		DISABLE_INTERRUPT_MASTER;
-//		/* Disable all interrupts. */
+		system.getTaskControl().disableInterruptMaster();
+		/* Disable all interrupts. */
 
 		setMemoryConfiguration(MemoryConfiguration.PROM_e);
 		/* Enable code patching. */
@@ -258,8 +282,8 @@ public class Dpu {
 	          break;
 		}
 		
-//		ENABLE_INTERRUPT_MASTER;
-//		/* Enable all 'enabled' interrupts. */		
+		system.getTaskControl().enableInterruptMaster();
+		/* Enable all 'enabled' interrupts. */		
 	}
 	
 	/* Function prototypes: */
@@ -270,13 +294,13 @@ public class Dpu {
 		
 		if (boot_type == ResetClass.checksum_reset_e) {
 			/* Make it not happen (at once) again: */
-			reference_checksum = HealthMonitoringTask.getCodeChecksum();		   
+			reference_checksum = system.getHealthMonitoringTask().getCodeChecksum();		   
 		}		
 
 		System.out.println("Target Reboot.");
 	}
 
-	private static byte data_memory[] = new byte[65536];
+	private static byte data_memory[] = new byte[0x8000];
 	
 	public static void setDataByte(int addr, byte value) {
 		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Set_Data_Byte 0x%x to %d = 0x%x",
@@ -298,39 +322,7 @@ public class Dpu {
 		
 		return 0;
 	}
-	
-	private static int check_current_errors;
-	
-	public static int getCheckCurrentErrors() {
-		return check_current_errors;
-	}
-	public static void setCheckCurrentErrors(int errors) {
-		check_current_errors = errors;
-	}
-	
-	public static int checkCurrent (int bits) {
-		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Check_Current 0x%x", bits));
-			
-		int val;
-	
-		switch (bits) {
-		case   3: val =  1; break;
-		case  12: val =  4; break;
-		case  48: val = 16; break;
-		case 192: val = 64; break;
-		default : val =  0;
-		if (Harness.TRACE) Harness.trace(String.format("[Dpu] Check_Current param error"));
-		break;
-		}
 
-		if (check_current_errors > 0) {
-			val = ~val;  /* Wrong value => alarm. */
-			check_current_errors --;
-		}
-
-		return val;
-	}
-	
 	/* Assembly-language function prototypes (asmfuncs.a51): */
 
 //	extern unsigned char TestMemBits (data_address_t address);

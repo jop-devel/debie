@@ -5,15 +5,21 @@ import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.particles.HitTriggerTask;
 import debie.support.DebieSystem;
+import debie.support.Dpu;
 import debie.support.TaskControl;
 import debie.support.Dpu.Time;
 import debie.target.AdConverter;
+import debie.target.HwIf;
 import debie.target.SensorUnitDev;
 import debie.target.TcTmDev;
 import debie.telecommand.TelecommandExecutionTask;
+import debie.telecommand.TelemetryData;
 
 /** The simulated DEBIE System */
 public class HarnessSystem implements DebieSystem {
+	TaskControlSim taskControl;
+
+	TelemetryData tmData;
 	
 	AcquisitionTask acqTask;
 	HealthMonitoringTask hmTask;
@@ -28,21 +34,36 @@ public class HarnessSystem implements DebieSystem {
 	TcTmSim tctmSim;
 	
 	public HarnessSystem() {
+		HwIf.setSystem(this);
+		Dpu.setSystem(this);
+		
+		this.taskControl = new TaskControlSim(this);
+		
+		this.tmData = new TelemetryData(this);
+		
 		this.tctmSim = new TcTmSim();
 		this.suSim = new SensorUnitSim(this);
 		this.adcSim = new AdcSim();
 
-		this.acqMailbox = new HarnessMailbox(ACQUISITION_MAILBOX);
-		this.tctmMailbox = new HarnessMailbox(TCTM_MAILBOX);
+		this.acqMailbox = new HarnessMailbox(ACQUISITION_MAILBOX, this);
+		this.tctmMailbox = new HarnessMailbox(TCTM_MAILBOX, this);
 
-		TaskControl.setSystem(this);
-
-		this.hmTask = new HealthMonitoringTask(this);
 		this.acqTask = new AcquisitionTask(this);
 		this.tctmTask = new TelecommandExecutionTask(this);
+		this.hmTask = new HealthMonitoringTask(this);
 		this.htTask = new HitTriggerTask(this);
 	}
 
+	@Override
+	public TaskControl getTaskControl() {
+		return taskControl;
+	}
+
+	@Override
+	public TelemetryData getTelemetryData() {
+		return tmData;
+	}
+	
 	@Override
 	public HarnessMailbox getAcqMailbox() {
 		return acqMailbox;

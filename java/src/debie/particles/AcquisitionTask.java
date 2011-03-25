@@ -19,7 +19,6 @@
  */
 package debie.particles;
 
-import debie.harness.HarnessSystem;
 import debie.health.HealthMonitoringTask;
 import debie.particles.SensorUnit.SensorUnitState;
 import debie.support.DebieSystem;
@@ -31,7 +30,6 @@ import debie.target.AdConverter;
 import debie.target.HwIf;
 import debie.target.SensorUnitDev;
 import debie.target.SensorUnitDev.Delays;
-import debie.target.SensorUnitDev.SensorUnitTestLevel;
 import debie.telecommand.TelecommandExecutionTask;
 import joprt.SwEvent;
 
@@ -110,23 +108,16 @@ public class AcquisitionTask {
 	/* FIXME: Static because used in TelecommandExecutionTask */
 	public int /* sensor_number_t */self_test_SU_number = SensorUnitDev.NO_SU;
 
-	public static int self_test_flag;
+	public int self_test_flag;
 
 	/* By default this variable indicates that no SU self test */
 	/* sequence is running. */
 	/* Number of SU being self tested (SU_1, SU_2, SU_3 or SU_4) */
 	/* or NO_SU if no SU is being self tested. */
 
-	private int /* unsigned char */test_channel;
-	/* Channel being tested in SU Self Test. Valid only if triggering SU */
-	/* (indicated by self_test_SU) is in Self Test state. */
-
-	private SensorUnitTestLevel /* SU_test_level_t */test_level;
-
 	/* Test level being used in SU Self Test. */
-	/* FIXME: Made static because of the code in EventRecord */
 	/* FIXME: This does not fit here well */
-	public static SensorUnitState sensorUnitState[] = { SensorUnitState.off_e,
+	public SensorUnitState sensorUnitState[] = { SensorUnitState.off_e,
 			SensorUnitState.off_e, SensorUnitState.off_e, SensorUnitState.off_e };
 
 	private char ADC_result[] = new char[SensorUnitDev.NUM_CH]; /*
@@ -135,9 +126,6 @@ public class AcquisitionTask {
 																 * short int
 																 */
 	/* Used to temporarily store AD conversion results. */
-
-	public static /* unsigned char */int confirm_hit_result;
-	/* This variable indicates a hit with a high value. */
 
 	private/* uint_least8_t */int hit_budget = HIT_BUDGET_DEFAULT;
 	private/* uint_least8_t */int hit_budget_left = HIT_BUDGET_DEFAULT;
@@ -212,19 +200,20 @@ public class AcquisitionTask {
 	   int /* uint_least8_t */ conversion_try_count;
 	   /*This variable stores the number of failed conversion starts.            */
 
-	   initial_delay = TaskControl.DELAY_LIMIT(100);
+	   TaskControl tc = system.getTaskControl();
+	   
+	   initial_delay = tc.delayLimit(100);
 	   /* Initial delay before converting first channel. */
 
-	   delay_limit = TaskControl.DELAY_LIMIT(100);
+	   delay_limit = tc.delayLimit(100);
 	   /* The signal settling delay is 100 microseconds. */
 
-	   TaskControl.waitInterrupt (KernelObjects.HIT_TRIGGER_ISR_SOURCE, 255);
+	   tc.waitInterrupt (KernelObjects.HIT_TRIGGER_ISR_SOURCE, 255);
 	   /* Interrupt arrival is awaited.    */
 	   /* Execution result is not handled. */
 
-	   // FIXME: implement
-	   // CLEAR_HIT_TRIGGER_ISR_FLAG;
-
+	   tc.clearHitTriggerISRFlag();
+	   
 	   /* Acknowledge the interrupt.            */
 	   /* This bit must be cleared by software. */
 
@@ -232,9 +221,9 @@ public class AcquisitionTask {
 	   {
 	      /* Too many hit triggers during one Health Monitoring period. */
 
-	      if (TelecommandExecutionTask.getTelemetryData().hit_budget_exceedings < 255)
+	      if (system.getTelemetryData().hit_budget_exceedings < 255)
 	      {
-	    	  TelecommandExecutionTask.getTelemetryData().hit_budget_exceedings++;
+	    	  system.getTelemetryData().hit_budget_exceedings++;
 	      }
 	      
 	      system.getSensorUnitDevice().disableHitTrigger();
@@ -248,20 +237,22 @@ public class AcquisitionTask {
 
 	      hit_budget_left--;
 
-	      confirm_hit_result = 1;
+	      AdConverter adcDev = system.getAdcDevice();
+
+	      adcDev.setConfirmHitResult(1);
 	      /*This variable indicates a hit with a high value.                  */
 
-	      system.getHealthMonitoringTask().ADCChannelRegister &= AdConverter.BP_DOWN;
-	      system.getAdcDevice().updateADCChannelReg(system.getHealthMonitoringTask().ADCChannelRegister);   
+	      adcDev.setADCChannelRegister(adcDev.getADCChannelRegister() & AdConverter.BP_DOWN);
+	      adcDev.updateADCChannelReg(adcDev.getADCChannelRegister());   
 	      /*AD converter is set to unipolar mode                              */
 
-	      system.getAdcDevice().startConversion();
+	      adcDev.startConversion();
 	      /*Dummy cycle to set unipolar mode.                                 */
 
 	      conversion_try_count = 0;
 
 	      while (conversion_try_count < ADC_MAX_TRIES
-	             && system.getAdcDevice().endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE)
+	             && adcDev.endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE)
 	      {
 	         conversion_try_count++;
 	         /*Conversion try counter is increased. If this counter exeeds the*/
@@ -312,35 +303,33 @@ public class AcquisitionTask {
 	         ((trigger - SensorUnitDev.SU_1)&2) * 12 + ((trigger - SensorUnitDev.SU_1)&1) * 8; 
 	      /* First channel address for the given SU is calculated. */
 
-	      TaskControl.shortDelay(initial_delay);
+	      tc.shortDelay(initial_delay);
 	      /* Delay before converting first channel. */
 
-	      system.getHealthMonitoringTask().ADCChannelRegister =
-	    	  (system.getHealthMonitoringTask().ADCChannelRegister & 0xC0) | CH_base;
-	      system.getAdcDevice().updateADCChannelReg(system.getHealthMonitoringTask().ADCChannelRegister);   
+	      adcDev.setADCChannelRegister((adcDev.getADCChannelRegister() & 0xC0) | CH_base);
+	      adcDev.updateADCChannelReg(adcDev.getADCChannelRegister());   
 	      /* First channel is selected. */
 
-	      TaskControl.shortDelay(delay_limit);
+	      tc.shortDelay(delay_limit);
 	      /* Delay of 100 microseconds (+ function call overhead). */
 
 
 	      for (i = 0; i < SensorUnitDev.NUM_CH; i++) {
 
-	    	 TaskControl.shortDelay(delay_limit);
+	    	 tc.shortDelay(delay_limit);
 	         /* Delay of 100 microseconds (+ function call overhead). */
 
-	         system.getAdcDevice().startConversion();
+	         adcDev.startConversion();
 	         /* AD conversion for the selected channel is started. */
 
-	         system.getHealthMonitoringTask().ADCChannelRegister =
-	        	 (system.getHealthMonitoringTask().ADCChannelRegister & 0xC0) | (CH_base + i + 1);
-	         system.getAdcDevice().updateADCChannelReg(system.getHealthMonitoringTask().ADCChannelRegister);   
+	         adcDev.setADCChannelRegister((adcDev.getADCChannelRegister() & 0xC0) | (CH_base + i + 1));
+	         adcDev.updateADCChannelReg(adcDev.getADCChannelRegister()); 
 	         /* Next channel is selected. */
 
 	         conversion_try_count = 0;
 
 	         while (conversion_try_count < ADC_MAX_TRIES
-	                && system.getAdcDevice().endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE )
+	                && adcDev.endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE )
 	         {
 	            conversion_try_count++;
 	            /*Conversion try counter is increased. If this counter exeeds */
@@ -350,10 +339,10 @@ public class AcquisitionTask {
 
 	         if (conversion_try_count < ADC_MAX_TRIES)
 	         {
-	            msb = system.getAdcDevice().getResult();
+	            msb = adcDev.getResult();
 	            /*Most significant byte is read from ADC result address.      */
 
-	            lsb = system.getAdcDevice().getResult();
+	            lsb = adcDev.getResult();
 	            /*Least significant byte is read from ADC result address.     */
 
 	            ADC_result[i] = 
@@ -374,7 +363,7 @@ public class AcquisitionTask {
 
 	      }
 
-	      TaskControl.getMailbox(KernelObjects.ACQUISITION_MAILBOX).sendTaskMail((char)trigger, (byte)0);
+	      tc.getMailbox(KernelObjects.ACQUISITION_MAILBOX).sendTaskMail((char)trigger, (byte)0);
 	      /*The number of the Sensor unit that has caused the hit trigger     */
 	      /*interrupt is sent to a mailbox for the acquisition task.          */
 
@@ -501,12 +490,10 @@ public class AcquisitionTask {
 
 				/* Unit temperatures are stored into Event Record. */
 
-				event.SU_temperature_1 = (byte)TelecommandExecutionTask
-						.getTelemetryData().getSensorUnitTemperature(
+				event.SU_temperature_1 = (byte)system.getTelemetryData().getSensorUnitTemperature(
 								trigger_unit - SU1, 0);
 
-				event.SU_temperature_2 = (byte)TelecommandExecutionTask
-						.getTelemetryData().getSensorUnitTemperature(
+				event.SU_temperature_2 = (byte)system.getTelemetryData().getSensorUnitTemperature(
 								trigger_unit - SU1, 1);
 
 				event.classify();
@@ -530,17 +517,19 @@ public class AcquisitionTask {
 		trigger_unit &= SU_NUMBER_MASK;
 		/* Delete possible error bits. */
 
-		TaskControl.waitTimeout(PEAK_RESET_MIN_DELAY);
+		TaskControl tc = system.getTaskControl();
+		
+		tc.waitTimeout(PEAK_RESET_MIN_DELAY);
 
 		HwIf.resetPeakDetector(trigger_unit);
 		/* Peak detector for this Sensor Unit is resetted. */
 
-		TaskControl.waitTimeout(PEAK_RESET_MIN_DELAY);
+		tc.waitTimeout(PEAK_RESET_MIN_DELAY);
 
 		HwIf.resetPeakDetector(trigger_unit);
 		/* Peak detector for this Sensor Unit is resetted again. */
 
-		TaskControl.waitTimeout(COUNTER_RESET_MIN_DELAY);
+		tc.waitTimeout(COUNTER_RESET_MIN_DELAY);
 
 		HwIf.resetDelayCounters();
 		/* The Delay Counters are reset. */

@@ -1,6 +1,5 @@
 package debie.harness;
 
-import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.target.AdConverter;
 
@@ -71,7 +70,7 @@ public class AdcSim implements AdConverter {
 
 	private static final int AD_NUM_CONV = 6;
 	
-	static int ad_conv_delay [] = new int[AD_NUM_CONV];
+	int ad_conv_delay [] = new int[AD_NUM_CONV];
 	
 	/** Counts the consecutive conversions for ad_conv_delay[]. */
 	private int ad_conv_num = 0;
@@ -141,6 +140,19 @@ public class AdcSim implements AdConverter {
 	
 	int ad_conv_timer;
 	
+	private /* unsigned char */int confirm_hit_result;
+	/* This variable indicates a hit with a high value. */
+
+	public int getConfirmHitResult() {
+		return confirm_hit_result;
+	}
+	
+	public void setConfirmHitResult(int value) {
+		confirm_hit_result = value;
+	}
+	
+	private int ADCChannelRegister;
+		
 	public void clearADConverting() {
 		ad_converting = 0;
 	}
@@ -197,7 +209,7 @@ public class AdcSim implements AdConverter {
 					/* Hit me again, Sam. */
 
 					if (Harness.TRACE) Harness.trace("[AdcSim] Hit during A/D"); 
-					AcquisitionTask.confirm_hit_result = 1;
+					confirm_hit_result = 1;
 
 					total_adc_hits ++;
 					max_adc_hits --;
@@ -241,7 +253,7 @@ public class AdcSim implements AdConverter {
 	public void startConversion() {
 		int channel;
 
-		channel = HealthMonitoringTask.ADCChannelRegister & 0x3f;
+		channel = ADCChannelRegister & 0x3f;
 
 		if (Harness.TRACE) Harness.trace(String.format("[AdcSim] Start_Conversion on channel %d", channel));
 
@@ -280,6 +292,16 @@ public class AdcSim implements AdConverter {
 		}
 
 		ad_converting = 1;
+	}
+
+	@Override
+	public int getADCChannelRegister() {
+		return ADCChannelRegister;
+	}
+
+	@Override
+	public void setADCChannelRegister(int channel) {
+		ADCChannelRegister = channel;
 	}
 
 	@Override

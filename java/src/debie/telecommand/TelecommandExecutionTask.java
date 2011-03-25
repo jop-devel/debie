@@ -1,7 +1,6 @@
 package debie.telecommand;
 
 import static debie.target.SensorUnitDev.NUM_SU;
-import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.particles.EventRecord;
 import debie.particles.SensorUnit;
@@ -126,10 +125,10 @@ public class TelecommandExecutionTask {
 
 		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (NUM_SU * NUM_CLASSES);
 		
-		public ScienceDataFile() {
+		public ScienceDataFile(DebieSystem system) {
 			/* Java only: Array initialization */
 			for(int i = 0; i < event.length; ++i) {
-				event[i] = new EventRecord();
+				event[i] = new EventRecord(system);
 			}
 		}
 		
@@ -199,15 +198,11 @@ public class TelecommandExecutionTask {
 
 	/*--- [2] Definitions from   telem.c:36-73 ---*/
 
-	/* FIXME: currently static */
-	private static TelemetryData telemetry_data = new TelemetryData();
-	/* aggregates telemetry data */
-
 	// XXX: this should probably be in external memory:
 	//EXTERNAL science_data_file_t LOCATION(SCIENCE_DATA_START_ADDRESS)
-	public ScienceDataFile science_data = new ScienceDataFile();
+	public ScienceDataFile science_data;
 
-	public static int /* uint_least16_t */ max_events;
+	public int /* uint_least16_t */ max_events;
 	/* This variable is used to speed up certain    */
 	/* Functional Test by adding the possibility    */
 	/* to restrict the amount of events.            */
@@ -278,41 +273,37 @@ public class TelecommandExecutionTask {
 	/*--- Ported from tc_hand.c:90-123 */
 	/* Global variables */
 
-	private static TeleCommand previous_TC;
+	private TeleCommand previous_TC;
 	/* Holds previous telecommand unless a timeout has occurred */
 
-	private static /*unsigned char */ char TC_timeout = 0;
+	private /*unsigned char */ char TC_timeout = 0;
 	/* Time out for next telecommand, zero means no timeout */
 
 
-	private static /*unsigned char[] */ byte[] TC_look_up = new byte[128];
+	private /*unsigned char[] */ byte[] TC_look_up = new byte[128];
 	/* Look-up table for all possible 128 TC address values (domain: ALL_INVALID(0) - ONLY_EVEN(4) ) */
 
-	private static TC_State TC_state = TC_State.TC_handling_e; /* 0 ~ TC_handling_e */
+	private TC_State TC_state = TC_State.TC_handling_e; /* 0 ~ TC_handling_e */
 	/* internal state of the Telecommand Execution task */
 
-	private static  MemoryType memory_type;
+	private MemoryType memory_type;
 	/* Selection of memory write target (code/data) */ 
 
-	private static /* unsigned char[] */  byte[] memory_transfer_buffer = new byte[MEM_BUFFER_SIZE];
+	private /* unsigned char[] */  byte[] memory_transfer_buffer = new byte[MEM_BUFFER_SIZE];
 	/* Buffer for memory read and write telecommands */
 
-	private static /*unsigned char */ int address_MSB;
+	private /*unsigned char */ int address_MSB;
 	/* MSB of memory read source and write destination addresses */
 
-	private static /* unsigned char */ int address_LSB;
+	private /* unsigned char */ int address_LSB;
 	/* LSB of memory read source and write destination addresses. */
 
-	private static /* uint_least8_t */ int memory_buffer_index = 0;
+	private /* uint_least8_t */ int memory_buffer_index = 0;
 	/* Index to memory_buffer. */
 
-	private static /* unsigned char */ int write_checksum;
+	private /* unsigned char */ int write_checksum;
 	/* Checksum for memory write blocks. */
 
-
-	public static TelemetryData getTelemetryData() {
-		return telemetry_data;
-	}
 
 	/*--- References to other parts of the system ---*/
 
@@ -322,7 +313,9 @@ public class TelecommandExecutionTask {
 	private DebieSystem system;
 
 	private TeleCommand received_command;
-
+	private TaskControl taskControl;
+	private TelemetryData telemetry_data;
+	
 	/*--- Constructor ---*/
 
 	/* Purpose        : Initialize the global state of Telecommand Execution     */
@@ -335,6 +328,12 @@ public class TelecommandExecutionTask {
 	/* Algorithm      : - initialize task variables.                             */
 	public TelecommandExecutionTask(DebieSystem system) {
 
+		science_data = new ScienceDataFile(system);
+		
+		this.taskControl = system.getTaskControl();
+		
+		this.telemetry_data = system.getTelemetryData();
+		
 		this.tcMailbox = system.getTcTmMailbox();
 		this.tctmDev = system.getTcTmDevice();
 		this.system = system;
@@ -353,14 +352,13 @@ public class TelecommandExecutionTask {
 
 		previous_TC = new TeleCommand(0, TcAddress.UNUSED_TC_ADDRESS, 0);
 
-		// FIXME: TODO
-		// disableInterrupt(TM_ISR_SOURCE);
-		// enableInterrupt(TC_ISR_SOURCE);
+		taskControl.disableInterrupt(KernelObjects.TM_ISR_SOURCE);
+		taskControl.enableInterrupt(KernelObjects.TC_ISR_SOURCE);
 		
 		/* Java only: Initialize the EventRecord list */
 		event_queue	= new EventRecord[MAX_QUEUE_LENGTH];
 		for(int i = 0; i < MAX_QUEUE_LENGTH; ++i) {
-			event_queue[i] = new EventRecord();
+			event_queue[i] = new EventRecord(system);
 		}
 	}
 
@@ -455,7 +453,7 @@ public class TelecommandExecutionTask {
 				/* task in the TC states mentioned.                            */
 
 			{
-				// disableInterrupt(KernelObjects.TM_ISR_SOURCE);
+				taskControl.disableInterrupt(KernelObjects.TM_ISR_SOURCE);
 
 				if (TC_state == TC_State.SC_TM_e)
 				{
@@ -1219,8 +1217,7 @@ public class TelecommandExecutionTask {
 					switchSensorUnitState (SU_setting);
 					/* Try to switch SU 4 to Acquisition state. */
 
-					// FIXME: disabled
-					// clearHitTriggerISRFlag();
+					taskControl.clearHitTriggerISRFlag();
 
 					HwIf.resetDelayCounters();
 					/* Resets the SU logic that generates Hit Triggers.    */
@@ -1230,7 +1227,7 @@ public class TelecommandExecutionTask {
 					/* because a reversed order could create a deadlock    */
 					/* situation.                                          */
 
-					HealthMonitoringTask.setMode(TelemetryData.ACQUISITION);
+					system.getHealthMonitoringTask().setMode(TelemetryData.ACQUISITION);
 				}
 
 				else
@@ -1261,7 +1258,7 @@ public class TelecommandExecutionTask {
 					switchSensorUnitState (SU_setting);
 					/* Try to switch SU 4 to On state. */
 
-					HealthMonitoringTask.setMode(TelemetryData.STAND_BY);
+					system.getHealthMonitoringTask().setMode(TelemetryData.STAND_BY);
 				}
 
 				else
@@ -1284,7 +1281,7 @@ public class TelecommandExecutionTask {
 	/* Postconditions :  Value of state variable is returned.                    */
 	/* Algorithm      :  Value of state variable (on_e or off_e) is returned.    */
 	{
-		   return AcquisitionTask.sensorUnitState[suNumber - 1];      
+		   return system.getAcquisitionTask().sensorUnitState[suNumber - 1];      
 	}
 
 	/* from health.c: 373-398 
@@ -1326,12 +1323,11 @@ public class TelecommandExecutionTask {
 	/*                  - Write to Error Status register                         */
 	/*                  - Enable interrupts                                      */
 	{
-		// FIXME: add synchronization
-		// DISABLE_INTERRUPT_MASTER;
-
+		taskControl.disableInterruptMaster();
+		
 		telemetry_data.error_status |= TcTmDev.TC_ERROR;
 
-		// ENABLE_INTERRUPT_MASTER;
+		taskControl.enableInterruptMaster();
 	}
 
 	public void tmInterruptService () // INTERRUPT(TM_ISR_SOURCE) USED_REG_BANK(2)
@@ -1403,12 +1399,12 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb(read_memory_checksum);
 			/* Last two bytes of Read Memory sequence. */
 
-			TaskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
+			taskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
 		}
 		else
 			/* It is time to stop sending telemetry */
 		{
-			TaskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
+			taskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
 		}
 	}
 
@@ -1612,7 +1608,7 @@ public class TelecommandExecutionTask {
 
 		if (TC_state == TC_State.memory_patch_e)
 		{
-			TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+			taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 			return;
 			/* This is not a normal telecommand, but word containing two bytes */
 			/* of memory block to be written to data or code memory.           */
@@ -1623,7 +1619,7 @@ public class TelecommandExecutionTask {
 			TC_state = TC_State.TC_handling_e;
 			/* Register TM state is aborted */
 
-			resetInterruptMask(TcTmDev.TM_ISR_MASK);
+			taskControl.resetInterruptMask(TcTmDev.TM_ISR_MASK);
 			/* Disable TM interrupt mask. Note that DisableInterrupt */
 			/* cannot be called from the C51 ISR.                    */
 		}
@@ -1658,7 +1654,7 @@ public class TelecommandExecutionTask {
 
 			case ALL_VALID:
 				/* All TC Codes are valid */
-				TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+				taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				break;
 
 			case ONLY_EQUAL:
@@ -1670,7 +1666,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1684,7 +1680,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1697,7 +1693,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					TaskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
 				}
 				break;  
 			}
@@ -1756,7 +1752,7 @@ public class TelecommandExecutionTask {
 
 			TC_state = TC_State.register_TM_e;
 
-			setInterruptMask(TcTmDev.TM_ISR_MASK);
+			taskControl.setInterruptMask(TcTmDev.TM_ISR_MASK);
 			/* Enable TM interrupt mask. Note that EnableInterrupt */
 			/* cannot be called from the C51 ISR                   */
 
@@ -1804,7 +1800,7 @@ public class TelecommandExecutionTask {
 
 				TC_state = TC_State.SC_TM_e;
 
-				setInterruptMask(TcTmDev.TM_ISR_MASK);
+				taskControl.setInterruptMask(TcTmDev.TM_ISR_MASK);
 				/* Enable TM interrupt mask. Note that EnableInterrupt */
 				/* cannot be called from a C51 ISR.                    */
 			}
@@ -1847,7 +1843,7 @@ public class TelecommandExecutionTask {
 				
 				TC_state = TC_State.memory_dump_e;
 				
-				setInterruptMask(TcTmDev.TM_ISR_MASK);
+				taskControl.setInterruptMask(TcTmDev.TM_ISR_MASK);
 			}
 		}
 
@@ -1859,15 +1855,6 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb (telemetry_data.mode_status);
 			/* Send response to this TC to TM. */
 		}
-
-	}
-
-	private void setInterruptMask(int tmIsrMask) {
-		// TODO Auto-generated method stub
-
-	}
-	private void resetInterruptMask(int tmIsrMask) {
-		// TODO Auto-generated method stub
 
 	}
 
@@ -1922,11 +1909,9 @@ public class TelecommandExecutionTask {
 	/*                  If the Science telemetry is not in progress the event    */
 	/*                  data is copied to the Science Data to the location       */
 	/*                  defined earlier as described above.                      */
-	// FIXME: At the moment, not thread safe (commented (DIS|EN)ABLE_INTERRUPT_MASTER)
 	{
 		/* uint_least16_t INDIRECT_INTERNAL */ int record_index;
-
-		HwIf.disableInterruptMaster();
+		taskControl.disableInterruptMaster();
 
 		record_index = free_slot_index;
 
@@ -1934,11 +1919,11 @@ public class TelecommandExecutionTask {
 		{
 			/* Science Data memory was full and Science TM was not in progress */
 
-			HwIf.enableInterruptMaster();
+			taskControl.enableInterruptMaster();
 
 			record_index = findMinQualityRecord();
 
-			HwIf.disableInterruptMaster();
+			taskControl.disableInterruptMaster();
 		}
 
 		if (TC_state == TC_State.SC_TM_e)
@@ -1956,7 +1941,7 @@ public class TelecommandExecutionTask {
 				event_queue_length++;
 				/* Prevent the event data from being overwritten. */
 			}
-			// ENABLE_INTERRUPT_MASTER;
+			taskControl.enableInterruptMaster();
 		}
 
 		else
@@ -1976,7 +1961,7 @@ public class TelecommandExecutionTask {
 					event_queue[0].getSUNumber() - 1,
 					event_queue[0].getClassification());
 
-			// ENABLE_INTERRUPT_MASTER;
+			taskControl.enableInterruptMaster();
 
 			if (event_queue[0].getQualityNumber() >=
 				science_data.event[record_index].getQualityNumber())
@@ -2228,7 +2213,7 @@ public class TelecommandExecutionTask {
 	/*                  - Else state variable value is changed and an indication */
 	/*                    of this is recorded.                                   */
 	{
-		if (AcquisitionTask.sensorUnitState[(sensorUnit.number) - SensorUnitDev.SU_1] != 
+		if (system.getAcquisitionTask().sensorUnitState[(sensorUnit.number) - SensorUnitDev.SU_1] != 
 			sensorUnit.expected_source_state)
 		{
 			/* The original SU state is wrong. */
@@ -2261,7 +2246,7 @@ public class TelecommandExecutionTask {
 				/* Reset self test state i.e. no self test is running. */
 			}
 
-			AcquisitionTask.sensorUnitState[(sensorUnit.number) - SensorUnitDev.SU_1] = sensorUnit.state;
+			system.getAcquisitionTask().sensorUnitState[(sensorUnit.number) - SensorUnitDev.SU_1] = sensorUnit.state;
 			sensorUnit.execution_result  = SensorUnitDev.SU_STATE_TRANSITION_OK;
 		}
 	}
@@ -2294,7 +2279,7 @@ public class TelecommandExecutionTask {
 		sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
 		/* Default value, may be changed below. */ 
 
-		if (AcquisitionTask.sensorUnitState[sensorUnitIndex] != SensorUnitState.off_e)
+		if (system.getAcquisitionTask().sensorUnitState[sensorUnitIndex] != SensorUnitState.off_e)
 		{
 			/* The original SU state is wrong. */
 
@@ -2304,14 +2289,12 @@ public class TelecommandExecutionTask {
 		else
 		{
 			/* The original SU state is correct. */
-			// TODO: synchronization
-			// DISABLE_INTERRUPT_MASTER;
+			taskControl.disableInterruptMaster();
 
 			/* SU state is still off_e, because there is only one task  */
 			/* which can switch SU state from off_e to any other state. */
 
-			// FIXME: static call
-			SensorUnitDev.switchSensorUnitOn(sensorUnitIndex + SensorUnitDev.SU_1, sensorUnit);
+			system.getSensorUnitDevice().switchSensorUnitOn(sensorUnitIndex + SensorUnitDev.SU_1, sensorUnit);
 			// Moved from switchSensorUnitOn (unconditionally executed) to here
 			
 			telemetry_data.SU_status[sensorUnitIndex] |= SensorUnitDev.SU_ONOFF_MASK;
@@ -2322,7 +2305,7 @@ public class TelecommandExecutionTask {
 			{
 				/* Transition succeeds. */
 
-				AcquisitionTask.sensorUnitState[sensorUnitIndex] = SensorUnitState.start_switching_e;
+				system.getAcquisitionTask().sensorUnitState[sensorUnitIndex] = SensorUnitState.start_switching_e;
 			}
 
 			else
@@ -2332,7 +2315,7 @@ public class TelecommandExecutionTask {
 				sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
 			}
 
-			// ENABLE_INTERRUPT_MASTER;
+			taskControl.enableInterruptMaster();
 		}   
 	}
 
@@ -2369,10 +2352,9 @@ public class TelecommandExecutionTask {
 		/* Must be in external memory, because the parameter to the function */
 		/* is pointer to external memory                                     */
 
-		// TODO: synchronization
-		// DISABLE_INTERRUPT_MASTER;
-
-		SensorUnitDev.switchSensorUnitOff(index + SensorUnitDev.SU_1, sensorUnit);
+		taskControl.disableInterruptMaster();
+		
+		system.getSensorUnitDevice().switchSensorUnitOff(index + SensorUnitDev.SU_1, sensorUnit);
 		telemetry_data.SU_status[index] &= (~SensorUnitDev.SU_ONOFF_MASK);
 
 		/* SU_status register is updated to indicate that SU is switched off. */
@@ -2383,7 +2365,7 @@ public class TelecommandExecutionTask {
 			/* Transition succeeds. */
 
 			sensorUnitSetting.number = index + SensorUnitDev.SU_1;
-			sensorUnitSetting.expected_source_state = AcquisitionTask.sensorUnitState[index]; 
+			sensorUnitSetting.expected_source_state = system.getAcquisitionTask().sensorUnitState[index]; 
 			sensorUnitSetting.state = SensorUnitState.off_e;
 			switchSensorUnitState(sensorUnitSetting);
 			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
@@ -2396,7 +2378,7 @@ public class TelecommandExecutionTask {
 			sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_FAILED;
 		}
 
-		//				   ENABLE_INTERRUPT_MASTER;
+		taskControl.enableInterruptMaster();
 	}
 
 	//		SU_state_t  ReadSensorUnit(unsigned char SU_number) COMPACT_DATA REENTRANT_FUNC
@@ -2411,7 +2393,7 @@ public class TelecommandExecutionTask {
 	//		}       
 
 
-	public static void updateSensorUnitState(int idx)
+	public void updateSensorUnitState(int idx)
 	/*		void Update_SU_State(sensor_index_t SU_index) COMPACT_DATA REENTRANT_FUNC */
 	/* Purpose        : Sensor unit state is updated.                            */
 	/* Interface      : inputs      - SU_state                                   */
@@ -2426,28 +2408,29 @@ public class TelecommandExecutionTask {
 	/*                    the present one.                                       */
 	/*                  - Enable interrups                                       */
 	{
-		// TODO: add synchronization
-		//	   DISABLE_INTERRUPT_MASTER;
-
-		if (AcquisitionTask.sensorUnitState[idx] == SensorUnitState.start_switching_e)
+		SensorUnitState suState [] = system.getAcquisitionTask().sensorUnitState;
+		
+		taskControl.disableInterruptMaster();
+		
+		if (suState[idx] == SensorUnitState.start_switching_e)
 		{
-			AcquisitionTask.sensorUnitState[idx] = SensorUnitState.switching_e;
+			suState[idx] = SensorUnitState.switching_e;
 		}
 
-		else if (AcquisitionTask.sensorUnitState[idx] == SensorUnitState.switching_e)
+		else if (suState[idx] == SensorUnitState.switching_e)
 		{
 			HwIf.resetPeakDetector(idx + SensorUnitDev.SU_1);
 			/*Peak detector for this Sensor Unit is resetted. */       
 
-			TaskControl.waitTimeout(AcquisitionTask.PEAK_RESET_MIN_DELAY);
+			taskControl.waitTimeout(AcquisitionTask.PEAK_RESET_MIN_DELAY);
 
 			HwIf.resetPeakDetector(idx + SensorUnitDev.SU_1);
 			/*Peak detector for this Sensor Unit is resetted again. */   
 
-			AcquisitionTask.sensorUnitState[idx] = SensorUnitState.on_e;
+			suState[idx] = SensorUnitState.on_e;
 		}
 		
-		//		   ENABLE_INTERRUPT_MASTER;
+		taskControl.enableInterruptMaster();
 	}
 
 

@@ -22,8 +22,9 @@
 package debie.particles;
 
 import debie.particles.SensorUnit.SensorUnitState;
+import debie.support.DebieSystem;
 import debie.target.SensorUnitDev;
-import debie.telecommand.TelecommandExecutionTask;
+import debie.telecommand.TelemetryData;
 
 public class EventRecord {
 
@@ -83,6 +84,14 @@ public class EventRecord {
 		return SIZE_IN_BYTES;
 	}
 
+	TelemetryData tmData;
+	AcquisitionTask acqTask;
+	
+	public EventRecord(DebieSystem system) {
+		this.tmData = system.getTelemetryData();
+		this.acqTask = system.getAcquisitionTask();
+	}
+	
 	public int getByte(int index) {
 		switch (index) {
 		case 0: return quality_number & 0xff;
@@ -250,7 +259,7 @@ public class EventRecord {
 		float quality;
 	
 		quality = 
-			(float)(TelecommandExecutionTask.getTelemetryData().getCoefficients()[coeff]
+			(float)(tmData.getCoefficients()[coeff]
 					* roughLogarithm(amplitude))
 			/ AMPLITUDE_DIVIDER;
 	
@@ -336,19 +345,19 @@ public class EventRecord {
 			/* Select proper classification thresholds. */
 			
 		case SensorUnitDev.SU_1:
-			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit1();
+			limits = tmData.getSensorUnit1();
 			break;
 	
 		case SensorUnitDev.SU_2:
-			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit2();
+			limits = tmData.getSensorUnit2();
 			break;
 			
 		case SensorUnitDev.SU_3:
-			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit3();
+			limits = tmData.getSensorUnit3();
 			break;
 			
 		case SensorUnitDev.SU_4:
-			limits = TelecommandExecutionTask.getTelemetryData().getSensorUnit4();
+			limits = tmData.getSensorUnit4();
 			break;
 		}
 	
@@ -407,7 +416,7 @@ public class EventRecord {
 		classification = EventClass[class_index];
 		/* Store classification number to the event record */
 	
-		if (AcquisitionTask.sensorUnitState[SU_number - SensorUnitDev.SU_1] == 
+		if (acqTask.sensorUnitState[SU_number - SensorUnitDev.SU_1] == 
 			SensorUnitState.self_test_e) {
 			quality_number = MAX_QUALITY;
 		} else {

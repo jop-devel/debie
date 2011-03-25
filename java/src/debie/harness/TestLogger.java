@@ -1,9 +1,9 @@
 package debie.harness;
 
 public class TestLogger {
-	private static String SEP1 = 
+	private final static String SEP1 = 
 		"=============================================================================";
-	private static String SEP2 = 
+	private final static String SEP2 = 
 		"------------------------------------------------------------------------------";
 	
 	void startTest(String name) {

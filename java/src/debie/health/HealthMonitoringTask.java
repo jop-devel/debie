@@ -1,8 +1,8 @@
 package debie.health;
 
 import debie.Version;
+import debie.harness.Harness;
 import debie.particles.AcquisitionTask;
-import debie.particles.EventClassifier;
 import debie.particles.SensorUnit;
 import debie.particles.SensorUnitSettings;
 import debie.particles.SensorUnit.SensorUnitState;
@@ -12,6 +12,7 @@ import debie.support.KernelObjects;
 import debie.support.TaskControl;
 import debie.support.Dpu.ResetClass;
 import debie.support.Dpu.Time;
+import debie.target.AdConverter;
 import debie.target.HwIf;
 import debie.target.SensorUnitDev;
 import debie.target.SensorUnitDev.TriggerSet;
@@ -111,8 +112,6 @@ public class HealthMonitoringTask implements Runnable {
 	/* Used in SU self test. */
 	private static final int SELF_TEST_DONE = 0;
 	private static final int SELF_TEST_RUNNING = 1;
-
-	private static int self_test_flag = SELF_TEST_DONE;
 
 	private static class ADCParameters {
 		/* channel_t */       int ADC_channel;
@@ -231,16 +230,16 @@ public class HealthMonitoringTask implements Runnable {
 		checksum_count = count;
 	}
 	
-	static int code_checksum;
+	private int code_checksum;
 
 	private Time internal_time = new Time();
 
 	private DebieSystem system;
-
-	public static int ADCChannelRegister;
+	private TelemetryData tmData;
 	
 	public HealthMonitoringTask(DebieSystem system) {
 		this.system = system;
+		this.tmData = system.getTelemetryData();
 	}
 
 	@Override
@@ -326,11 +325,11 @@ public class HealthMonitoringTask implements Runnable {
 		Dpu.setDataByte(SU_CONTROL, (byte)system.getSensorUnitDevice().SU_ctrl_register);
 		/* Set all Peak detector reset signals to high */
 
-		TelecommandExecutionTask.max_events = HwIf.MAX_EVENTS;
-		
 		HwIf.resetDelayCounters();
 		
 		TelecommandExecutionTask tctmTask = system.getTelecommandExecutionTask();
+
+		tctmTask.max_events = HwIf.MAX_EVENTS;
 		
 		tctmTask.setSensorUnitOff(SU_INDEX_1, new SensorUnit());
 		/* Set Sensor Unit 1 to Off state */
@@ -344,10 +343,11 @@ public class HealthMonitoringTask implements Runnable {
 		tctmTask.setSensorUnitOff(SU_INDEX_4, new SensorUnit());
 		/* Set Sensor Unit 4 to Off state */
 
-		ADCChannelRegister |= 0x80;
-		system.getAdcDevice().updateADCChannelReg(ADCChannelRegister);
+		AdConverter adcDev = system.getAdcDevice();
+		adcDev.setADCChannelRegister(adcDev.getADCChannelRegister() | 0x80);
+		adcDev.updateADCChannelReg(adcDev.getADCChannelRegister());
 		
-		ResetClass reset_class = HwIf.getResetClass();
+		ResetClass reset_class = Dpu.getResetClass();
 		
 		if (reset_class != ResetClass.warm_reset_e) {
 			/* We are running the PROM code unpatched, either   */
@@ -367,7 +367,7 @@ public class HealthMonitoringTask implements Runnable {
 
 			internal_time = new Dpu.Time();
 
-			TelecommandExecutionTask.getTelemetryData().clearAll();
+			tmData.clearAll();
 			
 			system.getTelecommandExecutionTask().resetEventQueueLength();
 			/* Empty event queue. */
@@ -377,24 +377,22 @@ public class HealthMonitoringTask implements Runnable {
 			/* and free_slot_index of the event records in */
 			/* the science data memory.                    */
 
-			EventClassifier.initClassification();
+			tmData.init();
 			/* Initializes thresholds, classification levels and */
 			/* min/max times related to classification.          */
 
-			TelecommandExecutionTask.getTelemetryData().clearRTXErrors();
+			tmData.clearRTXErrors();
 			/* RTX error indicating registers are initialized. */
 
 		} else if (reset_class == ResetClass.watchdog_reset_e) {
 			/* Record watchdog failure in telemetry. */
 
-			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 			tmData.setErrorStatusRaw((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.WATCHDOG_ERROR));
 
 			tmData.incrementWatchdogFailures();
 		} else if (reset_class == ResetClass.checksum_reset_e) {
 			/* Record checksum failure in telemetry. */	
 			
-			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 			tmData.setErrorStatusRaw((byte)(tmData.getErrorStatus() | TelecommandExecutionTask.CHECKSUM_ERROR));
 
 			tmData.incrementChecksumFailures();
@@ -402,8 +400,6 @@ public class HealthMonitoringTask implements Runnable {
 		   /* Soft or Warm reset. */
 		   /* Preserve most of telemetry_data; clear some parts. */
 		 			
-		   TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-		 
 		   tmData.clearErrorStatus();
 		   tmData.clearSUError();
            tmData.clearRTXErrors();
@@ -424,7 +420,7 @@ public class HealthMonitoringTask implements Runnable {
 		   /* and free_slot_index of the event records in */
 		   /* the science data memory.                    */
 
-		   EventClassifier.initClassification();
+		   tmData.init();
 		   /* Initializes thresholds, classification levels and */
 		   /* min/max times related to classification.          */
 
@@ -433,7 +429,6 @@ public class HealthMonitoringTask implements Runnable {
 		   /* is set to its default value.             */                       
 	   }
 		
-		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 		tmData.clearModeBits(MODE_BITS_MASK);
 		tmData.setModeBits(TelemetryData.DPU_SELF_TEST);
 		/* Enter DPU self test mode. */
@@ -478,7 +473,7 @@ public class HealthMonitoringTask implements Runnable {
 		/* Result of voltage measurement from SU_1/2 +5V is compared against */
 		/* limits.          							*/
 
-		if (exceedsLimit(TelecommandExecutionTask.getTelemetryData().getSensorUnit1().plus_5_voltage,
+		if (exceedsLimit(tmData.getSensorUnit1().plus_5_voltage,
 				SU_P5V_ANA_LOWER_LIMIT,
 				SU_P5V_ANA_UPPER_LIMIT)) {
 			setModeStatusError(TelecommandExecutionTask.SUPPLY_ERROR);   
@@ -487,7 +482,7 @@ public class HealthMonitoringTask implements Runnable {
 		/* Result of voltage measurement from SU_1/2 -5V is compared against */
 		/* limits.          							*/
 
-		if (exceedsLimit(TelecommandExecutionTask.getTelemetryData().getSensorUnit1().minus_5_voltage,
+		if (exceedsLimit(tmData.getSensorUnit1().minus_5_voltage,
 				SU_M5V_ANA_LOWER_LIMIT,
 				SU_M5V_ANA_UPPER_LIMIT)) {
 			setModeStatusError(TelecommandExecutionTask.SUPPLY_ERROR);   
@@ -496,7 +491,7 @@ public class HealthMonitoringTask implements Runnable {
 		/* Result of voltage measurement from DIG +5V is compared against    */
 		/* limits.          							*/
 
-		if (exceedsLimit(TelecommandExecutionTask.getTelemetryData().DPU_plus_5_digital,
+		if (exceedsLimit(tmData.DPU_plus_5_digital,
 				DPU_P5V_DIG_LOWER_LIMIT,
 				DPU_P5V_DIG_UPPER_LIMIT)) {
 			setModeStatusError(TelecommandExecutionTask.SUPPLY_ERROR);   
@@ -565,14 +560,11 @@ public class HealthMonitoringTask implements Runnable {
 		if (AD_voltage_parameters.AD_execution_result != RESULT_OK) {
 			/* An anomaly has occurred during the measurement. */
 
-			TelecommandExecutionTask.getTelemetryData()
-				.setSoftwareError(TelecommandExecutionTask.MEASUREMENT_ERROR);         
+			tmData.setSoftwareError(TelecommandExecutionTask.MEASUREMENT_ERROR);         
 			/* Set measurement error indication bit in */
 			/* software error status register.         */
 		} else {
 
-			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-			
 			switch (channel_selector) {
 			/* Measurement result bits 8..15 from channels involving positive      */
 			/* voltages are written to telemetry.                                  */
@@ -658,7 +650,7 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private void delayAWhile(int duration) {
 	   while (duration > TaskControl.MAX_SHORT_DELAY) {
-		   TaskControl.shortDelay(TaskControl.MAX_SHORT_DELAY);
+		  system.getTaskControl().shortDelay(TaskControl.MAX_SHORT_DELAY);
 	      duration = duration - TaskControl.MAX_SHORT_DELAY;
 	      /* Since ShortDelay() has a positive constant delay term, the  */
 	      /* actual total delay will be a little larger than 'duration'. */
@@ -666,7 +658,7 @@ public class HealthMonitoringTask implements Runnable {
 
 	   if (duration > 0) {
 	      /* Some delay left after the loop above. */
-		   TaskControl.shortDelay (duration);
+		  system.getTaskControl().shortDelay (duration);
 	   }
 	}
 
@@ -714,22 +706,24 @@ public class HealthMonitoringTask implements Runnable {
 	   /* Delay between channel selection and start of conversion in */
 	   /* ShortDelay() units.                                        */
 
-	   delay_limit = TaskControl.DELAY_LIMIT(2000);
+	   delay_limit = system.getTaskControl().delayLimit(2000);
 	   /* Set delay limit to 2ms. */
 
 	   tries_left = ADC_parameters.ADC_max_tries;
 	   /* Limits the number of conversion attempts repeated because */
 	   /* of particle hit interrupts. Assumed to be at least 1.     */
 
+	   AdConverter adcDev = system.getAdcDevice();
+		  
 	   while (tries_left > 0) {
-		   AcquisitionTask.confirm_hit_result = 0;
+		  adcDev.setConfirmHitResult(0);
 	      /* Clear interrupt indicating flag.                                    */
 
-	      ADCChannelRegister = (ADCChannelRegister & 0x80) | ADC_parameters.ADC_channel;
-	      system.getAdcDevice().updateADCChannelReg(ADCChannelRegister);
+		  adcDev.setADCChannelRegister((adcDev.getADCChannelRegister() & 0x80) | ADC_parameters.ADC_channel);
+	      adcDev.updateADCChannelReg(adcDev.getADCChannelRegister());
 	      /* AD Channel register is set. */
 	      
-	      system.getAdcDevice().startConversion();
+	      adcDev.startConversion();
 	      /* Initiate dummy cycle to set AD mode to unipolar or bipolar.         */
 
 	      delayAWhile(delay_limit);
@@ -741,7 +735,7 @@ public class HealthMonitoringTask implements Runnable {
 	      tries_left--;
 	      /* Repeat while-loop until the max number of tries. */
 
-	      if (AcquisitionTask.confirm_hit_result == 0)
+	      if (adcDev.getConfirmHitResult() == 0)
 	      {
 	         /* Conversion has NOT been interrupted by a hit trigger interrupt.  */
 	         /* Exit from the while-loop.                                        */
@@ -750,7 +744,7 @@ public class HealthMonitoringTask implements Runnable {
 	      }
 	   }
 
-	   if (AcquisitionTask.confirm_hit_result != 0) {
+	   if (adcDev.getConfirmHitResult() != 0) {
 	      /* Conversion has been interrupted by a hit trigger interrupt. Discard */
 	      /* corrupted results.                                                  */
 	              
@@ -761,7 +755,7 @@ public class HealthMonitoringTask implements Runnable {
 	      /* Store indication of an unsuccessful measurement.                  */
 
 	   } else if (ADC_parameters.AD_execution_result == CONVERSION_ACTIVE 
-			   && AcquisitionTask.confirm_hit_result == 0) {
+			   && adcDev.getConfirmHitResult() == 0) {
 	      setModeStatusError(TelecommandExecutionTask.ADC_ERROR);
 	      /* ADC error indication is set because a time-out has          */
 	      /* occurred during AD conversion and no hit trigger interrupt  */
@@ -788,7 +782,6 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private void monitorSUVoltage(int self_test_SU_index)
 	{
-		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 		
 	   switch (self_test_SU_index) {
 	      case SU_INDEX_1:
@@ -999,8 +992,6 @@ public class HealthMonitoringTask implements Runnable {
 	   system.getTelecommandExecutionTask().setSensorUnitOff(SU_index, new SensorUnit());
 	   /* Switch off given sensor unit. */    
 
-	   TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-	   
 	   tmData.setErrorStatus((byte)(TelecommandExecutionTask.ERROR_STATUS_OFFSET << SU_index));
 	   /* Set Error status bit of the related SU in error status register. */
 
@@ -1026,27 +1017,28 @@ public class HealthMonitoringTask implements Runnable {
 	 *                     - Activate Hit Trigger Interrupt Service task.
 	 */
 	private void initSystem() {
-// TODO port
 		
-//		SetTimeSlice(SYSTEM_INTERVAL);
+		TaskControl tc = system.getTaskControl();
+		
+		tc.setTimeSlice(SYSTEM_INTERVAL);
 //		/* Set system clock interval */
 
-		TaskControl.waitInterval(BOOT_WAIT_INTERVAL);
+		tc.waitInterval(BOOT_WAIT_INTERVAL);
 		/* Wait for automatic A/D converter calibration */
 
 //		new_task.rtx_task_number    = TC_TM_INTERFACE_TASK;
 //		new_task.task_main_function = TC_task;
-		TaskControl.createTask(KernelObjects.TC_TM_INTERFACE_TASK);
+		tc.createTask(KernelObjects.TC_TM_INTERFACE_TASK);
 		/* Activate the Telecommand Execution task */
 
 //		new_task.rtx_task_number    = ACQUISITION_TASK;
 //		new_task.task_main_function = acq_task;
-		TaskControl.createTask(KernelObjects.ACQUISITION_TASK);
+		tc.createTask(KernelObjects.ACQUISITION_TASK);
 		/* Activate the Acquisition task */
 
 //		new_task.rtx_task_number    = HIT_TRIGGER_ISR_TASK;
 //		new_task.task_main_function = hit_task;
-		TaskControl.createTask(KernelObjects.HIT_TRIGGER_ISR_TASK);
+		tc.createTask(KernelObjects.HIT_TRIGGER_ISR_TASK);
 		/* Activate Hit Trigger Interrupt Service task */	
 	}
 
@@ -1178,10 +1170,12 @@ public class HealthMonitoringTask implements Runnable {
 	 * {@see debie1-c, health#HandleHealthMonitoring}
 	 */
 	public void handleHealthMonitor() {
-		TelecommandExecutionTask.updateSensorUnitState(0);
-		TelecommandExecutionTask.updateSensorUnitState(1);
-		TelecommandExecutionTask.updateSensorUnitState(2);
-		TelecommandExecutionTask.updateSensorUnitState(3);
+		TelecommandExecutionTask tcTask = system.getTelecommandExecutionTask();
+		
+		tcTask.updateSensorUnitState(0);
+		tcTask.updateSensorUnitState(1);
+		tcTask.updateSensorUnitState(2);
+		tcTask.updateSensorUnitState(3);
 
 		updateTime();
 		/* Update telemetry registers. */
@@ -1193,7 +1187,7 @@ public class HealthMonitoringTask implements Runnable {
 		/* Decrease or reset health monitor loop counter depending on its      */
 		/* current and limiting values.                                        */
 		
-		TaskControl.waitInterval(HM_INTERVAL);    
+		system.getTaskControl().waitInterval(HM_INTERVAL);    
 		/* Wait for next activation */
 	}
 
@@ -1311,7 +1305,7 @@ public class HealthMonitoringTask implements Runnable {
 				HwIf.resetPeakDetector(SU_4);
 				/* Reset all Peak detectors */
 
-				TaskControl.waitTimeout(AcquisitionTask.COUNTER_RESET_MIN_DELAY);
+				system.getTaskControl().waitTimeout(AcquisitionTask.COUNTER_RESET_MIN_DELAY);
 
 				suDev.enableHitTrigger();
 				/* Allows a later falling edge on T2EX to cause */
@@ -1381,7 +1375,7 @@ public class HealthMonitoringTask implements Runnable {
 			if (acqTask.self_test_SU_number != NO_SU) {
 				/* SU self test sequence has started   */
 
-				self_test_flag = SELF_TEST_RUNNING;
+				acqTask.self_test_flag = SELF_TEST_RUNNING;
 				/* Indication of a started test. */
 
 				selfTestSU(acqTask.self_test_SU_number - AcquisitionTask.SU1);
@@ -1481,8 +1475,6 @@ public class HealthMonitoringTask implements Runnable {
 		   readADChannel(AD_temperature_parameters);
 		   /* Get ADC temperature measurement result.                             */
 
-		   TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-
 		   if ((AD_temperature_parameters.unsigned_ADC & 0x8000) != 0) {
 			   /* Temperature is stored in the telemetry.                          */
 
@@ -1519,6 +1511,38 @@ public class HealthMonitoringTask implements Runnable {
 	   }
 	}
 	
+	private int check_current_errors;
+	
+	public int getCheckCurrentErrors() {
+		return check_current_errors;
+	}
+	public void setCheckCurrentErrors(int errors) {
+		check_current_errors = errors;
+	}
+	
+	private int checkCurrent (int bits) {
+		if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current 0x%x", bits));
+			
+		int val;
+	
+		switch (bits) {
+		case   3: val =  1; break;
+		case  12: val =  4; break;
+		case  48: val = 16; break;
+		case 192: val = 64; break;
+		default : val =  0;
+		if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current param error"));
+		break;
+		}
+
+		if (check_current_errors > 0) {
+			val = ~val;  /* Wrong value => alarm. */
+			check_current_errors --;
+		}
+
+		return val;
+	}
+
 	/**
 	 * Purpose        : Monitors overcurrent indicating bits in the HV Status
 	 *                  register for a given sensor unit.
@@ -1547,11 +1571,9 @@ public class HealthMonitoringTask implements Runnable {
 		/* This array holds comparison parameters for checking the HV status      */
 		/* register.                                                              */
 	 
-		if (Dpu.checkCurrent(SU_current_mask[SU_index]) != 
+		if (checkCurrent(SU_current_mask[SU_index]) != 
 			valid_value[SU_index]) {
 			/* Overcurrent is detected.                                            */
-
-			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 
 			tmData.setErrorStatus((byte)(TelecommandExecutionTask.ERROR_STATUS_OFFSET << SU_index));
 			/* Set high corresponding bit for the SU in Error Status Register.     */
@@ -1590,12 +1612,12 @@ public class HealthMonitoringTask implements Runnable {
 				system.getTelecommandExecutionTask().setSensorUnitOff(i, new SensorUnit());
 				/* Switch off given sensor unit.                                 */
 
-				TelecommandExecutionTask.getTelemetryData().setSUError(i, (byte)TelecommandExecutionTask.LV_SUPPLY_ERROR);
+				tmData.setSUError(i, (byte)TelecommandExecutionTask.LV_SUPPLY_ERROR);
 				/* Set high LV supply error indicating bit in the SU_Status      */
 				/* register.                                                     */
 			}
 	      
-			TelecommandExecutionTask.getTelemetryData().setErrorStatus((byte)TelecommandExecutionTask.OVERALL_SU_ERROR);
+			tmData.setErrorStatus((byte)TelecommandExecutionTask.OVERALL_SU_ERROR);
 			/* Set all SU error status bits in 'error status register' at telemetry.*/
 	   }
 	}
@@ -1624,15 +1646,16 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - Enable interrupts
 	 */
 	public void setModeStatusError(int mode_status_error) {
-//		   DISABLE_INTERRUPT_MASTER;
+		TaskControl tc = system.getTaskControl();
+		
+		tc.disableInterruptMaster();
 
-		TelecommandExecutionTask.getTelemetryData()
-			.setModeBits(mode_status_error & ~MODE_BITS_MASK);
+		tmData.setModeBits(mode_status_error & ~MODE_BITS_MASK);
 		   /* The mode bits are secured against unintended modification by */
 		   /* clearing those bits in 'mode_status_error' before "or":ing   */
 		   /* its value to 'telemetry_data.mode_status'.                   */
 
-//		   ENABLE_INTERRUPT_MASTER;
+		tc.enableInterruptMaster();
     }
 
 	/**
@@ -1654,15 +1677,16 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - Write to Mode Status register
 	 *                  - Enable interrupts
 	 */
-	public static void setMode(int mode)	{
-//	   DISABLE_INTERRUPT_MASTER;
+	public void setMode(int mode)	{
+		TaskControl tc = system.getTaskControl();
+		
+		tc.disableInterruptMaster();
 
-		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
 		tmData.clearModeBits(MODE_BITS_MASK);
 		tmData.setModeBits(mode & MODE_BITS_MASK);
 	   /* First mode status bits are cleared, and then the given mode is set. */
 
-//	   ENABLE_INTERRUPT_MASTER;
+		tc.enableInterruptMaster();
 	}
 
 	/**
@@ -1821,6 +1845,7 @@ public class HealthMonitoringTask implements Runnable {
 		int delay_limit;
 		TriggerSet test_threshold = new TriggerSet();
 
+		TaskControl tc = system.getTaskControl();
 		SensorUnitDev suDev = system.getSensorUnitDevice();
 		AcquisitionTask acqTask = system.getAcquisitionTask();
 		
@@ -1832,17 +1857,17 @@ public class HealthMonitoringTask implements Runnable {
 
 			suDev.enableAnalogSwitch(self_test_SU_index);
 
-			TaskControl.waitTimeout(1);
+			tc.waitTimeout(1);
 
 			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
 
-			TaskControl.waitTimeout(1);
+			tc.waitTimeout(1);
 
 			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
 
-			TaskControl.waitTimeout(1);
+			tc.waitTimeout(1);
 
-//			CLEAR_HIT_TRIGGER_ISR_FLAG;
+			tc.clearHitTriggerISRFlag();
 
 			HwIf.resetDelayCounters();
 
@@ -1854,7 +1879,7 @@ public class HealthMonitoringTask implements Runnable {
 			suDev.setTestPulseLevel(test_pulse_level);
 
 			/* Set at least 1ms test pulse    */
-			delay_limit = TaskControl.DELAY_LIMIT(1000);
+			delay_limit = tc.delayLimit(1000);
 			delayAWhile(delay_limit);
 
 			/* For plasma 1i channel triggering must take place in 1ms after */
@@ -1862,8 +1887,6 @@ public class HealthMonitoringTask implements Runnable {
 			if (test_channel == PLASMA_1_MINUS &&
 					acqTask.sensorUnitState[self_test_SU_index] == SensorUnitState.self_test_trigger_e)
 			{
-				TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-
 				/* Self test trigger pulse did not cause an interrupt. */    
 				tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.SELF_TEST_ERROR);
 
@@ -1873,7 +1896,7 @@ public class HealthMonitoringTask implements Runnable {
 			}
 
 			/* Test pulse is always at least 3ms (=1ms+2ms) */
-			delay_limit = TaskControl.DELAY_LIMIT(2000);
+			delay_limit = tc.delayLimit(2000);
 			delayAWhile(delay_limit);
 
 			suDev.setTestPulseLevel(0);
@@ -1887,7 +1910,7 @@ public class HealthMonitoringTask implements Runnable {
 			/* falling edge.                                              */
 			if (test_channel != PLASMA_1_MINUS)
 			{
-				delay_limit = TaskControl.DELAY_LIMIT(1000);
+				delay_limit = tc.delayLimit(1000);
 				/* Set at least 1ms test pulse    */
 				delayAWhile(delay_limit);
 			}
@@ -1910,17 +1933,17 @@ public class HealthMonitoringTask implements Runnable {
 
 			suDev.setTestPulseLevel(test_pulse_level);
 
-			TaskControl.waitTimeout(1);
+			tc.waitTimeout(1);
 
 			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
 
-			TaskControl.waitTimeout(1);
+			tc.waitTimeout(1);
 
 			HwIf.resetPeakDetector(self_test_SU_index + AcquisitionTask.SU1);
 
-			TaskControl.waitTimeout(1);
+			tc.waitTimeout(1);
 
-//			CLEAR_HIT_TRIGGER_ISR_FLAG;
+			tc.clearHitTriggerISRFlag();
 
 			HwIf.resetDelayCounters();
 
@@ -1932,7 +1955,7 @@ public class HealthMonitoringTask implements Runnable {
 			suDev.enableAnalogSwitch(self_test_SU_index);
 
 			/* Set at least 1ms test pulse    */
-			delay_limit = TaskControl.DELAY_LIMIT(1000);
+			delay_limit = tc.delayLimit(1000);
 			delayAWhile(delay_limit);
 
 			suDev.disableHitTrigger();
@@ -1949,8 +1972,6 @@ public class HealthMonitoringTask implements Runnable {
 
 		if (acqTask.sensorUnitState[self_test_SU_index] == SensorUnitState.self_test_trigger_e)
 		{
-			TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();
-			
 			/* Self test trigger pulse did not cause an interrupt. */    
 			tmData.setSUError(self_test_SU_index, (byte)TelecommandExecutionTask.SELF_TEST_ERROR);
 
@@ -1979,8 +2000,6 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private void restoreSettings(int self_test_SU_index) {
 		
-		TelemetryData tmData = TelecommandExecutionTask.getTelemetryData();		
-
 		final SensorUnitSettings setting_map_c[] = {
 				tmData.getSensorUnit1(),
 				tmData.getSensorUnit2(),
@@ -2042,14 +2061,16 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  is implicitely wrapped-around on overflow.
 	 */
 	private void updateTime() {
-//		DISABLE_INTERRUPT_MASTER;
-//		/* Disable all interrupts.                                             */
+		TaskControl tc = system.getTaskControl();
+
+		tc.disableInterruptMaster();
+		/* Disable all interrupts.                                             */
 
 		internal_time.incr();
 		/* Increment internal time. */
 		                                           
-//		ENABLE_INTERRUPT_MASTER;
-//		/* Enable all interrupts.                                              */
+		tc.enableInterruptMaster();
+		/* Enable all interrupts.                                              */
 	}
 	
 	
@@ -2079,7 +2100,7 @@ public class HealthMonitoringTask implements Runnable {
 		return internal_time;
 	}
 
-	public static int getCodeChecksum() {
+	public int getCodeChecksum() {
 		return code_checksum;
 	}
 	
