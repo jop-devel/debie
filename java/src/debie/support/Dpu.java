@@ -297,7 +297,7 @@ public class Dpu {
 			reference_checksum = system.getHealthMonitoringTask().getCodeChecksum();		   
 		}		
 
-		System.out.println("Target Reboot.");
+//		System.out.println("Target Reboot.");
 	}
 
 	private static byte data_memory[] = new byte[0x8000];
