@@ -326,10 +326,10 @@ public class AcquisitionTest extends HarnessTest {
 
 		if (system.acqMailbox.getMailCount() > 0)
 		{
-			if(Harness.INSTRUMENTATION) startProblem(hit_problem);
+			if(Harness.INSTRUMENTATION) startProblem(acq_problem);
 			system.acqMailbox.waitMail();
 			system.acqTask.handleAcquisition (system.acqMailbox.getMessage());
-			if(Harness.INSTRUMENTATION) endProblem(hit_problem);
+			if(Harness.INSTRUMENTATION) endProblem(acq_problem);
 		}
 	}
 	
