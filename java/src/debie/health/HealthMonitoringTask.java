@@ -649,7 +649,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  for at least the desired duration.
 	 */
 	private void delayAWhile(int duration) {
-	   while (duration > TaskControl.MAX_SHORT_DELAY) {
+	   while (duration > TaskControl.MAX_SHORT_DELAY) { // @WCA loop <= 3
 		  system.getTaskControl().shortDelay(TaskControl.MAX_SHORT_DELAY);
 	      duration = duration - TaskControl.MAX_SHORT_DELAY;
 	      /* Since ShortDelay() has a positive constant delay term, the  */
@@ -740,7 +740,10 @@ public class HealthMonitoringTask implements Runnable {
 	         /* Conversion has NOT been interrupted by a hit trigger interrupt.  */
 	         /* Exit from the while-loop.                                        */
 
-	         tries_left = 0;
+	    	 // XXX: confuses loop bound analysis
+	         // tries_left = 0;
+	    	 // XXX: okay for loop bound analysis
+	    	 break;
 	      }
 	   }
 
@@ -916,12 +919,13 @@ public class HealthMonitoringTask implements Runnable {
 	   int word;
 	   /*This variable is used to combine MSB and LSB bytes into one word.       */
 	 
-	   system.getAdcDevice().startConversion();
+	   AdConverter adcDev = system.getAdcDevice();
+	   adcDev.startConversion();
 	 
 	   conversion_count = 0;
 	 
 	   while(conversion_count < ADC_parameters.conversion_max_tries  
-	          && (system.getAdcDevice().endOfADC() != CONVERSION_ACTIVE)) {
+	          && (adcDev.endOfADC() != CONVERSION_ACTIVE)) {
 	      /* Previous conversion is still active.                                */
 	      conversion_count++;
 	   }
