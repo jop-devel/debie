@@ -6,6 +6,9 @@ package debie.harness;
  * import com.jopdesign.sys.Native;
  */
 
+import com.jopdesign.sys.Const;
+import com.jopdesign.sys.Native;
+
 import debie.health.HealthMonitoringTask;
 
 public class Harness {
@@ -114,10 +117,13 @@ public class Harness {
 
 		SensorUnitSelfTest suSelfTest = new SensorUnitSelfTest(system, defaultLogger);
 		suSelfTest.runTests();
+		
+		/* dump results from instrumentation */
+		if(INSTRUMENTATION) printInstrumentation();
 	}
 	
 	/*   Tracing */
-	public static final boolean TRACE = true;
+	public static final boolean TRACE = false;
 
 	public static void trace(String msg) {
 		System.out.println(msg);
@@ -129,15 +135,15 @@ public class Harness {
 	private static int ts, te, to;
 
 	public static void startProblem(int probCode) {
-		// if(INSTRUMENTATION) ts = Native.rdMem(Const.IO_CNT);
+		if(INSTRUMENTATION) ts = Native.rdMem(Const.IO_CNT);
 	}
 
 	public static void endProblem(int probCode) {
 		if(INSTRUMENTATION) {
 			/* JOP Specific instrumentation */
-			// te = Native.rdMem(Const.IO_CNT);
+			te = Native.rdMem(Const.IO_CNT);
 			
-			problemStats[probCode-ProbFirst].recordRun(ts-te-to);
+			problemStats[probCode-ProbFirst].recordRun(te-ts-to);
 		}
 	}
 
@@ -155,6 +161,10 @@ public class Harness {
 			if(minElapsed > elapsed) minElapsed = elapsed;
 			if(maxElapsed < elapsed) maxElapsed = elapsed;
 		}
+		public String toString() {
+			return "min:\t"+minElapsed+"\tmax:\t"+maxElapsed
+				+"\ttotal:\t"+totalElapsed+"/"+totalRuns;
+		}
 	}
 
 	private static MeasurementStatistic[] problemStats;
@@ -166,9 +176,15 @@ public class Harness {
 			problemStats[i] = new MeasurementStatistic();
 		} 
 		/* JOP Specific instrumentation */
-		// ts = Native.rdMem(Const.IO_CNT);
-		// te = Native.rdMem(Const.IO_CNT);
-		// to = te-ts;
+		ts = Native.rdMem(Const.IO_CNT);
+		te = Native.rdMem(Const.IO_CNT);
+		to = te-ts;
+	}
+	
+	private static void printInstrumentation() {
+		for (int i = 0; i < problemStats.length; i++) {
+			System.out.println("Problem "+(ProbFirst+i)+":\t"+problemStats[i]);
+		}
 	}
 
 }
