@@ -62,7 +62,8 @@ public class AcquisitionTask {
 		/* Holds parameters for the mail waiting function. */
 		private Mailbox acqMailbox;
 
-		public AcquisitionTaskSwEvent(DebieSystem system, int priority, int minTime) {
+		public AcquisitionTaskSwEvent(DebieSystem system, int priority,
+				int minTime) {
 			super(priority, minTime);
 			this.acqMailbox = system.getAcqMailbox();
 			this.task = new AcquisitionTask(system);
@@ -175,7 +176,6 @@ public class AcquisitionTask {
 	/*                  - Sample and store these into a buffer.                  */
 	/*                  - Send number of triggering Sensor Unit to Aqcuisition   */
 	/*                    task mailbox.                                          */
-
 	{
 	   int /*unsigned char*/ initial_delay;
 	   /* Delay before the first AD channel is selected in */
@@ -227,7 +227,6 @@ public class AcquisitionTask {
 	      }
 	      
 	      system.getSensorUnitDevice().disableHitTrigger();
-
 	      /* No more hit triggers will be handled before next Health */
 	      /* Monitoring period starts (or DEBIE is reset).           */
 	   }
@@ -371,6 +370,10 @@ public class AcquisitionTask {
 
 	}
 
+	/** This is a struct which stores the Delay Counter time data. */
+	// XXX: pulled out of handleAcquisition, which breaks re-entrance, but avoids memory allocation
+	private final Delays delay_counters = new Delays();
+
 	/**
 	 * Purpose : Acquires the data for one hit event. Interface : inputs -
 	 * Acquisition task mailbox - Mail from Hit Trigger interrupt service -
@@ -390,9 +393,6 @@ public class AcquisitionTask {
 		EventRecord event;
 		/* Pointer to the new event record. */
 
-		Delays delay_counters = new Delays();
-		/* This is a struct which stores the Delay Counter time data. */
-
 		int time_delay; /* XXX: was signed int */
 		/* This variable is used to store the delay from plasma 1+ to plasma 1-. */
 
@@ -410,8 +410,8 @@ public class AcquisitionTask {
 			 * There has been an error in AD conversion in Hit trigger
 			 * processing.
 			 */
-			system.getHealthMonitoringTask()
-			      .setModeStatusError(TelecommandExecutionTask.ADC_ERROR);
+			system.getHealthMonitoringTask().setModeStatusError(
+					TelecommandExecutionTask.ADC_ERROR);
 		}
 
 		if (trigger_unit == SensorUnitDev.SU_1
@@ -490,11 +490,11 @@ public class AcquisitionTask {
 
 				/* Unit temperatures are stored into Event Record. */
 
-				event.SU_temperature_1 = (byte)system.getTelemetryData().getSensorUnitTemperature(
-								trigger_unit - SU1, 0);
+				event.SU_temperature_1 = (byte) system.getTelemetryData()
+						.getSensorUnitTemperature(trigger_unit - SU1, 0);
 
-				event.SU_temperature_2 = (byte)system.getTelemetryData().getSensorUnitTemperature(
-								trigger_unit - SU1, 1);
+				event.SU_temperature_2 = (byte) system.getTelemetryData()
+						.getSensorUnitTemperature(trigger_unit - SU1, 1);
 
 				event.classify();
 				/* New event is classified. */
@@ -518,7 +518,7 @@ public class AcquisitionTask {
 		/* Delete possible error bits. */
 
 		TaskControl tc = system.getTaskControl();
-		
+
 		tc.waitTimeout(PEAK_RESET_MIN_DELAY);
 
 		HwIf.resetPeakDetector(trigger_unit);

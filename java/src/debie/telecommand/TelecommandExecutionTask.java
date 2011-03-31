@@ -179,10 +179,16 @@ public class TelecommandExecutionTask {
 		public DataPointer(int base) {
 			this.base = base;
 		}
+		public void setBase(int base) {
+			this.base = base;
+		}
 		public int getByte(int addr) {
 			return Dpu.getDataByte(base+addr);
 		}
 	}
+	
+	// XXX: pulled out of tcInterruptService, which breaks re-entrance, but avoids memory allocation
+	private final DataPointer data_pointer = new DataPointer(0);
 	
 	/* State of Telecommand Execution task */
 	public static enum TC_State {
@@ -902,6 +908,9 @@ public class TelecommandExecutionTask {
 		}
 	}
 
+	// XXX: pulled out of memoryPatch, which breaks re-entrance, but avoids memory allocation
+	private final Dpu.MemoryPatchVariables patch_info = new Dpu.MemoryPatchVariables();
+	 
 	/**
 	 * Purpose        : Handles received telecommand in memory patch state
 	 * Interface      : inputs  - command, received telecommand
@@ -991,8 +1000,6 @@ public class TelecommandExecutionTask {
 		        		 /* Next code checksum not valid, because code memory */
 		        		 /* will be patched.                                  */
 
-		        		 Dpu.MemoryPatchVariables patch_info = new Dpu.MemoryPatchVariables();
-		        		 
 		        		 patch_info.source            = memory_transfer_buffer;
 		        		 patch_info.destination       = address;
 		        		 patch_info.data_amount       = MEM_BUFFER_SIZE;
@@ -1067,6 +1074,9 @@ public class TelecommandExecutionTask {
 		}
 	}		
 
+	// XXX: pulled out of executeCommand, which breaks re-entrance, but avoids memory allocation	
+	private final SensorUnit SU_setting = new SensorUnit(); /* bad name choice (original from DEBIE) */
+
 	private void executeCommand(TeleCommand command) {
 		/* Purpose        : Executes telecommand                                     */
 		/* Interface      : inputs      - Parameter "command" containing received    */
@@ -1113,7 +1123,6 @@ public class TelecommandExecutionTask {
 		/*                    - default : call UpdateTarget                          */
 
 		{
-			SensorUnit SU_setting = new SensorUnit(); /* bad name choice (original from DEBIE) */
 			int /* unsigned char */ error_flag;
 			int /* sensor_number_t */  i;
 
@@ -1825,7 +1834,8 @@ public class TelecommandExecutionTask {
 			
 			else
 			{
-				telemetry_object = new DataPointer((int)address_MSB * 256 + TC_code);
+				data_pointer.setBase((int)address_MSB * 256 + TC_code);
+				telemetry_object = data_pointer;
 				telemetry_index = 0;
 				telemetry_end_index = MEM_BUFFER_SIZE;
 				/* was originally:
@@ -2319,6 +2329,14 @@ public class TelecommandExecutionTask {
 		}   
 	}
 
+	/**
+	 * Holds parameters for "Switch_SU_State" operation
+	 * Must be in external memory, because the parameter to the function
+	 * is pointer to external memory
+	 */
+	// XXX: pulled out of sensorUnitOff, which breaks re-entrance, but avoids memory allocation
+	private final SensorUnit sensorUnitSetting = new SensorUnit();
+
 	public void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//
 	//		void SetSensorUnitOff(
@@ -2345,13 +2363,6 @@ public class TelecommandExecutionTask {
 	/*                    - Indication of this is recorded to 'exec_result'.     */
 	/*                  - Enable interrupts                                      */
 	{
-		//				   static sensor_unit_t EXTERNAL SU_setting;
-		// FIXME: allocates memory
-		SensorUnit sensorUnitSetting = new SensorUnit();
-		/* Holds parameters for "Switch_SU_State" operation                  */
-		/* Must be in external memory, because the parameter to the function */
-		/* is pointer to external memory                                     */
-
 		taskControl.disableInterruptMaster();
 		
 		system.getSensorUnitDevice().switchSensorUnitOff(index + SensorUnitDev.SU_1, sensorUnit);

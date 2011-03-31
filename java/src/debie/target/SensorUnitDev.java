@@ -436,7 +436,16 @@ public abstract class SensorUnitDev {
 
 	   setSUSelfTestCh(SU_self_test_channel);
 	}
-	
+
+	/** This array stores the selector bit states related to a given channel. */
+	// XXX: pulled out of selectSelfTestChannel, which avoids memory allocation
+	private static final int channel_selector_value [] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
+//	channel_selector_value[PLASMA_1_PLUS]    = 0x00;
+//	channel_selector_value[PLASMA_1_MINUS]   = 0x01;
+//	channel_selector_value[PZT_1]            = 0x02;
+//	channel_selector_value[PZT_2]            = 0x03;
+//	channel_selector_value[PLASMA_2_PLUS]    = 0x04;
+
 	/**
 	 * Purpose        : A self test channel is selected in the
 	 *                  self test channel register.
@@ -450,14 +459,6 @@ public abstract class SensorUnitDev {
 	 *                    register and written to HW.
 	 */
 	public void selectSelfTestChannel(int channel) {
-		int channel_selector_value[] = new int[NUM_CH];
-		/* This array stores the selector bit states related to a given channel. */
-
-		channel_selector_value[PLASMA_1_PLUS]    = 0x00;
-		channel_selector_value[PLASMA_1_MINUS]   = 0x01;
-		channel_selector_value[PZT_1]            = 0x02;
-		channel_selector_value[PZT_2]            = 0x03;
-		channel_selector_value[PLASMA_2_PLUS]    = 0x04;
 
 		SU_self_test_channel = 
 			(SU_self_test_channel & 0xF8) | channel_selector_value[channel]; 
