@@ -511,6 +511,9 @@ public class TelecommandExecutionTask {
 		}
 	}
 
+	// XXX: pulled out of updateTarget, which breaks re-entrance, but avoids memory allocation
+	private final TriggerSet new_threshold = new TriggerSet();
+	
 	void updateTarget(TeleCommand command)
 	/* Purpose         : Updates a HW register or some global variable according */
 	/*                   to the parameter "command"                              */
@@ -540,17 +543,9 @@ public class TelecommandExecutionTask {
 	/*                     - case Set Threshold                                  */
 	/*                          set Threshold according to "command"             */
 	{
-		SensorUnit SU_setting = new SensorUnit();
-		/* Holds parameters for "SetSensorUnit" operation                    */
-		/* Must be in external memory, because the parameter to the function */
-		/* is pointer to external memory                                     */
-
-		TriggerSet new_threshold = new TriggerSet();
-
 		int /* sensor_index_t */ SU_index;
 
 		SU_index = ((command.TC_address) >> 4) - 2;
-
 
 		switch (command.TC_address)
 		{
@@ -1087,7 +1082,7 @@ public class TelecommandExecutionTask {
 		}
 	}		
 
-	// XXX: pulled out of executeCommand, which breaks re-entrance, but avoids memory allocation	
+	// XXX: pulled out of executeCommand/updateTarget, which breaks re-entrance, but avoids memory allocation	
 	private final SensorUnit SU_setting = new SensorUnit(); /* bad name choice (original from DEBIE) */
 
 	private void executeCommand(TeleCommand command) {
