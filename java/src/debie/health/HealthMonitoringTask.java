@@ -1548,15 +1548,28 @@ public class HealthMonitoringTask implements Runnable {
 			
 		int val;
 	
-		switch (bits) {
-		case   3: val =  1; break;
-		case  12: val =  4; break;
-		case  48: val = 16; break;
-		case 192: val = 64; break;
-		default : val =  0;
-		if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current param error"));
-		break;
+		// XXX: avoid lookupswitch
+		if (bits == 3)
+			val = 1;
+		else if (bits == 12)
+			val = 4;
+		else if (bits == 48)
+			val = 16;
+		else if (bits == 192)
+			val = 64;
+		else {
+			val = 0;
+			if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current param error"));
 		}
+//		switch (bits) {		
+//		case   3: val =  1; break;
+//		case  12: val =  4; break;
+//		case  48: val = 16; break;
+//		case 192: val = 64; break;
+//		default : val =  0;
+//		if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current param error"));
+//		break;
+//		}
 
 		if (check_current_errors > 0) {
 			val = ~val;  /* Wrong value => alarm. */

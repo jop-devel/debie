@@ -308,31 +308,47 @@ public abstract class SensorUnitDev {
 
 		if (setting.execution_result != SU_NOT_SELECTED)
 		{
-			switch (setting.channel)
+			// XXX: avoid lookupswitch
+			int channel = setting.channel;
 			/*channel is selected*/
-			{
-			case PLASMA_1_PLUS:
-			{
+			if (channel == PLASMA_1_PLUS) {
 				Dpu.setDataByte(setting.base + 0, (byte)setting.level);
-				break;
-			}
-			case PLASMA_1_MINUS:
-			{
+
+			} else if (channel == PLASMA_1_MINUS) {
 				Dpu.setDataByte(setting.base + 1, (byte)setting.level);
-				break;
-			}
-			case PZT_1_2:
-			{
+
+			} else if (channel == PZT_1_2) {
 				Dpu.setDataByte(setting.base + 2, (byte)setting.level);
-				break;
-			}
-			default:
-			{
+
+			} else {
 				setting.execution_result = CHANNEL_NOT_SELECTED;
 				/*Given channel parameter is invalid.                            */
-				break;
 			}
-			} 
+//			switch (setting.channel)
+//			/*channel is selected*/
+//			{
+//			case PLASMA_1_PLUS:
+//			{
+//				Dpu.setDataByte(setting.base + 0, (byte)setting.level);
+//				break;
+//			}
+//			case PLASMA_1_MINUS:
+//			{
+//				Dpu.setDataByte(setting.base + 1, (byte)setting.level);
+//				break;
+//			}
+//			case PZT_1_2:
+//			{
+//				Dpu.setDataByte(setting.base + 2, (byte)setting.level);
+//				break;
+//			}
+//			default:
+//			{
+//				setting.execution_result = CHANNEL_NOT_SELECTED;
+//				/*Given channel parameter is invalid.                            */
+//				break;
+//			}
+//			} 
 		}
 	}
 	
