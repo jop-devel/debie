@@ -145,7 +145,8 @@ public class Harness {
 	}
 
 	private static class MeasurementStatistic {
-		int minElapsed, maxElapsed, totalElapsed, totalRuns;
+		int minElapsed, maxElapsed, totalRuns;
+		long totalElapsed;
 		public MeasurementStatistic() {
 			minElapsed = Integer.MAX_VALUE;
 			maxElapsed = 0;
