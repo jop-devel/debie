@@ -187,13 +187,19 @@ public class Dpu {
 	/* unsigned char */ public static int reference_checksum;
 
 	public static boolean patchExecCommandOk(int execution_command) {
-	   switch (execution_command) {
-	   case 0:
-	   case 0x09:
-	   case 0x37:
-	   case 0x5A:
-		   return true;
-	   }
+		// XXX: avoid lookupswitch
+		if ((execution_command == 0)
+				|| (execution_command == 0x09)
+				|| (execution_command == 0x37)
+				|| (execution_command == 0x5A))
+			return true;
+//	   switch (execution_command) {
+//	   case 0:
+//	   case 0x09:
+//	   case 0x37:
+//	   case 0x5A:
+//		   return true;
+//	   }
 	   return false;
 	}
 
@@ -249,38 +255,63 @@ public class Dpu {
 		
 		setMemoryConfiguration(temp_configuration);
 		
-		switch(patch_variables.execution_command) {
-		case 0:
-			/* Continue normally. */
-			break;
-
-		case 0x09:
+		// XXX: avoid lookupswitch
+		int execution_command = patch_variables.execution_command;
+		if (execution_command == 0) {
+			/* Continue normally. */			
+		} else if (execution_command == 0x09) {
 			/* Execute soft reset. */
 
 			reboot(ResetClass.soft_reset_e);
-			/* Function does not return. */
-			break;
-
-		case 0x37:
+			/* Function does not return. */			
+		} else if (execution_command == 0x37) {
 			/* Execute warm reset. */
 
-	       	reboot(ResetClass.warm_reset_e);
-	       	/* Function deos not return. */
-	       	break;
-		
-	      case 0x5A:
+			reboot(ResetClass.warm_reset_e);
+			/* Function does not return. */
+		} else if (execution_command == 0x5A) {		
 // XXX: We cannot really jump to the patch, unless we do some really dirty hacking
-//	          /* Jump to the patched memory. */
+//			/* Jump to the patched memory. */
 //
-//	          patch_function = (fptr_t)(patch_variables -> destination);
+//			patch_function = (fptr_t)(patch_variables -> destination);
 //
-//	          CALL_PATCH(patch_function);
-//	          /* Called code may or may not return. */
+//			CALL_PATCH(patch_function);
+//			/* Called code may or may not return. */
 //
-//	          /* TC_state is selected upon return. */
-
-	          break;
-		}
+//			/* TC_state is selected upon return. */
+		}	
+//		switch(patch_variables.execution_command) {
+//		case 0:
+//			/* Continue normally. */
+//			break;
+//
+//		case 0x09:
+//			/* Execute soft reset. */
+//
+//			reboot(ResetClass.soft_reset_e);
+//			/* Function does not return. */
+//			break;
+//
+//		case 0x37:
+//			/* Execute warm reset. */
+//
+//	       	reboot(ResetClass.warm_reset_e);
+//	       	/* Function deos not return. */
+//	       	break;
+//		
+//	      case 0x5A:
+//// XXX: We cannot really jump to the patch, unless we do some really dirty hacking
+////	          /* Jump to the patched memory. */
+////
+////	          patch_function = (fptr_t)(patch_variables -> destination);
+////
+////	          CALL_PATCH(patch_function);
+////	          /* Called code may or may not return. */
+////
+////	          /* TC_state is selected upon return. */
+//
+//	          break;
+//		}
 		
 		system.getTaskControl().enableInterruptMaster();
 		/* Enable all 'enabled' interrupts. */		
@@ -297,7 +328,7 @@ public class Dpu {
 			reference_checksum = system.getHealthMonitoringTask().getCodeChecksum();		   
 		}		
 
-		System.out.println("Target Reboot.");
+//		System.out.println("Target Reboot.");
 	}
 
 	private static byte data_memory[] = new byte[0x8000];

@@ -54,8 +54,6 @@ public interface TaskControl {
 	 */
 	public void waitInterrupt(byte isrVectorNumber, int timer);
 
-	public Mailbox getMailbox(byte id);
-
 	/**
 	 * Purpose        : Task is created in the RTX.
 	 * Interface      : input:   - new_task

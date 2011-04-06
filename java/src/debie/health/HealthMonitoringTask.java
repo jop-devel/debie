@@ -236,10 +236,21 @@ public class HealthMonitoringTask implements Runnable {
 
 	private DebieSystem system;
 	private TelemetryData tmData;
-	
+
+	// XXX: pulled out of restoreSettings, which avoids memory allocation
+	private final SensorUnitSettings setting_map_c[];
+	/* Pointers to Sensor Unit configuration data in telemetry */
+	/* data area.                                              */
+
 	public HealthMonitoringTask(DebieSystem system) {
 		this.system = system;
 		this.tmData = system.getTelemetryData();
+		
+		setting_map_c = new SensorUnitSettings[4];
+		setting_map_c[0] = this.tmData.getSensorUnit1();
+		setting_map_c[1] = this.tmData.getSensorUnit2();
+		setting_map_c[2] = this.tmData.getSensorUnit3();
+		setting_map_c[3] = this.tmData.getSensorUnit4();
 	}
 
 	@Override
@@ -499,6 +510,18 @@ public class HealthMonitoringTask implements Runnable {
 	}
 
 	/**
+	 * This array holds parameters for setting the ADC channel for the
+	 * measurement.
+	 */
+	// XXX: pulled out of measureVoltage, which avoids memory allocation
+	private static final int voltage_channel [] = {
+			0x10, 0x11, 0x12, 0x13, 0x54, 0x55, 0x56 };
+
+	/** This struct is used to hold parameters for Reading AD channels. */
+	// XXX: pulled out of measureVoltage, which breaks re-entrance, but avoids memory allocation
+	private final ADCParameters AD_voltage_parameters = new ADCParameters();
+
+	/**
 	 * Purpose        : Measure secondary Sensor Unit voltages.
 	 * Interface      : inputs      - Channel selector, values 0 - 6
 	 *                  outputs     - telemetry_data.mode_status
@@ -523,14 +546,6 @@ public class HealthMonitoringTask implements Runnable {
 	 *                       in telemetry_data.
 	 */
 	void measureVoltage(int channel_selector) {
-
-		ADCParameters AD_voltage_parameters = new ADCParameters();
-		/* This struct is used to hold parameters for Reading AD channels.        */
-
-		final int voltage_channel [] = {
-				0x10,0x11,0x12,0x13,0x54,0x55,0x56};
-		/* This array holds parameters for setting the ADC channel for the        */
-		/* measurement.                                                           */
 
 		AD_voltage_parameters.ADC_channel = voltage_channel[channel_selector];
 		/* Select the channel to be measured:                                     */
@@ -649,7 +664,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  for at least the desired duration.
 	 */
 	private void delayAWhile(int duration) {
-	   while (duration > TaskControl.MAX_SHORT_DELAY) {
+	   while (duration > TaskControl.MAX_SHORT_DELAY) { // @WCA loop <= 3
 		  system.getTaskControl().shortDelay(TaskControl.MAX_SHORT_DELAY);
 	      duration = duration - TaskControl.MAX_SHORT_DELAY;
 	      /* Since ShortDelay() has a positive constant delay term, the  */
@@ -740,7 +755,10 @@ public class HealthMonitoringTask implements Runnable {
 	         /* Conversion has NOT been interrupted by a hit trigger interrupt.  */
 	         /* Exit from the while-loop.                                        */
 
-	         tries_left = 0;
+	    	 // XXX: confuses loop bound analysis
+	         // tries_left = 0;
+	    	 // XXX: okay for loop bound analysis
+	    	 break;
 	      }
 	   }
 
@@ -916,12 +934,13 @@ public class HealthMonitoringTask implements Runnable {
 	   int word;
 	   /*This variable is used to combine MSB and LSB bytes into one word.       */
 	 
-	   system.getAdcDevice().startConversion();
+	   AdConverter adcDev = system.getAdcDevice();
+	   adcDev.startConversion();
 	 
 	   conversion_count = 0;
 	 
 	   while(conversion_count < ADC_parameters.conversion_max_tries  
-	          && (system.getAdcDevice().endOfADC() != CONVERSION_ACTIVE)) {
+	          && (adcDev.endOfADC() != CONVERSION_ACTIVE)) {
 	      /* Previous conversion is still active.                                */
 	      conversion_count++;
 	   }
@@ -962,6 +981,9 @@ public class HealthMonitoringTask implements Runnable {
 	   }
 	}
 
+	// XXX: pulled out of temperatureFailure/lowVoltageCurrent, which breaks re-entrance, but avoids memory allocation
+	private final SensorUnit dummySensorUnit = new SensorUnit();
+	
 	/**
 	 * Purpose        : Takes care of resulting actions in case of a failed
 	 *                  measurement.
@@ -989,7 +1011,7 @@ public class HealthMonitoringTask implements Runnable {
 	{
 	   /* Temperature measurement has failed, actions are taken accordingly. */
 
-	   system.getTelecommandExecutionTask().setSensorUnitOff(SU_index, new SensorUnit());
+	   system.getTelecommandExecutionTask().setSensorUnitOff(SU_index, dummySensorUnit);
 	   /* Switch off given sensor unit. */    
 
 	   tmData.setErrorStatus((byte)(TelecommandExecutionTask.ERROR_STATUS_OFFSET << SU_index));
@@ -1415,6 +1437,10 @@ public class HealthMonitoringTask implements Runnable {
 		}
 	}
 	   
+	/** This struct is used to hold parameters for Reading AD channels. */
+	// XXX: pulled out of measureTemperature, which breaks re-entrance, but avoids memory allocation
+	private final ADCParameters AD_temperature_parameters = new ADCParameters();
+ 
 	/**
 	 * Purpose        : Measures and monitors SU temperatures
 	 * Interface      : inputs      - SU_index, sensor unit index  (0 - 3)
@@ -1451,9 +1477,6 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private void measureTemperature(int SU_index) {
 	
-		ADCParameters AD_temperature_parameters = new ADCParameters();
-		/* This struct is used to hold parameters for Reading AD channels.        */
-	 
 	   int temp_limit_value;
 
 	   for (int j=0; j < TelecommandExecutionTask.NUM_TEMP; j++) {
@@ -1525,15 +1548,28 @@ public class HealthMonitoringTask implements Runnable {
 			
 		int val;
 	
-		switch (bits) {
-		case   3: val =  1; break;
-		case  12: val =  4; break;
-		case  48: val = 16; break;
-		case 192: val = 64; break;
-		default : val =  0;
-		if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current param error"));
-		break;
+		// XXX: avoid lookupswitch
+		if (bits == 3)
+			val = 1;
+		else if (bits == 12)
+			val = 4;
+		else if (bits == 48)
+			val = 16;
+		else if (bits == 192)
+			val = 64;
+		else {
+			val = 0;
+			if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current param error"));
 		}
+//		switch (bits) {		
+//		case   3: val =  1; break;
+//		case  12: val =  4; break;
+//		case  48: val = 16; break;
+//		case 192: val = 64; break;
+//		default : val =  0;
+//		if (Harness.TRACE) Harness.trace(String.format("[HealthMonitoringTask] Check_Current param error"));
+//		break;
+//		}
 
 		if (check_current_errors > 0) {
 			val = ~val;  /* Wrong value => alarm. */
@@ -1542,6 +1578,13 @@ public class HealthMonitoringTask implements Runnable {
 
 		return val;
 	}
+
+	private final int SU_current_mask[] = {3,12,48,192};
+	/* This array holds parameters for checking the HV status register.       */
+
+	private final int valid_value[] = {1,4,16,64};
+	/* This array holds comparison parameters for checking the HV status      */
+	/* register.                                                              */
 
 	/**
 	 * Purpose        : Monitors overcurrent indicating bits in the HV Status
@@ -1563,14 +1606,7 @@ public class HealthMonitoringTask implements Runnable {
 	 *                    Bits in the Error Status and SU_Status Registers are
 	 *                    set.
 	 */
-	private void highVoltageCurrent(int SU_index) {
-		final int SU_current_mask[] = {3,12,48,192};
-		/* This array holds parameters for checking the HV status register.       */
-
-		final int valid_value[] = {1,4,16,64};
-		/* This array holds comparison parameters for checking the HV status      */
-		/* register.                                                              */
-	 
+	private void highVoltageCurrent(int SU_index) {	 
 		if (checkCurrent(SU_current_mask[SU_index]) != 
 			valid_value[SU_index]) {
 			/* Overcurrent is detected.                                            */
@@ -1609,7 +1645,7 @@ public class HealthMonitoringTask implements Runnable {
 			for (int i = 0; i < NUM_SU; i++) {
 				/* Switch off all Sensor Units. */
 
-				system.getTelecommandExecutionTask().setSensorUnitOff(i, new SensorUnit());
+				system.getTelecommandExecutionTask().setSensorUnitOff(i, dummySensorUnit);
 				/* Switch off given sensor unit.                                 */
 
 				tmData.setSUError(i, (byte)TelecommandExecutionTask.LV_SUPPLY_ERROR);
@@ -1731,8 +1767,6 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private void selfTestChannel(int self_test_SU_index) {
 		
-	   TriggerSet test_threshold = new TriggerSet();
-
 	   SensorUnitDev suDev = system.getSensorUnitDevice();
 	
 	   suDev.disableHitTrigger();
@@ -1815,6 +1849,9 @@ public class HealthMonitoringTask implements Runnable {
 	   restoreSettings(self_test_SU_index);
 	}
 	
+	// XXX: pulled out of executeChannelTest/selfTestChannel, which breaks re-entrance, but avoids memory allocation
+	private final TriggerSet test_threshold = new TriggerSet();
+
 	/**
 	 * Purpose        : Execute SU self tests
 	 * Interface      : inputs      - self_test_SU_index, test_channel
@@ -1843,7 +1880,6 @@ public class HealthMonitoringTask implements Runnable {
 	 */
 	private void executeChannelTest(int self_test_SU_index,	int test_channel, int test_pulse_level) {
 		int delay_limit;
-		TriggerSet test_threshold = new TriggerSet();
 
 		TaskControl tc = system.getTaskControl();
 		SensorUnitDev suDev = system.getSensorUnitDevice();
@@ -1981,6 +2017,11 @@ public class HealthMonitoringTask implements Runnable {
 		}
 	}
 
+	/* Parameters for subroutines. */
+	// XXX: pulled out of restoreSettings, which breaks re-entrance, but avoids memory allocation
+	private final SensorUnit SU_switch = new SensorUnit();
+	private final TriggerSet threshold = new TriggerSet();
+	
 	/**
 	 * Purpose        : Restores settings after SU self tests.
 	 * Interface      : inputs      - self_test_SU_index,
@@ -1999,23 +2040,10 @@ public class HealthMonitoringTask implements Runnable {
 	 *                  - SU state is restored to ON with Switch_SU_State.
 	 */
 	private void restoreSettings(int self_test_SU_index) {
-		
-		final SensorUnitSettings setting_map_c[] = {
-				tmData.getSensorUnit1(),
-				tmData.getSensorUnit2(),
-				tmData.getSensorUnit3(),
-				tmData.getSensorUnit4()
-		};
-		/* Pointers to Sensor Unit configuration data in telemetry */
-		/* data area.                                              */
 
 		SensorUnitSettings SU_setting;
 		/* Pointer to configuration data of the Sensor Unit being */
 		/* Self Tested.                                           */
-
-		SensorUnit SU_switch = new SensorUnit();
-		TriggerSet threshold = new TriggerSet();
-		/* Parameters for subroutines. */
 
 		SensorUnitDev suDev = system.getSensorUnitDevice();
 		

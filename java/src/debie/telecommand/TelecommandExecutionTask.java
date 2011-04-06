@@ -179,10 +179,16 @@ public class TelecommandExecutionTask {
 		public DataPointer(int base) {
 			this.base = base;
 		}
+		public void setBase(int base) {
+			this.base = base;
+		}
 		public int getByte(int addr) {
 			return Dpu.getDataByte(base+addr);
 		}
 	}
+	
+	// XXX: pulled out of tcInterruptService, which breaks re-entrance, but avoids memory allocation
+	private final DataPointer data_pointer = new DataPointer(0);
 	
 	/* State of Telecommand Execution task */
 	public static enum TC_State {
@@ -417,8 +423,8 @@ public class TelecommandExecutionTask {
 	/*                        require any functionalites of this task.           */  
 
 	{
-		this.tcMailbox.setTimeout(TC_timeout);
-		this.tcMailbox.waitMail();
+		tcMailbox.setTimeout(TC_timeout);
+		tcMailbox.waitMail();
 
 		TC_timeout = 0;
 		/* Default value */
@@ -505,6 +511,9 @@ public class TelecommandExecutionTask {
 		}
 	}
 
+	// XXX: pulled out of updateTarget, which breaks re-entrance, but avoids memory allocation
+	private final TriggerSet new_threshold = new TriggerSet();
+	
 	void updateTarget(TeleCommand command)
 	/* Purpose         : Updates a HW register or some global variable according */
 	/*                   to the parameter "command"                              */
@@ -534,17 +543,9 @@ public class TelecommandExecutionTask {
 	/*                     - case Set Threshold                                  */
 	/*                          set Threshold according to "command"             */
 	{
-		SensorUnit SU_setting = new SensorUnit();
-		/* Holds parameters for "SetSensorUnit" operation                    */
-		/* Must be in external memory, because the parameter to the function */
-		/* is pointer to external memory                                     */
-
-		TriggerSet new_threshold = new TriggerSet();
-
 		int /* sensor_index_t */ SU_index;
 
 		SU_index = ((command.TC_address) >> 4) - 2;
-
 
 		switch (command.TC_address)
 		{
@@ -734,22 +735,35 @@ public class TelecommandExecutionTask {
 			{
 				SU_setting.number = SU_index + SensorUnitDev.SU_1;
 
-				switch (command.TC_code)
-				{
-				case TcAddress.ON_VALUE:
+				// XXX: avoid lookupswitch
+				int TC_code = command.TC_code;
+				if (TC_code == TcAddress.ON_VALUE) {
 					startSensorUnitSwitchingOn(SU_index, SU_setting);
-					break;
-
-				case TcAddress.OFF_VALUE:
+					
+				} else if (TC_code == TcAddress.OFF_VALUE) {
 					setSensorUnitOff(SU_index, SU_setting);
-					break;
-
-				case TcAddress.SELF_TEST:
+					
+				} else if (TC_code == TcAddress.SELF_TEST) {
 					SU_setting.state                 = SensorUnitState.self_test_mon_e;
 					SU_setting.expected_source_state = SensorUnitState.on_e;
 					switchSensorUnitState (SU_setting);
-					break;
-				}
+				}				
+//				switch (command.TC_code)
+//				{
+//				case TcAddress.ON_VALUE:
+//					startSensorUnitSwitchingOn(SU_index, SU_setting);
+//					break;
+//
+//				case TcAddress.OFF_VALUE:
+//					setSensorUnitOff(SU_index, SU_setting);
+//					break;
+//
+//				case TcAddress.SELF_TEST:
+//					SU_setting.state                 = SensorUnitState.self_test_mon_e;
+//					SU_setting.expected_source_state = SensorUnitState.on_e;
+//					switchSensorUnitState (SU_setting);
+//					break;
+//				}
 
 				if (SU_setting.execution_result == SensorUnitDev.SU_STATE_TRANSITION_FAILED)
 				{
@@ -902,6 +916,9 @@ public class TelecommandExecutionTask {
 		}
 	}
 
+	// XXX: pulled out of memoryPatch, which breaks re-entrance, but avoids memory allocation
+	private final Dpu.MemoryPatchVariables patch_info = new Dpu.MemoryPatchVariables();
+	 
 	/**
 	 * Purpose        : Handles received telecommand in memory patch state
 	 * Interface      : inputs  - command, received telecommand
@@ -991,8 +1008,6 @@ public class TelecommandExecutionTask {
 		        		 /* Next code checksum not valid, because code memory */
 		        		 /* will be patched.                                  */
 
-		        		 Dpu.MemoryPatchVariables patch_info = new Dpu.MemoryPatchVariables();
-		        		 
 		        		 patch_info.source            = memory_transfer_buffer;
 		        		 patch_info.destination       = address;
 		        		 patch_info.data_amount       = MEM_BUFFER_SIZE;
@@ -1067,6 +1082,9 @@ public class TelecommandExecutionTask {
 		}
 	}		
 
+	// XXX: pulled out of executeCommand/updateTarget, which breaks re-entrance, but avoids memory allocation	
+	private final SensorUnit SU_setting = new SensorUnit(); /* bad name choice (original from DEBIE) */
+
 	private void executeCommand(TeleCommand command) {
 		/* Purpose        : Executes telecommand                                     */
 		/* Interface      : inputs      - Parameter "command" containing received    */
@@ -1113,24 +1131,21 @@ public class TelecommandExecutionTask {
 		/*                    - default : call UpdateTarget                          */
 
 		{
-			SensorUnit SU_setting = new SensorUnit(); /* bad name choice (original from DEBIE) */
 			int /* unsigned char */ error_flag;
 			int /* sensor_number_t */  i;
 
-			switch (command.TC_address)
-			{
-			case TcAddress.SEND_SCIENCE_DATA_FILE:
-				break;
-
-			case TcAddress.SEND_STATUS_REGISTER:
-				break;
-
-			case TcAddress.READ_DATA_MEMORY_MSB:
+			// XXX: avoid lookupswitch
+			int TC_address = command.TC_address;
+			
+			if (TC_address == TcAddress.SEND_SCIENCE_DATA_FILE) {
+				
+			} else if (TC_address == TcAddress.SEND_STATUS_REGISTER) {
+				
+			} else if (TC_address == TcAddress.READ_DATA_MEMORY_MSB) {
 				address_MSB = command.TC_code;
 				TC_state    = TC_State.read_memory_e;
-				break;
-
-			case TcAddress.WRITE_CODE_MEMORY_MSB:
+				
+			} else if (TC_address == TcAddress.WRITE_CODE_MEMORY_MSB) {
 				if (telemetry_data.getMode() == TelemetryData.STAND_BY)
 				{
 					address_MSB    = command.TC_code;
@@ -1139,15 +1154,11 @@ public class TelecommandExecutionTask {
 					write_checksum = ((command.TC_word) >> 8) ^ (command.TC_code);
 					TC_state       = TC_State.write_memory_e;
 				}
-
 				else
 				{
 					setTCError();
 				}
-
-				break;
-
-			case TcAddress.WRITE_DATA_MEMORY_MSB:
+			} else if (TC_address == TcAddress.WRITE_DATA_MEMORY_MSB) {
 				if (telemetry_data.getMode() == TelemetryData.STAND_BY)
 				{
 					address_MSB = command.TC_code;
@@ -1156,32 +1167,23 @@ public class TelecommandExecutionTask {
 					write_checksum = ((command.TC_word) >> 8) ^ (command.TC_code);
 					TC_state    = TC_State.write_memory_e;
 				}
-
 				else
 				{
 					setTCError();
 				}
-
-				break;
-
-			case TcAddress.READ_DATA_MEMORY_LSB:
-				break;
-
-			case TcAddress.WRITE_CODE_MEMORY_LSB:
-			case TcAddress.WRITE_DATA_MEMORY_LSB:
+			} else if (TC_address == TcAddress.READ_DATA_MEMORY_LSB) {
+				
+			} else if (TC_address == TcAddress.WRITE_CODE_MEMORY_LSB
+					|| TC_address == TcAddress.WRITE_DATA_MEMORY_LSB) {
 				if (TC_state != TC_State.write_memory_e)
 				{
 					setTCError();
 				}
-				break;
-
-			case TcAddress.SOFT_RESET:
+			} else if (TC_address == TcAddress.SOFT_RESET) {
 				Dpu.reboot(Dpu.ResetClass.soft_reset_e);
 				/* Software is rebooted, no return to this point. */
-
-				break;
-
-			case TcAddress.START_ACQUISITION:
+				
+			} else if (TC_address == TcAddress.START_ACQUISITION) {
 				error_flag = 0;
 
 				for (i=SensorUnitDev.SU_1; i<=SensorUnitDev.SU_4; i++)
@@ -1229,14 +1231,11 @@ public class TelecommandExecutionTask {
 
 					system.getHealthMonitoringTask().setMode(TelemetryData.ACQUISITION);
 				}
-
 				else
 				{
 					setTCError();
 				}
-				break;
-
-			case TcAddress.STOP_ACQUISITION:
+			} else if (TC_address == TcAddress.STOP_ACQUISITION) {
 				if (telemetry_data.getMode() == TelemetryData.ACQUISITION)
 				{
 					SU_setting.state              = SensorUnitState.on_e;
@@ -1265,11 +1264,162 @@ public class TelecommandExecutionTask {
 				{
 					setTCError();
 				}
-				break;
-
-			default:
+			} else {
 				updateTarget(command);
 			}
+//			switch (command.TC_address)
+//			{
+//			case TcAddress.SEND_SCIENCE_DATA_FILE:
+//				break;
+//
+//			case TcAddress.SEND_STATUS_REGISTER:
+//				break;
+//
+//			case TcAddress.READ_DATA_MEMORY_MSB:
+//				address_MSB = command.TC_code;
+//				TC_state    = TC_State.read_memory_e;
+//				break;
+//
+//			case TcAddress.WRITE_CODE_MEMORY_MSB:
+//				if (telemetry_data.getMode() == TelemetryData.STAND_BY)
+//				{
+//					address_MSB    = command.TC_code;
+//					memory_type    = MemoryType.Code;
+//					TC_timeout     = WRITE_MEMORY_TIMEOUT;
+//					write_checksum = ((command.TC_word) >> 8) ^ (command.TC_code);
+//					TC_state       = TC_State.write_memory_e;
+//				}
+//
+//				else
+//				{
+//					setTCError();
+//				}
+//
+//				break;
+//
+//			case TcAddress.WRITE_DATA_MEMORY_MSB:
+//				if (telemetry_data.getMode() == TelemetryData.STAND_BY)
+//				{
+//					address_MSB = command.TC_code;
+//					memory_type = MemoryType.Data;
+//					TC_timeout     = WRITE_MEMORY_TIMEOUT;
+//					write_checksum = ((command.TC_word) >> 8) ^ (command.TC_code);
+//					TC_state    = TC_State.write_memory_e;
+//				}
+//
+//				else
+//				{
+//					setTCError();
+//				}
+//
+//				break;
+//
+//			case TcAddress.READ_DATA_MEMORY_LSB:
+//				break;
+//
+//			case TcAddress.WRITE_CODE_MEMORY_LSB:
+//			case TcAddress.WRITE_DATA_MEMORY_LSB:
+//				if (TC_state != TC_State.write_memory_e)
+//				{
+//					setTCError();
+//				}
+//				break;
+//
+//			case TcAddress.SOFT_RESET:
+//				Dpu.reboot(Dpu.ResetClass.soft_reset_e);
+//				/* Software is rebooted, no return to this point. */
+//
+//				break;
+//
+//			case TcAddress.START_ACQUISITION:
+//				error_flag = 0;
+//
+//				for (i=SensorUnitDev.SU_1; i<=SensorUnitDev.SU_4; i++)
+//				{		        	 
+//					if ((readSensorUnit(i) == SensorUnitState.start_switching_e) ||
+//							(readSensorUnit(i) == SensorUnitState.switching_e))
+//					{
+//						/* SU is being switched on. */
+//
+//						error_flag = 1;
+//						/* StartAcquisition TC has to be rejected. */
+//					}
+//				}
+//
+//				if ((telemetry_data.getMode() == TelemetryData.STAND_BY) && (error_flag == 0))
+//				{
+//					SU_setting.state              = SensorUnitState.acquisition_e;
+//					SU_setting.expected_source_state = SensorUnitState.on_e;
+//
+//					SU_setting.number = SensorUnitDev.SU_1;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 1 to Acquisition state. */
+//
+//					SU_setting.number = SensorUnitDev.SU_2;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 2 to Acquisition state. */
+//
+//					SU_setting.number = SensorUnitDev.SU_3;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 3 to Acquisition state. */
+//
+//					SU_setting.number = SensorUnitDev.SU_4;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 4 to Acquisition state. */
+//
+//					taskControl.clearHitTriggerISRFlag();
+//
+//					HwIf.resetDelayCounters();
+//					/* Resets the SU logic that generates Hit Triggers.    */
+//					/* Brings T2EX to a high level, making a new falling   */
+//					/* edge possible.                                      */
+//					/* This statement must come after the above "clear",   */
+//					/* because a reversed order could create a deadlock    */
+//					/* situation.                                          */
+//
+//					system.getHealthMonitoringTask().setMode(TelemetryData.ACQUISITION);
+//				}
+//
+//				else
+//				{
+//					setTCError();
+//				}
+//				break;
+//
+//			case TcAddress.STOP_ACQUISITION:
+//				if (telemetry_data.getMode() == TelemetryData.ACQUISITION)
+//				{
+//					SU_setting.state              = SensorUnitState.on_e;
+//					SU_setting.expected_source_state = SensorUnitState.acquisition_e;
+//
+//					SU_setting.number = SensorUnitDev.SU_1;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 1 to On state. */
+//
+//					SU_setting.number = SensorUnitDev.SU_2;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 2 to On state. */
+//
+//					SU_setting.number = SensorUnitDev.SU_3;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 3 to On state. */
+//
+//					SU_setting.number = SensorUnitDev.SU_4;
+//					switchSensorUnitState (SU_setting);
+//					/* Try to switch SU 4 to On state. */
+//
+//					system.getHealthMonitoringTask().setMode(TelemetryData.STAND_BY);
+//				}
+//
+//				else
+//				{
+//					setTCError();
+//				}
+//				break;
+//
+//			default:
+//				updateTarget(command);
+//			}
 		}            		
 	}
 	
@@ -1399,12 +1549,12 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb(read_memory_checksum);
 			/* Last two bytes of Read Memory sequence. */
 
-			taskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
+			tcMailbox.sendISRMail((char)TM_READY);
 		}
 		else
 			/* It is time to stop sending telemetry */
 		{
-			taskControl.getMailbox(KernelObjects.TCTM_MAILBOX).sendISRMail((char)TM_READY);
+			tcMailbox.sendISRMail((char)TM_READY);
 		}
 	}
 
@@ -1608,7 +1758,7 @@ public class TelecommandExecutionTask {
 
 		if (TC_state == TC_State.memory_patch_e)
 		{
-			taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+			tcMailbox.sendISRMail((char)TC_word);
 			return;
 			/* This is not a normal telecommand, but word containing two bytes */
 			/* of memory block to be written to data or code memory.           */
@@ -1654,7 +1804,7 @@ public class TelecommandExecutionTask {
 
 			case ALL_VALID:
 				/* All TC Codes are valid */
-				taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+				tcMailbox.sendISRMail((char)TC_word);
 				break;
 
 			case ONLY_EQUAL:
@@ -1666,7 +1816,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					tcMailbox.sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1680,7 +1830,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					tcMailbox.sendISRMail((char)TC_word);
 				}
 				break;
 
@@ -1693,7 +1843,7 @@ public class TelecommandExecutionTask {
 
 				else
 				{
-					taskControl.getMailbox((byte)0).sendISRMail((char)TC_word);
+					tcMailbox.sendISRMail((char)TC_word);
 				}
 				break;  
 			}
@@ -1825,7 +1975,8 @@ public class TelecommandExecutionTask {
 			
 			else
 			{
-				telemetry_object = new DataPointer((int)address_MSB * 256 + TC_code);
+				data_pointer.setBase((int)address_MSB * 256 + TC_code);
+				telemetry_object = data_pointer;
 				telemetry_index = 0;
 				telemetry_end_index = MEM_BUFFER_SIZE;
 				/* was originally:
@@ -2139,7 +2290,7 @@ public class TelecommandExecutionTask {
 			/*event counters are cleared in science_data                           */
 		}
 
-		for (i=0; i < event_queue_length; i++)
+		for (i=0; i < event_queue_length; i++) // @WCA loop <= 10
 		{
 			/* Events from the event queue are copied to the Science */
 			/* Data memory.                                          */
@@ -2319,6 +2470,14 @@ public class TelecommandExecutionTask {
 		}   
 	}
 
+	/**
+	 * Holds parameters for "Switch_SU_State" operation
+	 * Must be in external memory, because the parameter to the function
+	 * is pointer to external memory
+	 */
+	// XXX: pulled out of sensorUnitOff, which breaks re-entrance, but avoids memory allocation
+	private final SensorUnit sensorUnitSetting = new SensorUnit();
+
 	public void setSensorUnitOff(int index, SensorUnit sensorUnit)
 	//
 	//		void SetSensorUnitOff(
@@ -2345,13 +2504,6 @@ public class TelecommandExecutionTask {
 	/*                    - Indication of this is recorded to 'exec_result'.     */
 	/*                  - Enable interrupts                                      */
 	{
-		//				   static sensor_unit_t EXTERNAL SU_setting;
-		// FIXME: allocates memory
-		SensorUnit sensorUnitSetting = new SensorUnit();
-		/* Holds parameters for "Switch_SU_State" operation                  */
-		/* Must be in external memory, because the parameter to the function */
-		/* is pointer to external memory                                     */
-
 		taskControl.disableInterruptMaster();
 		
 		system.getSensorUnitDevice().switchSensorUnitOff(index + SensorUnitDev.SU_1, sensorUnit);

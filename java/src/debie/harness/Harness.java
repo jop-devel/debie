@@ -6,6 +6,9 @@ package debie.harness;
  * import com.jopdesign.sys.Native;
  */
 
+import com.jopdesign.sys.Const;
+import com.jopdesign.sys.Native;
+
 import debie.health.HealthMonitoringTask;
 
 public class Harness {
@@ -88,36 +91,36 @@ public class Harness {
 
 		HarnessSystem system = new HarnessSystem();
 		TestLogger defaultLogger = new TestLogger();
-				
+
 		HealthMonitoringTask healthMonitor = new HealthMonitoringTask(system);
 		healthMonitor.boot();
-		
-		healthMonitor.initHealthMonitoring();
-		
-		TelecommandISRTest tcISRTest = new TelecommandISRTest(system, defaultLogger);
-		tcISRTest.runTests();
-		
-		TelecommandTaskTest tcTaskTest = new TelecommandTaskTest(system, defaultLogger);
-		tcTaskTest.runTests();
-		
-		MonitoringTaskTest monTaskTest = new MonitoringTaskTest(system, defaultLogger);
-		monTaskTest.runTests();
-		
-		TelemetryTest tmTest = new TelemetryTest(system, defaultLogger);
-		tmTest.runTests();
-		
-		HitISRTest hitTest = new HitISRTest(system, defaultLogger);
-		hitTest.runTests();
-		
-		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
-		acqTest.runTests();
 
+		healthMonitor.initHealthMonitoring();
+
+		TelecommandISRTest tcISRTest = new TelecommandISRTest(system, defaultLogger);
+		TelecommandTaskTest tcTaskTest = new TelecommandTaskTest(system, defaultLogger);
+		MonitoringTaskTest monTaskTest = new MonitoringTaskTest(system, defaultLogger);
+		TelemetryTest tmTest = new TelemetryTest(system, defaultLogger);
+		HitISRTest hitTest = new HitISRTest(system, defaultLogger);
+		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
 		SensorUnitSelfTest suSelfTest = new SensorUnitSelfTest(system, defaultLogger);
-		suSelfTest.runTests();
+
+		for (int i = 0; i < 10; i++) {
+			tcISRTest.runTests();
+			tcTaskTest.runTests();
+			monTaskTest.runTests();
+			tmTest.runTests();
+			hitTest.runTests();
+			acqTest.runTests();
+			suSelfTest.runTests();
+		}
+		
+		/* dump results from instrumentation */
+		if(INSTRUMENTATION) printInstrumentation();
 	}
 	
 	/*   Tracing */
-	public static final boolean TRACE = true;
+	public static final boolean TRACE = false;
 
 	public static void trace(String msg) {
 		System.out.println(msg);
@@ -129,20 +132,21 @@ public class Harness {
 	private static int ts, te, to;
 
 	public static void startProblem(int probCode) {
-		// if(INSTRUMENTATION) ts = Native.rdMem(Const.IO_CNT);
+		if(INSTRUMENTATION) ts = Native.rdMem(Const.IO_CNT);
 	}
 
 	public static void endProblem(int probCode) {
 		if(INSTRUMENTATION) {
 			/* JOP Specific instrumentation */
-			// te = Native.rdMem(Const.IO_CNT);
+			te = Native.rdMem(Const.IO_CNT);
 			
-			problemStats[probCode-ProbFirst].recordRun(ts-te-to);
+			problemStats[probCode-ProbFirst].recordRun(te-ts-to);
 		}
 	}
 
 	private static class MeasurementStatistic {
-		int minElapsed, maxElapsed, totalElapsed, totalRuns;
+		int minElapsed, maxElapsed, totalRuns;
+		long totalElapsed;
 		public MeasurementStatistic() {
 			minElapsed = Integer.MAX_VALUE;
 			maxElapsed = 0;
@@ -155,6 +159,10 @@ public class Harness {
 			if(minElapsed > elapsed) minElapsed = elapsed;
 			if(maxElapsed < elapsed) maxElapsed = elapsed;
 		}
+		public String toString() {
+			return "min:\t"+minElapsed+"\tmax:\t"+maxElapsed
+				+"\ttotal:\t"+totalElapsed+"/"+totalRuns;
+		}
 	}
 
 	private static MeasurementStatistic[] problemStats;
@@ -166,9 +174,17 @@ public class Harness {
 			problemStats[i] = new MeasurementStatistic();
 		} 
 		/* JOP Specific instrumentation */
-		// ts = Native.rdMem(Const.IO_CNT);
-		// te = Native.rdMem(Const.IO_CNT);
-		// to = te-ts;
+		ts = Native.rdMem(Const.IO_CNT);
+		te = Native.rdMem(Const.IO_CNT);
+		to = te-ts;
+	}
+	
+	private static void printInstrumentation() {
+		for (int i = 0; i < problemStats.length; i++) {
+			if (problemStats[i].totalRuns > 0) {
+				System.out.println("Problem "+(ProbFirst+i)+":\t"+problemStats[i]);
+			}
+		}
 	}
 
 }
