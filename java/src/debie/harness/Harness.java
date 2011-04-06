@@ -91,32 +91,29 @@ public class Harness {
 
 		HarnessSystem system = new HarnessSystem();
 		TestLogger defaultLogger = new TestLogger();
-				
+
 		HealthMonitoringTask healthMonitor = new HealthMonitoringTask(system);
 		healthMonitor.boot();
-		
-		healthMonitor.initHealthMonitoring();
-		
-		TelecommandISRTest tcISRTest = new TelecommandISRTest(system, defaultLogger);
-		tcISRTest.runTests();
-		
-		TelecommandTaskTest tcTaskTest = new TelecommandTaskTest(system, defaultLogger);
-		tcTaskTest.runTests();
-		
-		MonitoringTaskTest monTaskTest = new MonitoringTaskTest(system, defaultLogger);
-		monTaskTest.runTests();
-		
-		TelemetryTest tmTest = new TelemetryTest(system, defaultLogger);
-		tmTest.runTests();
-		
-		HitISRTest hitTest = new HitISRTest(system, defaultLogger);
-		hitTest.runTests();
-		
-		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
-		acqTest.runTests();
 
+		healthMonitor.initHealthMonitoring();
+
+		TelecommandISRTest tcISRTest = new TelecommandISRTest(system, defaultLogger);
+		TelecommandTaskTest tcTaskTest = new TelecommandTaskTest(system, defaultLogger);
+		MonitoringTaskTest monTaskTest = new MonitoringTaskTest(system, defaultLogger);
+		TelemetryTest tmTest = new TelemetryTest(system, defaultLogger);
+		HitISRTest hitTest = new HitISRTest(system, defaultLogger);
+		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
 		SensorUnitSelfTest suSelfTest = new SensorUnitSelfTest(system, defaultLogger);
-		suSelfTest.runTests();
+
+		for (int i = 0; i < 10; i++) {
+			tcISRTest.runTests();
+			tcTaskTest.runTests();
+			monTaskTest.runTests();
+			tmTest.runTests();
+			hitTest.runTests();
+			acqTest.runTests();
+			suSelfTest.runTests();
+		}
 		
 		/* dump results from instrumentation */
 		if(INSTRUMENTATION) printInstrumentation();
@@ -183,7 +180,9 @@ public class Harness {
 	
 	private static void printInstrumentation() {
 		for (int i = 0; i < problemStats.length; i++) {
-			System.out.println("Problem "+(ProbFirst+i)+":\t"+problemStats[i]);
+			if (problemStats[i].totalRuns > 0) {
+				System.out.println("Problem "+(ProbFirst+i)+":\t"+problemStats[i]);
+			}
 		}
 	}
 
