@@ -79,7 +79,7 @@ public class EventRecord {
 	char      delay_3;           /* byte 23 - 24 XXX: was tm_ushort_t */
 	byte      checksum;          /* byte 25 XXX: was unsigned char */
 
-	private static final int SIZE_IN_BYTES = 28;
+	public static final int SIZE_IN_BYTES = 28;
 	public static int sizeInBytes() {
 		return SIZE_IN_BYTES;
 	}

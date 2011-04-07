@@ -137,12 +137,16 @@ public class TelecommandExecutionTask {
 			else if (index == 1) return (length >> 8) & 0xff;
 			else if (index < 2+NUM_SU*NUM_CLASSES) {
 				int realIdx = index - 2;
-				return event_counter[realIdx/NUM_CLASSES][realIdx%NUM_CLASSES] & 0xff;
+				int suIdx = realIdx/NUM_CLASSES;
+				int classIdx = realIdx - (suIdx * NUM_CLASSES);
+				return event_counter[suIdx][classIdx] & 0xff;
 			} else if (index == 2+NUM_SU*NUM_CLASSES) return not_used & 0xff;
 			else if (index == 3+NUM_SU*NUM_CLASSES) return counter_checksum & 0xff;
-			else if (index < 4+NUM_SU*NUM_CLASSES+HwIf.MAX_EVENTS*EventRecord.sizeInBytes()) {
+			else if (index < 4+NUM_SU*NUM_CLASSES+HwIf.MAX_EVENTS*EventRecord.SIZE_IN_BYTES) {
 				int realIdx = index - (4+NUM_SU*NUM_CLASSES);
-				return event[realIdx/EventRecord.sizeInBytes()].getByte(realIdx%EventRecord.sizeInBytes());
+				int eventIdx = realIdx/EventRecord.SIZE_IN_BYTES;
+				int recordIdx = realIdx - (eventIdx * EventRecord.SIZE_IN_BYTES);
+				return event[eventIdx].getByte(recordIdx);
 			}
 			else return 0;
 		}
