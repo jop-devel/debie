@@ -1116,8 +1116,10 @@ public class HealthMonitoringTask implements Runnable {
 	   if (checksum_count == MAX_CHECKSUM_COUNT) {
 	      /* This piece ends at the top memory address. */
 	      check_end = CODE_MEMORY_END;
+		  /* @ASSUME check_end - check_start = CODE_MEMORY_END - MAX_CHECKSUM_COUNT * SIZE */
 	   } else {
 	      check_end = check_start + (CHECK_SIZE - 1);
+		  /* @ASSUME check_end - check_start = CHECK_SIZE - 1 */
 	   }
 
 	   if (checksum_count == MAX_CHECKSUM_COUNT) {  
@@ -1136,6 +1138,7 @@ public class HealthMonitoringTask implements Runnable {
 	   }
 
 	   for (int i = check_start; i <= check_end; i++) {
+		 // @WCA loop <= union(CHECK_SIZE, 1 + CODE_MEMORY_END - MAX_CHECKSUM_COUNT * CHECK_SIZE)
 	     /* It is assumed that 'CODE_MEMORY_END'  < 2^16 - 1 */
 	     /* Otherwise variable 'i' can never have a value    */
 	     /* larger than 'check_end' and this loop will never */
