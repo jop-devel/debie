@@ -1,0 +1,38 @@
+# enter AIS annotations here or use the AIS Wizard from the context menu
+# Progmem (assuming 1 cycle)
+area 0x0000 .. 0xffff is read-only and access not cached,
+data read time = 1;
+# Cache
+area 0x70000 .. 0x7ffff access not cached,
+data read time = 2, data write time = 3;
+# Data memory
+area 0x10000 .. 0x1ffff access not cached,
+data read time = 2, data write time = 3;
+
+# Interrupt services (no annotations)
+# HandleHitTrigger
+instruction "HandleHitTrigger" is entered with @adc_max_tries <= 256;
+loop "HandleHitTrigger" + 1 loop MAX @adc_max_tries;
+loop "HandleHitTrigger" + 3 loop MAX @adc_max_tries;
+loop "ClearEvents" + 3 loop MAX 10;
+
+# HandleTelecommand
+loop "RoughLogarithm" + 1 loop MAX 32; # Not sure whether 32 or 16 here?
+loop "FindMinQualityRecord" + 1 loop MAX 10;
+snippet("Reboot") is never executed; # Exclude Rebooting (ARM port starts blinking ;))
+
+
+# HandleAcquisitionTask
+# Softfloat stuff (not exact, but hopefully correct, difficult to read asm code)
+loop "__muldf3" + 1 loop MAX 32;
+loop "__mulsf3" + 1 loop MAX 32;
+# Difficult to analyze floating point stuff, just gave up
+snippet (0xf7d8) is not analyzed and is never executed;
+
+# HandleHealthMonitor
+loop "CalculateChecksum" + 1 loop MAX 547;
+loop "Convert_AD" + 1 loop MAX 256;
+instruction "DelayAwhile" is entered with @delay = "r0";
+loop "DelayAwhile" + 1 loop MAX (@delay / 255);
+instruction "Read_AD_Channel" is entered with @adc_max_tries = 256;
+loop "Read_AD_Channel" + 1 loop MAX @adc_max_tries;
