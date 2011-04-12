@@ -107,7 +107,7 @@ public class Harness {
 		AcquisitionTest acqTest = new AcquisitionTest(system, defaultLogger);
 		SensorUnitSelfTest suSelfTest = new SensorUnitSelfTest(system, defaultLogger);
 
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < RUNS; i++) {
 			tcISRTest.runTests();
 			tcTaskTest.runTests();
 			monTaskTest.runTests();
@@ -133,6 +133,9 @@ public class Harness {
 	public final static boolean CACHE_SIMULATION = false;	
 	public final static int CACHE_FLUSH = -51;
 	public final static int CACHE_COST  = -52;
+
+	public final static int RUNS = 10;
+	
 	private static int ts, te, to;
 
 	public static void startProblem(int probCode) {
