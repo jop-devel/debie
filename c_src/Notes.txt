@@ -1,0 +1,29 @@
+class: utility, classify events
+classtab: a table
+debie (6.2): entry point
+health: health monitoring task (periodic), in HandleHealthMonitoring resp. HealthMonitoringTask
+hw_if: init of hardware?
+measure: aquisition 
+msg_ctrl: WaitMail OS functionality (wait for mailbox message, simulated)
+su_ctrl: Sensor Unit Control (simulated)
+taskctrl: Task scheduling control (simulated)
+tc_hand: Telecommand ISR
+telem: Telemetry ISR
+
+6.3. DAS: task and interrupt management; triggers 
+  Triggers (ISR)
+    TcHandler <=> tc_hand . TC_InterruptService (fills mailbox using Send_ISR_Mail)
+    TmHandler <=> telem . TM_InterruptService (fills mailbox using Send_ISR_Mail),
+  HitTriggerTask (waits for hit-trigger interrupt event using WaitInterrupt) <=> measure     
+  TelecommandExecutionTask (waits for mail from T[cm]Handler using WaitMail) <=> tc_hand . TelecommandExecutionTask
+  HealthMonitoringTask (period) <=> health
+  AquisitionTask (waits for mail from HitTriggerTask using WaitMail) <=> measure
+  
+JOP Model (rough idea, for now put everything in Runnables):
+  TcHandler: Runnable registered as interrupt handler for TC Interrupt
+  TmHandler: Runnable registered as interrupt handler for TM Interrupt
+  HtHandler: triggers particle hit software event
+  HitTriggerTask: SwEvent (HT Interrupt, similar to BoundAsyncEventHandler, see RtThreadImpl#blockForEvent)
+  TelecommandExecutionTask: SwEvent (MailBox)
+  AquisitionTask: SwEvent (MailBox)
+  HealthMonitoringTask: RtThread (periodic)
