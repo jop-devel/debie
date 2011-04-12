@@ -6,6 +6,8 @@ package debie.harness;
  * import com.jopdesign.sys.Native;
  */
 
+import java.io.PrintStream;
+
 import com.jopdesign.sys.Const;
 import com.jopdesign.sys.Native;
 
@@ -127,37 +129,63 @@ public class Harness {
 	}
 	
 	/* Instrumentation */
-	public final static boolean INSTRUMENTATION = false;	
-
+	public final static boolean INSTRUMENTATION  = false;	
+	public final static boolean CACHE_SIMULATION = false;	
+	public final static int CACHE_FLUSH = -51;
+	public final static int CACHE_COST  = -52;
 	private static int ts, te, to;
 
 	public static void startProblem(int probCode) {
-		if(INSTRUMENTATION) ts = Native.rdMem(Const.IO_CNT);
+		if(CACHE_SIMULATION) {
+			Native.wrMem(1, CACHE_FLUSH); /* flush cache (sim only) */
+			Native.wrMem(0, CACHE_COST); /* reset cache cost (sim only) */
+		}
+		if(INSTRUMENTATION)  ts = Native.rdMem(Const.IO_CNT);
 	}
 
 	public static void endProblem(int probCode) {
 		if(INSTRUMENTATION) {
 			/* JOP Specific instrumentation */
-			te = Native.rdMem(Const.IO_CNT);
-			
+			te = Native.rdMem(Const.IO_CNT);			
 			problemStats[probCode-ProbFirst].recordRun(te-ts-to);
+		}
+		if(CACHE_SIMULATION) {
+			problemStats[probCode-ProbFirst].recordICacheCost(Native.rdMem(CACHE_COST));
 		}
 	}
 
 	private static class MeasurementStatistic {
-		int minElapsed, maxElapsed, totalRuns;
+		int minElapsed, maxElapsed, totalRuns;		
 		long totalElapsed;
+		int minICacheCost, maxICacheCost;
 		public MeasurementStatistic() {
 			minElapsed = Integer.MAX_VALUE;
 			maxElapsed = 0;
 			totalElapsed = 0;
 			totalRuns = 0;
+			minICacheCost = Integer.MAX_VALUE;
+			maxICacheCost = 0;
 		}
 		public void recordRun(int elapsed) {
 			totalRuns++;
 			totalElapsed += elapsed;
 			if(minElapsed > elapsed) minElapsed = elapsed;
 			if(maxElapsed < elapsed) maxElapsed = elapsed;
+		}
+		public void recordICacheCost(int cost) {
+			if(minICacheCost > cost) minICacheCost = cost;
+			if(maxICacheCost < cost) maxICacheCost = cost;
+		}
+		public void dump(PrintStream out) {
+			out.print("min:\t"); out.print(minElapsed);
+			out.print("\tmax:\t"); out.print(maxElapsed);
+			out.print("\ttotal:\t"); out.print(totalElapsed);
+			out.print("/\t"); out.print(totalRuns);
+			if(maxICacheCost > 0) {
+				out.print("\ti$-min:\t"); out.print(minICacheCost);
+				out.print("\ti$-max:\t"); out.print(maxICacheCost);
+			}
+			out.println("");
 		}
 		public String toString() {
 			return "min:\t"+minElapsed+"\tmax:\t"+maxElapsed
@@ -182,7 +210,10 @@ public class Harness {
 	private static void printInstrumentation() {
 		for (int i = 0; i < problemStats.length; i++) {
 			if (problemStats[i].totalRuns > 0) {
-				System.out.println("Problem "+(ProbFirst+i)+":\t"+problemStats[i]);
+				System.out.print("Problem ");
+				System.out.print((ProbFirst+i));
+				System.out.print(":\t");
+				problemStats[i].dump(System.out);
 			}
 		}
 	}
