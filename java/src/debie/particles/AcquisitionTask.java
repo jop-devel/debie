@@ -253,6 +253,7 @@ public class AcquisitionTask {
 	      while (conversion_try_count < ADC_MAX_TRIES
 	             && adcDev.endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE)
 	      {
+	         // @WCA loop <= ADC_MAX_TRIES
 	         conversion_try_count++;
 	         /*Conversion try counter is increased. If this counter exeeds the*/
 	         /*maximum number of conversion start tries the conversion will be*/
@@ -314,8 +315,10 @@ public class AcquisitionTask {
 
 
 	      for (i = 0; i < SensorUnitDev.NUM_CH; i++) {
-
-	    	 tc.shortDelay(delay_limit);
+		     // @WCA loop = debie.target.SensorUnitDev.NUM_CH
+	    	 // wp: This should be easy for the DFA, but no bound found
+	    	  
+		     tc.shortDelay(delay_limit);
 	         /* Delay of 100 microseconds (+ function call overhead). */
 
 	         adcDev.startConversion();
@@ -328,7 +331,7 @@ public class AcquisitionTask {
 	         conversion_try_count = 0;
 
 	         while (conversion_try_count < ADC_MAX_TRIES
-	                && adcDev.endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE )
+	                && adcDev.endOfADC() != HealthMonitoringTask.CONVERSION_ACTIVE ) // @WCA loop <= ADC_MAX_TRIES	        	   
 	         {
 	            conversion_try_count++;
 	            /*Conversion try counter is increased. If this counter exeeds */

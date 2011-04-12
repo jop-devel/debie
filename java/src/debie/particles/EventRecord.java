@@ -228,7 +228,7 @@ public class EventRecord {
 		greatest_non_zero_bit = 0;
 		shifted = x;
 	
-		while (shifted != 0) {
+		while (shifted != 0) { // @WCA loop <= 32
 			greatest_non_zero_bit++;
 			shifted >>>= 1;
 		}
