@@ -3,6 +3,7 @@ package debie.support;
 import debie.health.HealthMonitoringTask;
 import debie.particles.AcquisitionTask;
 import debie.particles.HitTriggerTask;
+import debie.support.Dpu.Time;
 import debie.target.AdConverter;
 import debie.target.SensorUnitDev;
 import debie.target.TcTmDev;
@@ -32,5 +33,5 @@ public interface DebieSystem {
 	public AdConverter              getAdcDevice();
 	public SensorUnitDev            getSensorUnitDevice();
 	public TcTmDev                  getTcTmDevice();
-	public Dpu.Time                 getInternalTime(); 
+	public Time                     getInternalTime(); 
 }

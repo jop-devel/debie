@@ -42,8 +42,6 @@ public class TelecommandExecutionTask {
 
 	/* Used when error indiacting bits are cleared. */
 
-
-
 	/* Definitions related to error indicating bits in error status register: */
 	public static final int CHECKSUM_ERROR =              0x08;
 	public static final int WATCHDOG_ERROR =              0x04;
@@ -101,96 +99,6 @@ public class TelecommandExecutionTask {
 	private static final int WRITE_MEMORY_TIMEOUT = 100;
 	/* Timeout 100 x 10 ms = 1s. */
 
-	/* Array */
-	// use getter in telemetry_data instead
-	//	SensorUnitSettings[] SuConfig = {
-	//	         telemetry_data.sensor_unit_1,
-	//	         telemetry_data.sensor_unit_2,
-	//	         telemetry_data.sensor_unit_3,
-	//	         telemetry_data.sensor_unit_4
-	//	      };
-
-	/*--- Ported from tm_data.h:169-177 ---*/
-	/* Science Data File : */
-
-	/* XXX: Implementing binary serialization by hand is quite error prone.
-	 * It would be nice if SCJ would have some capabilities in this respect
-	 */
-	public static class ScienceDataFile implements TelemetryObject {
-		private char /*unsigned short int*/ length; /* byte: 0-1 */
-		private char[][] /*unsigned char*/ event_counter = new char[NUM_SU][NUM_CLASSES]; /* byte: 2-(2+NUM_SU*NUM_CLASSES-1) */
-		private byte /*unsigned char*/  not_used;         /* (2+NUM_SU*NUM_CLASSES) */
-		private int /*unsigned char*/  counter_checksum; /* (3+NUM_SU*NUM_CLASSES) */
-		private EventRecord[] event = new EventRecord[HwIf.MAX_EVENTS]; /* (4+NUM_SU*NUM_CLASSES)-(4+NUM_SU*NUM_CLASSES+MAX_EVENTS*26-1) */
-
-		private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (NUM_SU * NUM_CLASSES);
-		
-		public ScienceDataFile(DebieSystem system) {
-			/* Java only: Array initialization */
-			for(int i = 0; i < event.length; ++i) {
-				event[i] = new EventRecord(system);
-			}
-		}
-		
-		public int getByte(int index) {
-			if (index == 0) return length & 0xff;
-			else if (index == 1) return (length >> 8) & 0xff;
-			else if (index < 2+NUM_SU*NUM_CLASSES) {
-				int realIdx = index - 2;
-				int suIdx = realIdx/NUM_CLASSES;
-				int classIdx = realIdx - (suIdx * NUM_CLASSES);
-				return event_counter[suIdx][classIdx] & 0xff;
-			} else if (index == 2+NUM_SU*NUM_CLASSES) return not_used & 0xff;
-			else if (index == 3+NUM_SU*NUM_CLASSES) return counter_checksum & 0xff;
-			else if (index < 4+NUM_SU*NUM_CLASSES+HwIf.MAX_EVENTS*EventRecord.SIZE_IN_BYTES) {
-				int realIdx = index - (4+NUM_SU*NUM_CLASSES);
-				int eventIdx = realIdx/EventRecord.SIZE_IN_BYTES;
-				int recordIdx = realIdx - (eventIdx * EventRecord.SIZE_IN_BYTES);
-				return event[eventIdx].getByte(recordIdx);
-			}
-			else return 0;
-		}
-
-		public int getEventCounter(int sensor_unit, int classification) {
-			return event_counter[sensor_unit][classification];
-		}
-
-		public void setEventCounter(int sensor_unit, int classification,
-				char counter) {
-			event_counter[sensor_unit][classification] = counter;
-		}
-
-		public void resetEventCounters(int i) {
-			/* DIRECT_INTERNAL uint_least8_t */ int j;
-			/* This variable is used in the for-loop which goes through  */
-			/* the science data event counter.                           */
-
-			for(j=0;j<NUM_CLASSES;j++)
-			{
-				event_counter[i][j] = 0;
-			}
-		}
-		/** for byte-wise telemetry transmission, we need to know at which byte index
-		 *  a certain event record starts. */
-		public int getEventByteOffset(int free_slot_index) {
-			return BYTE_INDEX_EVENT_RECORDS + (free_slot_index * EventRecord.sizeInBytes()); 
-		}
-	}
-
-	/** Emulate a pointer to plain data memory */
-	public static class DataPointer implements TelemetryObject {
-		private int base;
-		public DataPointer(int base) {
-			this.base = base;
-		}
-		public void setBase(int base) {
-			this.base = base;
-		}
-		public int getByte(int addr) {
-			return Dpu.getDataByte(base+addr);
-		}
-	}
-	
 	// XXX: pulled out of tcInterruptService, which breaks re-entrance, but avoids memory allocation
 	private final DataPointer data_pointer = new DataPointer(0);
 	
@@ -205,19 +113,18 @@ public class TelecommandExecutionTask {
 		SC_TM_e
 	};
 
-
 	/*--- [2] Definitions from   telem.c:36-73 ---*/
 
 	// XXX: this should probably be in external memory:
 	//EXTERNAL science_data_file_t LOCATION(SCIENCE_DATA_START_ADDRESS)
 	public ScienceDataFile science_data;
 
-	public int /* uint_least16_t */ max_events;
 	/* This variable is used to speed up certain    */
 	/* Functional Test by adding the possibility    */
 	/* to restrict the amount of events.            */
 	/* It is initialised to value MAX_EVENTS at     */
 	/* Boot.                                        */
+	public int /* uint_least16_t */ max_events;
 
 	private TelemetryObject telemetry_object;
 
@@ -225,41 +132,39 @@ public class TelecommandExecutionTask {
 
 	private /* unsigned char* */ int telemetry_end_index;
 
-	private /* unsigned char */ char read_memory_checksum;
 	/* Checksum to be sent at the end of Read Memory sequence. */
+	private /* unsigned char */ char read_memory_checksum;
 
-	private EventRecord[] event_queue; /* Initialized in the constructor */
 	/* Holds event records before they are copied to the */
 	/* Science Data memory. Normally there is only data  */
 	/* from the new event whose data is beign collected, */
 	/* but during Science Telemetry there can be stored  */
 	/* several older events which are copied to the      */
 	/* Science Data memory after telemetry ends.         */
+	private EventRecord[] event_queue; /* Initialized in the constructor */
 
-	private /* uint_least8_t */ int event_queue_length;
 	/* Number of event records stored in the queue.    */
 	/* These records are stored into event_queue table */
 	/* in order starting from the first element.       */
 	/* Initialised to zero on power-up.                */
+	private /* uint_least8_t */ int event_queue_length;
 
-	private /* uint_least16_t */ int free_slot_index;
 	/* Index to the first free record in the Science         */
 	/* Data memory, or if it is full equals to 'max_events'. */
 	/* Initialised to zero on power-up.                      */
-
 	/* Holds event records before they are copied to the */
 	/* Science Data memory. Normally there is only data  */
 	/* from the new event whose data is beign collected, */
 	/* but during Science Telemetry there can be stored  */
 	/* several older events which are copied to the      */
 	/* Science Data memory after telemetry ends.         */
-
+	private /* uint_least16_t */ int free_slot_index;
 
 	/*--- Ported from tc_hand.c:78-89 */
 	/* Type definitions */
-
-	public static class TeleCommand {
-		public TeleCommand(int word, int address, int code) {
+	
+	public static class Telecommand {
+		public Telecommand(int word, int address, int code) {
 			this.TC_word = (char) word;
 			this.TC_address = (char) address;
 			this.TC_code = (char) code;
@@ -268,7 +173,7 @@ public class TelecommandExecutionTask {
 		private /*unsigned char*/ char TC_address;  /* Telecommand address       */
 		private /*unsigned char*/ char TC_code;     /* Telecommand code          */
 
-		public void copyFrom(TeleCommand cmd) {
+		public void copyFrom(Telecommand cmd) {
 			this.TC_word = cmd.TC_word;
 			this.TC_address = cmd.TC_address;
 			this.TC_code = cmd.TC_code;
@@ -283,36 +188,35 @@ public class TelecommandExecutionTask {
 	/*--- Ported from tc_hand.c:90-123 */
 	/* Global variables */
 
-	private TeleCommand previous_TC;
 	/* Holds previous telecommand unless a timeout has occurred */
+	private Telecommand previous_TC;
 
-	private /*unsigned char */ char TC_timeout = 0;
 	/* Time out for next telecommand, zero means no timeout */
+	private /*unsigned char */ char TC_timeout = 0;
 
-
-	private /*unsigned char[] */ byte[] TC_look_up = new byte[128];
 	/* Look-up table for all possible 128 TC address values (domain: ALL_INVALID(0) - ONLY_EVEN(4) ) */
+	private /*unsigned char[] */ byte[] TC_look_up = new byte[128];
 
-	private TC_State TC_state = TC_State.TC_handling_e; /* 0 ~ TC_handling_e */
 	/* internal state of the Telecommand Execution task */
+	private TC_State TC_state = TC_State.TC_handling_e; /* 0 ~ TC_handling_e */
 
-	private MemoryType memory_type;
 	/* Selection of memory write target (code/data) */ 
+	private MemoryType memory_type;
 
-	private /* unsigned char[] */  byte[] memory_transfer_buffer = new byte[MEM_BUFFER_SIZE];
 	/* Buffer for memory read and write telecommands */
+	private /* unsigned char[] */  byte[] memory_transfer_buffer = new byte[MEM_BUFFER_SIZE];
 
-	private /*unsigned char */ int address_MSB;
 	/* MSB of memory read source and write destination addresses */
+	private /*unsigned char */ int address_MSB;
 
-	private /* unsigned char */ int address_LSB;
 	/* LSB of memory read source and write destination addresses. */
+	private /* unsigned char */ int address_LSB;
 
-	private /* uint_least8_t */ int memory_buffer_index = 0;
 	/* Index to memory_buffer. */
+	private /* uint_least8_t */ int memory_buffer_index = 0;
 
-	private /* unsigned char */ int write_checksum;
 	/* Checksum for memory write blocks. */
+	private /* unsigned char */ int write_checksum;
 
 
 	/*--- References to other parts of the system ---*/
@@ -322,20 +226,21 @@ public class TelecommandExecutionTask {
 	private Mailbox tcMailbox;
 	private DebieSystem system;
 
-	private TeleCommand received_command;
+	private Telecommand received_command;
 	private TaskControl taskControl;
 	private TelemetryData telemetry_data;
 	
 	/*--- Constructor ---*/
 
-	/* Purpose        : Initialize the global state of Telecommand Execution     */
-	/* Interface      : inputs      - none                                       */
-	/*                  outputs     - TC state                                   */
-	/*                  subroutines - DisableInterrupt                           */
-	/*                                EnableInterrupt                            */
-	/* Preconditions  : none                                                     */
-	/* Postconditions : TelecommandExecutionTask is operational.                 */
-	/* Algorithm      : - initialize task variables.                             */
+	/** Purpose        : Initialize the global state of Telecommand Execution
+	 * Interface      : inputs      - none
+	 *                  outputs     - TC state
+	 *                  subroutines - DisableInterrupt
+	 *                                EnableInterrupt
+	 * Preconditions  : none
+	 * Postconditions : TelecommandExecutionTask is operational.
+	 * Algorithm      : - initialize task variables.
+	 */
 	public TelecommandExecutionTask(DebieSystem system) {
 
 		science_data = new ScienceDataFile(system);
@@ -347,25 +252,25 @@ public class TelecommandExecutionTask {
 		this.tcMailbox = system.getTcTmMailbox();
 		this.tctmDev = system.getTcTmDevice();
 		this.system = system;
-		this.received_command = new TeleCommand(0,TcAddress.UNUSED_TC_ADDRESS, 0);
+		this.received_command = new Telecommand(0,TcAddress.UNUSED_TC_ADDRESS, 0);
 
 		initTcLookup();
 
 		TC_state            = TC_State.TC_handling_e;
 
-		// XXX: mailbox is initialized elsewhere
+		// [ct. C code] mailbox is initialized elsewhere
 		//		TC_mail.mailbox_number = TCTM_MAILBOX;
 		//		TC_mail.message        = &(received_command.TC_word);
 
 		/* Parameters for mail waiting function.   */
 		/* Time-out set separately.                */
 
-		previous_TC = new TeleCommand(0, TcAddress.UNUSED_TC_ADDRESS, 0);
+		previous_TC = new Telecommand(0, TcAddress.UNUSED_TC_ADDRESS, 0);
 
 		taskControl.disableInterrupt(KernelObjects.TM_ISR_SOURCE);
 		taskControl.enableInterrupt(KernelObjects.TC_ISR_SOURCE);
 		
-		/* Java only: Initialize the EventRecord list */
+		/* [Java version only] Initialize the EventRecord list */
 		event_queue	= new EventRecord[MAX_QUEUE_LENGTH];
 		for(int i = 0; i < MAX_QUEUE_LENGTH; ++i) {
 			event_queue[i] = new EventRecord(system);
@@ -374,21 +279,20 @@ public class TelecommandExecutionTask {
 
 	/*--- [2] Definitions from   telem.c: 74 ---*/
 
-	public EventRecord getFreeRecord()
-
-	/* Purpose        : Returns pointer to free event record in event queue.     */
-	/* Interface      : inputs      - event_queue_length, legnth of the event    */
-	/*                                queue.                                     */
-	/*                  outputs     - return value, pointer to the free record.  */
-	/*                  subroutines - none                                       */
-	/* Preconditions  : none.                                                    */
-	/* Postconditions : none.                                                    */
-	/* Algorithm      : -If the queue is not full                                */
-	/*                     -return pointer to the next free record               */
-	/*                  -else                                                    */
-	/*                     -return pointer to the last record                    */
-
-	{
+	/**  Purpose        : Returns pointer to free event record in event queue. 
+	 * Interface       : inputs      - event_queue_length, legnth of the event
+	 *                                queue.
+	 *                  outputs     - return value, pointer to the free record.
+	 *                  subroutines - none
+	 * Preconditions  : none.
+	 * Postconditions : none.
+	 * Algorithm      : -If the queue is not full
+	 *                     -return pointer to the next free record
+	 *                  -else
+	 *                     -return pointer to the last record
+	 */
+	public EventRecord getFreeRecord() {
+		
 		if (event_queue_length < MAX_QUEUE_LENGTH)
 		{
 			return event_queue[event_queue_length];
@@ -400,33 +304,32 @@ public class TelecommandExecutionTask {
 		}
 	}
 
-	public void handleTelecommand ()
-
-	/* Purpose        : Waits for and handles one Telecommand from the TC ISR    */
-	/* Interface      : inputs      - Telecommand Execution task mailbox         */
-	/*                                TC state                                   */
-	/*                  outputs     - TC state                                   */
-	/*                  subroutines - ReadMemory                                 */
-	/*                                WriteMemory                                */
-	/*                                ExecuteCommand                             */
-	/* Preconditions  : none                                                     */
-	/* Postconditions : one message removed from the TC mailbox                  */
-	/* Algorithm      : - wait for mail to Telecommand Execution task mailbox    */
-	/*                  - if mail is "TM_READY" and TC state is either           */
-	/*                    "SC_TM_e" or "memory_dump_e".                          */
-	/*                    - if TC state is "SC_TM_e"                             */
-	/*                       - call ClearEvents function                         */
-	/*                    - set TC state to TC handling                          */
-	/*                  - else switch TC state                                   */
-	/*                    - case ReadMemory_e  : Check received TC's address     */
-	/*                    - case WriteMemory_e : call WriteMemory function       */
-	/*                    - case MemoryPatch_e : call MemoryPatch function       */
-	/*                    - case TC_Handling : call ExecuteCommand               */
-	/*                NOTE:   case register_TM_e is left out because             */
-	/*                        operation of SEND_STATUS_REGISTER TC does not      */
-	/*                        require any functionalites of this task.           */  
-
-	{
+	/** Purpose        : Waits for and handles one Telecommand from the TC ISR
+	 * Interface      : inputs      - Telecommand Execution task mailbox
+	 *                                TC state
+	 *                  outputs     - TC state
+	 *                  subroutines - ReadMemory
+	 *                                WriteMemory
+	 *                                ExecuteCommand
+	 * Preconditions  : none
+	 * Postconditions : one message removed from the TC mailbox
+	 * Algorithm      : - wait for mail to Telecommand Execution task mailbox
+	 *                  - if mail is "TM_READY" and TC state is either
+	 *                    "SC_TM_e" or "memory_dump_e".
+	 *                    - if TC state is "SC_TM_e"
+	 *                       - call ClearEvents function
+	 *                    - set TC state to TC handling
+	 *                  - else switch TC state
+	 *                    - case ReadMemory_e  : Check received TC's address
+	 *                    - case WriteMemory_e : call WriteMemory function
+	 *                    - case MemoryPatch_e : call MemoryPatch function
+	 *                    - case TC_Handling : call ExecuteCommand
+	 *                NOTE:   case register_TM_e is left out because
+	 *                        operation of SEND_STATUS_REGISTER TC does not
+	 *                        require any functionalites of this task.  
+	 */
+	public void handleTelecommand () {
+		
 		tcMailbox.setTimeout(TC_timeout);
 		tcMailbox.waitMail();
 
@@ -518,35 +421,36 @@ public class TelecommandExecutionTask {
 	// XXX: pulled out of updateTarget, which breaks re-entrance, but avoids memory allocation
 	private final TriggerSet new_threshold = new TriggerSet();
 	
-	void updateTarget(TeleCommand command)
-	/* Purpose         : Updates a HW register or some global variable according */
-	/*                   to the parameter "command"                              */
-	/* Interface       : inputs  - Parameter "command" containing received       */
-	/*                             telecommand                                   */
-	/*                   outputs - telemetry data                                */
-	/* Preconditions  : The parameter "command" contains a valid telecommand     */
-	/* Postconditions  : A HW register or global variable is updated (depend on  */
-	/*                   "command")                                              */
-	/* Algorithm       : - switch "command"                                      */
-	/*                     - case Set Coefficient:                               */
-	/*                          set given quality coefficient value in telemetry */
-	/*                          according to "command"                           */
-	/*                     - case Min/Max Time:                                  */
-	/*                          set Min/Max Time according to "command"          */
-	/*                     - case Classification Level:                          */
-	/*                          set classification level according to "command"  */
-	/*                     - case Error Status Clear:                            */
-	/*                          clear error indicating bits from telemetry       */
-	/*                     - case Set Time Byte:                                 */
-	/*                          set Debie time byte# according to "command"      */
-	/*                     - case Clear Watchdog/Checksum Failure counter        */
-	/*                          clear Watchdog/Checksum Failure counter          */
-	/*                     - case Switch SU # On/Off/SelfTest                    */
-	/*                          switch SU to On/Off/SelfTest according to        */
-	/*                          "command"                                        */
-	/*                     - case Set Threshold                                  */
-	/*                          set Threshold according to "command"             */
-	{
+	/** Purpose         : Updates a HW register or some gl42obal variable according
+	 *                   to the parameter "command"
+	 * Interface       : inputs  - Parameter "command" containing received
+	 *                             telecommand
+	 *                   outputs - telemetry data
+	 * Preconditions  : The parameter "command" contains a valid telecommand
+	 * Postconditions  : A HW register or global variable is updated (depend on
+	 *                   "command")
+	 * Algorithm       : - switch "command"
+	 *                     - case Set Coefficient:
+	 *                          set given quality coefficient value in telemetry
+	 *                          according to "command"
+	 *                     - case Min/Max Time:
+	 *                          set Min/Max Time according to "command"
+	 *                     - case Classification Level:
+	 *                          set classification level according to "command"
+	 *                     - case Error Status Clear:
+	 *                          clear error indicating bits from telemetry
+	 *                     - case Set Time Byte:
+	 *                          set Debie time byte# according to "command"
+	 *                     - case Clear Watchdog/Checksum Failure counter
+	 *                          clear Watchdog/Checksum Failure counter
+	 *                     - case Switch SU # On/Off/SelfTest
+	 *                          switch SU to On/Off/SelfTest according to
+	 *                          "command"
+	 *                     - case Set Threshold
+	 *                          set Threshold according to "command"
+	 */
+	void updateTarget(Telecommand command) {
+		
 		int /* sensor_index_t */ SU_index;
 
 		SU_index = ((command.TC_address) >> 4) - 2;
@@ -741,17 +645,7 @@ public class TelecommandExecutionTask {
 
 				// XXX: avoid lookupswitch
 				int TC_code = command.TC_code;
-				if (TC_code == TcAddress.ON_VALUE) {
-					startSensorUnitSwitchingOn(SU_index, SU_setting);
-					
-				} else if (TC_code == TcAddress.OFF_VALUE) {
-					setSensorUnitOff(SU_index, SU_setting);
-					
-				} else if (TC_code == TcAddress.SELF_TEST) {
-					SU_setting.state                 = SensorUnitState.self_test_mon_e;
-					SU_setting.expected_source_state = SensorUnitState.on_e;
-					switchSensorUnitState (SU_setting);
-				}				
+				
 //				switch (command.TC_code)
 //				{
 //				case TcAddress.ON_VALUE:
@@ -768,7 +662,19 @@ public class TelecommandExecutionTask {
 //					switchSensorUnitState (SU_setting);
 //					break;
 //				}
-
+				if (TC_code == TcAddress.ON_VALUE) {
+					startSensorUnitSwitchingOn(SU_index, SU_setting);
+					
+				} else if (TC_code == TcAddress.OFF_VALUE) {
+					setSensorUnitOff(SU_index, SU_setting);
+					
+				} else if (TC_code == TcAddress.SELF_TEST) {
+					SU_setting.state                 = SensorUnitState.self_test_mon_e;
+					SU_setting.expected_source_state = SensorUnitState.on_e;
+					switchSensorUnitState (SU_setting);
+				}
+				
+				
 				if (SU_setting.execution_result == SensorUnitDev.SU_STATE_TRANSITION_FAILED)
 				{
 					/* The requested SU state transition failed. */
@@ -955,7 +861,7 @@ public class TelecommandExecutionTask {
 	 *                     - else
 	 *                        - set MEMORY_WRITE_ERROR bit in ModeStatus
 	 */
-	private void memoryPatch(TeleCommand command) {
+	private void memoryPatch(Telecommand command) {
 
 		int address;
 		/* Start address of the memory area to be patched. */
@@ -1060,7 +966,7 @@ public class TelecommandExecutionTask {
 	 *                  - else
 	 *                      - set TC state to TC_handling_e
 	 */
-	private void writeMemory(TeleCommand command) {
+	private void writeMemory(Telecommand command) {
 
 		/* Expecting LSB of the start address for the memory area to be patched. */
 
@@ -1089,50 +995,51 @@ public class TelecommandExecutionTask {
 	// XXX: pulled out of executeCommand/updateTarget, which breaks re-entrance, but avoids memory allocation	
 	private final SensorUnit SU_setting = new SensorUnit(); /* bad name choice (original from DEBIE) */
 
-	private void executeCommand(TeleCommand command) {
-		/* Purpose        : Executes telecommand                                     */
-		/* Interface      : inputs      - Parameter "command" containing received    */
-		/*                                telecommand                                */
-		/*                  outputs     - TC_state                                   */
-		/*                                address_MSB                                */
-		/*                                memory_type                                */
-		/*                  subroutines - UpdateTarget                               */
-		/*                                StartAcquisition                           */
-		/*                                StopAcquisition                            */
-		/*                                SoftReset                                  */
-		/*                                Set_TC_Error                               */
-		/*                                Switch_SU_State                            */
-		/*                                Reboot                                     */
-		/*                                SetMode                                    */
-		/*                                UpdateTarget                               */
-		/* Preconditions  : The parameter "command" contains a valid telecommand     */
-		/*                  TC_state is TC_handling                                  */
-		/* Postconditions : Telecommand is executed                                  */
-		/*                  TC_state updated when appropriate (depend on "command")  */
-		/*                  HW registers modified when appropriate (depend on        */
-		/*                  "command")                                               */
-		/*                  Global variables modified when appropriate (depend on    */
-		/*                  "command")                                               */
-		/* Algorithm      : - switch "command"                                       */
-		/*                    - case Send Sciece Data File : set TC_state to SC_TM   */
-		/*                    - case Send Status Register  : set TC_state to         */
-		/*                         RegisterTM                                        */
-		/*                    - case Read Data Memory MSB  : memorize the address    */
-		/*                         MSB given in the TC_code and set TC_state to      */
-		/*                         read_memory                                       */
-		/*                    - case Write Code Memory MSB : memorize the address    */
-		/*                         MSB given in the TC_code, memorize code           */
-		/*                         destination selection and set TC_state to         */
-		/*                         write_memory                                      */
-		/*                    - case Write Data Memory MSB : memorize the address    */
-		/*                         MSB given in the TC_code, memorize data           */
-		/*                         destination selection and set TC_state to         */
-		/*                         write_memory                                      */
-		/*                    - case Read/Write Memory LSB : ignore telecommand      */
-		/*                    - case Soft Reset            : call SoftReset          */
-		/*                    - case Start Acquisition     : call StartAcquisition   */
-		/*                    - case Stop Acquisition      : call StopAcquisition    */
-		/*                    - default : call UpdateTarget                          */
+	/** Purpose        : Executes telecommand
+	 * Interface      : inputs      - Parameter "command" containing received
+	 *                                telecommand
+	 *                  outputs     - TC_state
+	 *                                address_MSB
+	 *                                memory_type
+	 *                  subroutines - UpdateTarget
+	 *                                StartAcquisition
+	 *                                StopAcquisition
+	 *                                SoftReset
+	 *                                Set_TC_Error
+	 *                                Switch_SU_State
+	 *                                Reboot
+	 *                                SetMode
+	 *                                UpdateTarget
+	 * Preconditions  : The parameter "command" contains a valid telecommand
+	 *                  TC_state is TC_handling
+	 * Postconditions : Telecommand is executed
+	 *                  TC_state updated when appropriate (depend on "command")
+	 *                  HW registers modified when appropriate (depend on
+	 *                  "command")
+	 *                  Global variables modified when appropriate (depend on
+	 *                  "command")
+	 * Algorithm      : - switch "command"
+	 *                    - case Send Sciece Data File : set TC_state to SC_TM
+	 *                    - case Send Status Register  : set TC_state to
+	 *                         RegisterTM
+	 *                    - case Read Data Memory MSB  : memorize the address
+	 *                         MSB given in the TC_code and set TC_state to
+	 *                         read_memory
+	 *                    - case Write Code Memory MSB : memorize the address
+	 *                         MSB given in the TC_code, memorize code
+	 *                         destination selection and set TC_state to
+	 *                         write_memory
+	 *                    - case Write Data Memory MSB : memorize the address
+	 *                         MSB given in the TC_code, memorize data
+	 *                         destination selection and set TC_state to
+	 *                         write_memory
+	 *                    - case Read/Write Memory LSB : ignore telecommand
+	 *                    - case Soft Reset            : call SoftReset
+	 *                    - case Start Acquisition     : call StartAcquisition
+	 *                    - case Stop Acquisition      : call StopAcquisition
+	 *                    - default : call UpdateTarget
+	 */
+	private void executeCommand(Telecommand command) {
 
 		{
 			int /* unsigned char */ error_flag;
@@ -1271,6 +1178,7 @@ public class TelecommandExecutionTask {
 			} else {
 				updateTarget(command);
 			}
+// XXX: Work around broken switch for enums
 //			switch (command.TC_address)
 //			{
 //			case TcAddress.SEND_SCIENCE_DATA_FILE:
@@ -1427,56 +1335,60 @@ public class TelecommandExecutionTask {
 		}            		
 	}
 	
-	private SensorUnitState readSensorUnit(int suNumber) 
-	/* Purpose        :  To find out whether given Sensor Unit is switched on or */
-	/*                   off.                                                    */
-	/* Interface      :                                                          */
-	/* Preconditions  :  SU_Number should be 1,2,3 or 4.                         */
-	/* Postconditions :  Value of state variable is returned.                    */
-	/* Algorithm      :  Value of state variable (on_e or off_e) is returned.    */
-	{
+	/** Purpose        :  To find out whether given Sensor Unit is switched on or
+	 *                   off.
+	 * Interface      :
+	 * Preconditions  :  SU_Number should be 1,2,3 or 4.
+	 * Postconditions :  Value of state variable is returned.
+	 * Algorithm      :  Value of state variable (on_e or off_e) is returned.
+	 */
+	private SensorUnitState readSensorUnit(int suNumber) {
+		
 		   return system.getAcquisitionTask().sensorUnitState[suNumber - 1];      
 	}
 
 	/* from health.c: 373-398 
 	 * Within TcExecTask, use telemetry_data.getMode() directly */
-	int getMode()
-	/* Purpose        : This function will be called always when                */
-	/*                  mode in the mode status register is checked.            */
-	/* Interface      :                                                         */
-	/*                  inputs      - mode status register                      */
-	/*									                                                 */
-	/*                  outputs     - mode status register                      */
-	/*                              - Mode bits, which specify the mode         */
-	/*                                stored in the ModeStatus register.        */
-	/*                                Value is on one of the following:         */
-	/*                                   DPU self test                          */
-	/*                                   stand by                               */
-	/*                                   acquisition                            */
-	/*   								                                                 */
-	/*                  subroutines - none                                      */
-	/* Preconditions  : none                                                    */
-	/* Postconditions : none                                                    */
-	/* Algorithm      :                					                            */
-	/*                  - Read Mode Status register                             */
-	{
+
+	/** Purpose        : This function will be called always when
+	 *                  mode in the mode status register is checked.
+	 * Interface      :
+	 *                  inputs      - mode status register
+	 *
+	 *                  outputs     - mode status register
+	 *                              - Mode bits, which specify the mode
+	 *                                stored in the ModeStatus register.
+	 *                                Value is on one of the following:
+	 *                                   DPU self test
+	 *                                   stand by
+	 *                                   acquisition
+	 *
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      :
+	 *                  - Read Mode Status register
+	 */
+	int getMode() {
+		
 		return(telemetry_data.getMode());
 		/* Return the value of the two least significant bits in */
 		/* mode status register and return this value.           */    
 	}
 
-	private void setTCError()
-	/* Purpose        : This function will be called always when TC_ERROR bit in */
-	/*                  the ErrorStatus register is set.                         */
-	/* Interface      : inputs      - Error_status register                      */
-	/*                  outputs     - Error_status register                      */
-	/*                  subroutines - none                                       */
-	/* Preconditions  : none                                                     */
-	/* Postconditions : none                                                     */
-	/* Algorithm      : - Disable interrupts                                     */
-	/*                  - Write to Error Status register                         */
-	/*                  - Enable interrupts                                      */
-	{
+	/** Purpose        : This function will be called always when TC_ERROR bit in
+	 *                  the ErrorStatus register is set.
+	 * Interface      : inputs      - Error_status register
+	 *                  outputs     - Error_status register
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : none
+	 * Algorithm      : - Disable interrupts
+	 *                  - Write to Error Status register
+	 *                  - Enable interrupts
+	 */
+	private void setTCError() {
+		
 		taskControl.disableInterruptMaster();
 		
 		telemetry_data.error_status |= TcTmDev.TC_ERROR;
@@ -1484,47 +1396,45 @@ public class TelecommandExecutionTask {
 		taskControl.enableInterruptMaster();
 	}
 
-	public void tmInterruptService () // INTERRUPT(TM_ISR_SOURCE) USED_REG_BANK(2)
-	/* Purpose        : This function handles the TM interrupts.                 */
-	/* Interface      : inputs  - telemetry_pointer                              */
-	/*                            telemetry_end_pointer                          */
-	/*                            TC_state                                       */
-	/*                            telemetry_data                                 */
-	/*                  outputs - telemetry_pointer                              */
-	/*                            TM HW reigsiters                               */
-	/*                            Telemcommand Execution task mailbox            */
-	/* Preconditions  : telemetry_pointer and telemetry_end_pointer have valid   */
-	/*                  values (TM interrupts should be enabled only when this   */
-	/*                  condition is true)                                       */
-	/* Postconditions : Next two bytes are written to TM HW registers and if they*/
-	/*                  were the last bytes to be written, a "TM_READY" mail is  */
-	/*                  sent to the Telecommand Execution task                   */
-	/* Algorithm      : - if telemetry_pointer < telemetry_end_pointer           */
-	/*                     - write next two bytes from location pointed by       */
-	/*                       telemetry_pointer and increase it by two            */
-	/*                  - else if TC_state == register_TM_e                      */
-	/*                     - write first two TM data registers and set           */
-	/*                       telemetry_pointer to point to the third TM data     */
-	/*                       register                                            */
-	/*                  - else                                                   */
-	/*                     - send TM_READY message to Telecommand Execution task */
-	/*                       mailbox                                             */
-
-	{
+	/** Purpose        : This function handles the TM interrupts.
+	 * Interface      : inputs  - telemetry_pointer
+	 *                            telemetry_end_pointer
+	 *                            TC_state
+	 *                            telemetry_data
+	 *                  outputs - telemetry_pointer
+	 *                            TM HW reigsiters
+	 *                            Telemcommand Execution task mailbox
+	 * Preconditions  : telemetry_pointer and telemetry_end_pointer have valid
+	 *                  values (TM interrupts should be enabled only when this
+	 *                  condition is true)
+	 * Postconditions : Next two bytes are written to TM HW registers and if they
+	 *                  were the last bytes to be written, a "TM_READY" mail is
+	 *                  sent to the Telecommand Execution task
+	 * Algorithm      : - if telemetry_pointer < telemetry_end_pointer
+	 *                     - write next two bytes from location pointed by
+	 *                       telemetry_pointer and increase it by two
+	 *                  - else if TC_state == register_TM_e
+	 *                     - write first two TM data registers and set
+	 *                       telemetry_pointer to point to the third TM data
+	 *                       register
+	 *                  - else
+	 *                     - send TM_READY message to Telecommand Execution task
+	 *                       mailbox
+	 */
+	public void tmInterruptService () { // INTERRUPT(TM_ISR_SOURCE) USED_REG_BANK(2)
+	
 		int /* unsigned char */ tm_byte;
 
 		tctmDev.clearTmInterruptFlag();
-		/*The interrupt flag is put down by setting high bit 3 'INT1' in port 3.  */
 
-		if (telemetry_object == telemetry_data && telemetry_index == TelemetryData.TIME_INDEX)
+		if (telemetry_object == telemetry_data && telemetry_index == TelemetryData.TIME_INDEX)		
 		{
-			telemetry_data.time = system.getInternalTime().getTag();
+			telemetry_data.time.set(system.getInternalTime()); // @WC marker "copytime"
 		}
 
 		if (! telemetryIndexAtEnd())
 		{
 			/* There are bytes left to be sent to TM. */
-
 			tm_byte = telemetryPointerNext();
 			tctmDev.writeTmMsb(tm_byte);
 			read_memory_checksum ^= tm_byte;
@@ -1540,7 +1450,6 @@ public class TelecommandExecutionTask {
 		else if (TC_state == TC_State.register_TM_e)
 			/* Start to send TM data registers starting from the first ones */
 		{
-			//				  telemetry_pointer = (EXTERNAL unsigned char *)&telemetry_data;
 			telemetry_object = telemetry_data;
 			tctmDev.writeTmMsb (telemetryPointerNext());
 			telemetry_index++;
@@ -1558,20 +1467,21 @@ public class TelecommandExecutionTask {
 		else
 			/* It is time to stop sending telemetry */
 		{
-			tcMailbox.sendISRMail((char)TM_READY);
+			tcMailbox.sendISRMail((char)TM_READY);  // @WC marker "sendmail"
 		}
 	}
 
-	void initTcLookup()
-	/* Purpose        : Initializes the TC look-up table                     */
-	/* Interface      : inputs  - none                                       */
-	/*                  outputs - TC_lool_up                                 */
-	/* Preconditions  : none                                                 */
-	/* Postconditions : TC_look_up is initialized                            */
-	/* Algorithm      : - set all elements in table to ALL_INVALID           */
-	/*                  - set each element corresponding valid TC address    */
-	/*                    to proper value                                    */
-	{
+	/** Purpose        : Initializes the TC look-up table
+	 * Interface      : inputs  - none
+	 *                  outputs - TC_lool_up
+	 * Preconditions  : none
+	 * Postconditions : TC_look_up is initialized
+	 * Algorithm      : - set all elements in table to ALL_INVALID
+	 *                  - set each element corresponding valid TC address
+	 *                    to proper value
+	 */
+	void initTcLookup() {
+		
 		int /* uint_least8_t */ i;
 		/* Loop variable */
 
@@ -1682,43 +1592,43 @@ public class TelecommandExecutionTask {
 	}
 
 
+	/** Purpose        : Handles the TC interrupt
+	 * Interface      : inputs  - TC MSB and LSB hardware registers
+	 *                            TC_look_up table giving valid TC addresses
+	 *                            and TC codes
+	 *                  outputs - TM data registers for received TC and TC
+	 *                            time tag
+	 *                            TM data registers for error and mode
+	 *                            status
+	 *                            TM MSB and LSB hardware registers
+	 *                            telemetry_pointer
+	 *                            telemetry_end_pointer
+	 *                            Telecommand Execution task mailbox
+	 * Preconditions  : none
+	 * Postconditions :
+	 *                  Mail sent to Telecommand Execution task, if TC was
+	 *                  valid
+	 * Algorithm      : - Read TC address and code from hardware registers
+	 *                  - Calculate parity
+	 *                  - If parity not Ok
+	 *                    - Set parity error
+	 *                  - Else 
+	 *                    - Clear parity error
+	 *                    - Check TC address and code
+	 *                    - If TC Ok
+	 *                         Clear TC error and send mail
+	 *                    - Else
+	 *                         Set TC error
+	 *                  - If TC is valid Send Status Register
+	 *                    - Send first two registers defined by TC code
+	 *                  - Else if TC is valid Send Science Data File
+	 *                    - Send first teo bytes from Science Data File
+	 *                  - Else if TC responce is enabled
+	 *                    - Send Error Status and Mode Status
+	 *                  - If TC is invalid
+	 *                    - Disable TC responses
+	 */
 	public void tcInterruptService () // INTERRUPT(TC_ISR_SOURCE) USED_REG_BANK(2)
-	/* Purpose        : Handles the TC interrupt                             */
-	/* Interface      : inputs  - TC MSB and LSB hardware registers          */
-	/*                            TC_look_up table giving valid TC addresses */
-	/*                            and TC codes                               */
-	/*                  outputs - TM data registers for received TC and TC   */
-	/*                            time tag                                   */
-	/*                            TM data registers for error and mode       */
-	/*                            status                                     */
-	/*                            TM MSB and LSB hardware registers          */
-	/*                            telemetry_pointer                          */
-	/*                            telemetry_end_pointer                      */
-	/*                            Telecommand Execution task mailbox         */
-	/* Preconditions  : none                                                 */
-	/* Postconditions :                                                      */
-	/*                  Mail sent to Telecommand Execution task, if TC was   */
-	/*                  valid                                                */
-	/* Algorithm      : - Read TC address and code from hardware registers   */
-	/*                  - Calculate parity                                   */
-	/*                  - If parity not Ok                                   */
-	/*                    - Set parity error                                 */
-	/*                  - Else                                               */ 
-	/*                    - Clear parity error                               */
-	/*                    - Check TC address and code                        */
-	/*                    - If TC Ok                                         */
-	/*                         Clear TC error and send mail                  */
-	/*                    - Else                                             */
-	/*                         Set TC error                                  */
-	/*                  - If TC is valid Send Status Register                */
-	/*                    - Send first two registers defined by TC code      */
-	/*                  - Else if TC is valid Send Science Data File         */
-	/*                    - Send first teo bytes from Science Data File      */
-	/*                  - Else if TC responce is enabled                     */
-	/*                    - Send Error Status and Mode Status                */
-	/*                  - If TC is invalid                                   */
-	/*                    - Disable TC responses                             */
-
 	{
 		int /* unsigned char */ TC_address;
 		int /* unsigned char */ TC_code;
@@ -1868,7 +1778,7 @@ public class TelecommandExecutionTask {
 
 
 			telemetry_data.TC_word = (char) TC_word;
-			telemetry_data.TC_time_tag = system.getInternalTime().getTag();
+			telemetry_data.TC_time_tag.set(system.getInternalTime());
 			/* Update TC registers in HK TM data area */
 		}
 
@@ -1890,7 +1800,7 @@ public class TelecommandExecutionTask {
 		{
 			/* Send Status Register TC accepted */
 
-			telemetry_data.TC_time_tag = system.getInternalTime().getTag();
+			telemetry_data.TC_time_tag.set(system.getInternalTime());
 
 			telemetry_object = telemetry_data;
 			telemetry_index = TC_code;
@@ -2013,58 +1923,60 @@ public class TelecommandExecutionTask {
 
 	}
 
-	int  /*dpu_time_t*/ GetElapsedTime(/*unsigned int*/int event_number)
-	/* Purpose        : Returns the hit time of a given event.                   */
-	/* Interface      : inputs      - event_number (parameter)                   */
-	/*                                science_data[event_number].hit_time, hit   */
-	/*                                time of the given event record.            */
-	/*                  outputs     - return value, hit time.                    */
-	/*                  subroutines - none                                       */
-	/* Preconditions  : none.                                                    */
-	/* Postconditions : none.                                                    */
-	/* Algorithm      :    -copy hit time of an event to a local variable hit    */
-	/*                      time                                                 */
-	/*                     -return the value of hit time                         */
+	/** Purpose        : Returns the hit time of a given event.
+	 * Interface      : inputs      - event_number (parameter)
+	 *                                science_data[event_number].hit_time, hit
+	 *                                time of the given event record.
+	 *                  outputs     - return value, hit time.
+	 *                  subroutines - none
+	 * Preconditions  : none.
+	 * Postconditions : none.
+	 * Algorithm      :    -copy hit time of an event to a local variable hit
+	 *                      time
+	 *                     -return the value of hit time
+	 */
+	int /*dpu_time_t*/ GetElapsedTime(/*unsigned int*/int event_number)
 	{
 		/*dpu_time_t INDIRECT_INTERNAL*/ int hit_time;
 		/* Hit time. */
-		hit_time = science_data.event[event_number].getHitTime();
+		hit_time = science_data.event[event_number].getHitTime().toInt();
 		// FIXME: is this the right way to port this to Java
 		//COPY (hit_time, science_data.event[event_number].hit_time);
 
 		return hit_time;
 	}
 
-	public void recordEvent()
-	/* Purpose        : This function increments proper event counter and stores */
-	/*                  the new event record to the science data memory.         */
-	/* Interface      : inputs      - free_slot_index, index of next free event  */
-	/*                                   record in the Science Data memory.      */
-	/*                                TC_state, state of the TC Execution task.  */
-	/*                                event_queue_length, length of the event    */
-	/*                                   record queue.                           */
-	/*                                event_queue, event record queue.           */
-	/*                  outputs     - event_queue_length, as above.              */
-	/*                                science_data.event, event records in       */
-	/*                                Science Data memory.                       */
-	/*                                free_slot_index, as above.                 */
-	/*                  subroutines - FindMinQualityRecord                       */
-	/*                                IncrementCounters                          */
-	/* Preconditions  : none.                                                    */
-	/* Postconditions : If Science telemetry is not in progress, event data is   */
-	/*                  stored in its proper place in the science data,          */
-	/*                  otherwise event data is left in the queue and one record */
-	/*                  is reserved from the queue unless it is already full.    */
-	/* Algorithm      : If there is room in the Science Data memory, the event   */
-	/*                  data is tried to be stored there, otherwise the event    */
-	/*                  with the lowest quality is searched and tried to be      */
-	/*                  replaced. If the Science telemetry is in progress the    */
-	/*                  event data is left in the queue and the length of the    */
-	/*                  queue is incremented unless the queue is already full.   */
-	/*                  If the Science telemetry is not in progress the event    */
-	/*                  data is copied to the Science Data to the location       */
-	/*                  defined earlier as described above.                      */
-	{
+	/** Purpose        : This function increments proper event counter and stores
+	 *                  the new event record to the science data memory.
+	 * Interface      : inputs      - free_slot_index, index of next free event
+	 *                                   record in the Science Data memory.
+	 *                                TC_state, state of the TC Execution task.
+	 *                                event_queue_length, length of the event
+	 *                                   record queue.
+	 *                                event_queue, event record queue.
+	 *                  outputs     - event_queue_length, as above.
+	 *                                science_data.event, event records in
+	 *                                Science Data memory.
+	 *                                free_slot_index, as above.
+	 *                  subroutines - FindMinQualityRecord
+	 *                                IncrementCounters
+	 * Preconditions  : none.
+	 * Postconditions : If Science telemetry is not in progress, event data is
+	 *                  stored in its proper place in the science data,
+	 *                  otherwise event data is left in the queue and one record
+	 *                  is reserved from the queue unless it is already full.
+	 * Algorithm      : If there is room in the Science Data memory, the event
+	 *                  data is tried to be stored there, otherwise the event
+	 *                  with the lowest quality is searched and tried to be
+	 *                  replaced. If the Science telemetry is in progress the
+	 *                  event data is left in the queue and the length of the
+	 *                  queue is incremented unless the queue is already full.
+	 *                  If the Science telemetry is not in progress the event
+	 *                  data is copied to the Science Data to the location
+	 *                  defined earlier as described above.
+	 */
+	public void recordEvent() {
+		
 		/* uint_least16_t INDIRECT_INTERNAL */ int record_index;
 		taskControl.disableInterruptMaster();
 
@@ -2132,26 +2044,26 @@ public class TelecommandExecutionTask {
 	}   
 
 
-	private /*unsigned int*/ int findMinQualityRecord()
 
-	/* Purpose        : Finds event with lowest quality from Science Data memory.*/
-	/* Interface      : inputs      - science_data.event, event records          */
-	/*                  outputs     - return value, index of event record with   */
-	/*                                   the lowest quality.                     */
-	/*                  subroutines - GetElapsedTime                             */
-	/* Preconditions  : none.                                                    */
-	/* Postconditions : none.                                                    */
-	/* Algorithm      : -Select first the first event record.                    */
-	/*                  -Loop from the second record to the last:                */
-	/*                     -if the quality of the record is lower than the       */
-	/*                      quality of the selected one, select the record.      */
-	/*                     -else if the quality of the record equals the quality */
-	/*                      of selected one and it is older than the selected    */
-	/*                      one, select the record.                              */
-	/*                  -End loop.                                               */
-	/*                  -return the index of the selected record.                */
-
-	{
+	/** Purpose        : Finds event with lowest quality from Science Data memory.
+	 * Interface      : inputs      - science_data.event, event records
+	 *                  outputs     - return value, index of event record with
+	 *                                   the lowest quality.
+	 *                  subroutines - GetElapsedTime
+	 * Preconditions  : none.
+	 * Postconditions : none.
+	 * Algorithm      : -Select first the first event record.
+	 *                  -Loop from the second record to the last:
+	 *                     -if the quality of the record is lower than the
+	 *                      quality of the selected one, select the record.
+	 *                     -else if the quality of the record equals the quality
+	 *                      of selected one and it is older than the selected
+	 *                      one, select the record.
+	 *                  -End loop.
+	 *                  -return the index of the selected record.
+	 */
+	private /*unsigned int*/ int findMinQualityRecord()  {
+		
 		/* unsigned int INDIRECT_INTERNAL */ int min_quality_number;
 		/* The quality number of an event which has the lowest quality */
 		/* number in the science data.                                 */
@@ -2205,40 +2117,37 @@ public class TelecommandExecutionTask {
 	}
 
 
+	/** Purpose        : Increments given event counters.
+	 * Interface      : inputs      - sensor_unit (parameter)
+	 *                                classification (parameter)
+	 *                  outputs     - telemetry_data.SU_hits, counter of hits of
+	 *                                   given Sensor Unit
+	 *                                science_data.event_counter, counter of
+	 *                                events with given classification and SU.
+	 *                  subroutines - none
+	 * Preconditions  : none.
+	 * Postconditions : Given counters are incremented, if they had not their
+	 *                  maximum values.
+	 * Algorithm      : Increment given counters, if they are less than their
+	 *                  maximum values. Calculate checksum for event counter.
+	 *
+	 * This function is used by Acquisition and TelecommandExecutionTask.
+	 * However, it does not have to be of re-entrant type because collision
+	 * is avoided through design, as follows.
+	 * If Science Telemetry is in progress when Acquisition task is handling
+	 * an event, the event record cannot be written to the Science Data
+	 * memory. Instead it is left to the temporary queue which will be
+	 * copied to the Science Data memory after the Science telemetry is
+	 * completed. For the same reason  call for IncrementCounters is
+	 * disabled.
+	 * On the other hand, when Acquisition task is handling an event with
+	 * RecordEvent all interrupts are disabled i.e. TelecommandExecutionTask
+	 * cannot use IncrementCounters simultaniously.
+	 */
 	private void incrementCounters(
 			/* sensor_index_t */ int  sensor_unit,
-			/* unsigned char */  int  classification)
-
-	/* Purpose        : Increments given event counters.                         */
-	/* Interface      : inputs      - sensor_unit (parameter)                    */
-	/*                                classification (parameter)                 */
-	/*                  outputs     - telemetry_data.SU_hits, counter of hits of */
-	/*                                   given Sensor Unit                       */
-	/*                                science_data.event_counter, counter of     */
-	/*                                events with given classification and SU.   */
-	/*                  subroutines - none                                       */
-	/* Preconditions  : none.                                                    */
-	/* Postconditions : Given counters are incremented, if they had not their    */
-	/*                  maximum values.                                          */
-	/* Algorithm      : Increment given counters, if they are less than their    */
-	/*                  maximum values. Calculate checksum for event counter.    */
-	/*                                                                           */
-	/* This function is used by Acquisition and TelecommandExecutionTask.        */
-	/* However, it does not have to be of re-entrant type because collision      */
-	/* is avoided through design, as follows.                                    */
-	/* If Science Telemetry is in progress when Acquisition task is handling     */
-	/* an event, the event record cannot be written to the Science Data          */
-	/* memory. Instead it is left to the temporary queue which will be           */
-	/* copied to the Science Data memory after the Science telemetry is          */
-	/* completed. For the same reason  call for IncrementCounters is             */
-	/* disabled.                                                                 */
-	/* On the other hand, when Acquisition task is handling an event with        */
-	/* RecordEvent all interrupts are disabled i.e. TelecommandExecutionTask     */
-	/* cannot use IncrementCounters simultaniously.                              */
-
-
-
-	{
+			/* unsigned char */  int  classification) {
+		
 		/* unsigned char EXTERNAL */ int counter;
 		/* unsigned char EXTERNAL */ char new_checksum;
 
@@ -2272,11 +2181,11 @@ public class TelecommandExecutionTask {
 
 	}
 
-	public void clearEvents()
-	/* Clears the event counters and the quality numbers of                     */
-	/* the event records in the science data memory                              */
-
-	{
+	/** Clears the event counters and the quality numbers of                     
+	 *  the event records in the science data memory
+	 */
+	public void clearEvents() {
+		
 		/* DIRECT_INTERNAL uint_least8_t */ int i;
 		/* This variable is used in the for-loop which goes through  */
 		/* the science data event counter.                           */
@@ -2323,51 +2232,56 @@ public class TelecommandExecutionTask {
 		science_data.not_used         = 0;
 	}   
 
-	public void resetEventQueueLength()
-	/* Purpose        : Empty the event queue length.                            */
-	/* Interface      : inputs      - none                                       */
-	/*                  outputs     - none                                       */
-	/*                  subroutines - none                                       */
-	/* Preconditions  : none.                                                    */
-	/* Postconditions : none.                                                    */
-	/* Algorithm      : - reset event queue length.                              */
-	{
+	/** Purpose        : Empty the event queue length.
+	 * Interface      : inputs      - none
+	 *                  outputs     - none
+	 *                  subroutines - none
+	 * Preconditions  : none.
+	 * Postconditions : none.
+	 * Algorithm      : - reset event queue length.
+	 */
+	public void resetEventQueueLength() {
+		
 		event_queue_length = 0;
 	}
 
 	/** get length of event queue */
 	public int getEventQueueLength() {
+		
 		return event_queue_length;
 	}
 
 	/** check whether there is a free slot for events */
 	public boolean hasFreeSlot() {
+		
 		return free_slot_index < max_events;
 	}
 
 	/** get free slot index (debugging/testing) */
 	public int getFreeSlotIndex() {
+		
 		return free_slot_index;
 	}
 
 	/*--- ported from measure.c:543-EOF */
-	public void switchSensorUnitState(SensorUnit sensorUnit) 
-	/* Purpose        : Used when only the SU_state variable must be modified.   */
-	/* Interface      : inputs      - SU_state                                   */
-	/*                              - An Address of 'sensor_unit_t' type of a    */
-	/*                                struct.                                    */
-	/*                  outputs     - SU_state                                   */
-	/*                              - SU_setting.execution_result                */
-	/*                  subroutines - none                                       */
-	/* Preconditions  : none                                                     */
-	/* Postconditions : SU_state variable is conditionally modified.             */
-	/* Algorithm      :                                                          */
-	/*                  - If the expected SU_state variable value related to the */
-	/*                    given SU_index number is not valid, variable value is  */
-	/*                    not changed. Error indication is recorded instead.     */
-	/*                  - Else state variable value is changed and an indication */
-	/*                    of this is recorded.                                   */
-	{
+	/** Purpose        : Used when only the SU_state variable must be modified.
+	 * Interface      : inputs      - SU_state
+	 *                              - An Address of 'sensor_unit_t' type of a
+	 *                                struct.
+	 *                  outputs     - SU_state
+	 *                              - SU_setting.execution_result
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : SU_state variable is conditionally modified.
+	 * Algorithm      :
+	 *                  - If the expected SU_state variable value related to the
+	 *                    given SU_index number is not valid, variable value is
+	 *                    not changed. Error indication is recorded instead.
+	 *                  - Else state variable value is changed and an indication
+	 *                    of this is recorded.
+	 */
+	public void switchSensorUnitState(SensorUnit sensorUnit) {
+		
 		if (system.getAcquisitionTask().sensorUnitState[(sensorUnit.number) - SensorUnitDev.SU_1] != 
 			sensorUnit.expected_source_state)
 		{
@@ -2406,31 +2320,32 @@ public class TelecommandExecutionTask {
 		}
 	}
 
-	private void startSensorUnitSwitchingOn(int sensorUnitIndex, SensorUnit sensorUnit)
+	/** Purpose        : Transition to SU state on.
+	 * Interface      : inputs      - Sensor_index number
+	 *                              - An Address of 'exec_result' variable
+	 *                              - SU_state
+	 *                  outputs     - SU_state
+	 *                              - 'exec_result'
+	 *                  subroutines - Switch_SU_On
+	 * Preconditions  : none
+	 * Postconditions : Under valid conditions transition to 'on' state is
+	 *                  completed.
+	 * Algorithm      :
+	 *                  - If the original SU_state variable value related to the
+	 *                    given SU_index number is not valid, variable value is
+	 *                    not changed. Error indication is recorded instead.
+	 *                  - Else
+	 *                    - Disable interrups
+	 *                    - 'Switch_SU_On' function is called and an
+	 *                      indication of this transition is recorded.
+	 *                    - Enable interrupts
+	 */
+	private void startSensorUnitSwitchingOn(int sensorUnitIndex, SensorUnit sensorUnit) {
+
 	// Note: exec_result was a pointer to sensorUnit.execution_result
 	//	void Start_SU_SwitchingOn(
 	//		      sensor_index_t SU,
 	//		      unsigned char EXTERNAL *exec_result) COMPACT_DATA REENTRANT_FUNC
-	/* Purpose        : Transition to SU state on.                               */
-	/* Interface      : inputs      - Sensor_index number                        */
-	/*                              - An Address of 'exec_result' variable       */
-	/*                              - SU_state                                   */
-	/*                  outputs     - SU_state                                   */
-	/*                              - 'exec_result'                              */
-	/*                  subroutines - Switch_SU_On                               */
-	/* Preconditions  : none                                                     */
-	/* Postconditions : Under valid conditions transition to 'on' state is       */
-	/*                  completed.                                               */
-	/* Algorithm      :                                                          */
-	/*                  - If the original SU_state variable value related to the */
-	/*                    given SU_index number is not valid, variable value is  */
-	/*                    not changed. Error indication is recorded instead.     */
-	/*                  - Else                                                   */
-	/*                    - Disable interrups                                    */
-	/*                    - 'Switch_SU_On' function is called and an             */
-	/*                      indication of this transition is recorded.           */
-	/*                    - Enable interrupts                                    */
-	{
 		sensorUnit.execution_result = SensorUnitDev.SU_STATE_TRANSITION_OK;
 		/* Default value, may be changed below. */ 
 
@@ -2482,32 +2397,32 @@ public class TelecommandExecutionTask {
 	// XXX: pulled out of sensorUnitOff, which breaks re-entrance, but avoids memory allocation
 	private final SensorUnit sensorUnitSetting = new SensorUnit();
 
-	public void setSensorUnitOff(int index, SensorUnit sensorUnit)
+	/** Purpose        : Transition to SU state off.
+	 * Interface      : inputs      - Sensor_index number
+	 *                              - An Address of 'exec_result' variable
+	 *                              - SU_state
+	 *                  outputs     - SU_state
+	 *                              - 'exec_result'
+	 *                  subroutines - Switch_SU_Off
+	 * Preconditions  : none
+	 * Postconditions : Under valid conditions transition to 'off' state is
+	 *                  completed.
+	 * Algorithm      :
+	 *                  - Disable interrups
+	 *                  - 'Switch_SU_Off' function is called.
+	 *                  - If transition succeeds,
+	 *                    - 'Off' state is recorded to 'SU_state' variable.
+	 *                    - Indication of transition is recorded to
+	 *                      'exec_result'.
+	 *                  - Else if transition fails,
+	 *                    - Indication of this is recorded to 'exec_result'.
+	 *                  - Enable interrupts
+	 */
+	public void setSensorUnitOff(int index, SensorUnit sensorUnit) {
 	//
 	//		void SetSensorUnitOff(
 	//		         sensor_index_t SU,
 	//		         unsigned char EXTERNAL *exec_result) COMPACT_DATA REENTRANT_FUNC
-	/* Purpose        : Transition to SU state off.                              */
-	/* Interface      : inputs      - Sensor_index number                        */
-	/*                              - An Address of 'exec_result' variable       */
-	/*                              - SU_state                                   */
-	/*                  outputs     - SU_state                                   */
-	/*                              - 'exec_result'                              */
-	/*                  subroutines - Switch_SU_Off                              */
-	/* Preconditions  : none                                                     */
-	/* Postconditions : Under valid conditions transition to 'off' state is      */
-	/*                  completed.                                               */
-	/* Algorithm      :                                                          */
-	/*                  - Disable interrups                                      */
-	/*                  - 'Switch_SU_Off' function is called.                    */
-	/*                  - If transition succeeds,                                */
-	/*                    - 'Off' state is recorded to 'SU_state' variable.      */
-	/*                    - Indication of transition is recorded to              */
-	/*                      'exec_result'.                                       */
-	/*                  - Else if transition fails,                              */
-	/*                    - Indication of this is recorded to 'exec_result'.     */
-	/*                  - Enable interrupts                                      */
-	{
 		taskControl.disableInterruptMaster();
 		
 		system.getSensorUnitDevice().switchSensorUnitOff(index + SensorUnitDev.SU_1, sensorUnit);
@@ -2538,32 +2453,33 @@ public class TelecommandExecutionTask {
 	}
 
 	//		SU_state_t  ReadSensorUnit(unsigned char SU_number) COMPACT_DATA REENTRANT_FUNC
-	/* Purpose        :  To find out whether given Sensor Unit is switched on or */
-	/*                   off.                                                    */
-	/* Interface      :                                                          */
-	/* Preconditions  :  SU_Number should be 1,2,3 or 4.                         */
-	/* Postconditions :  Value of state variable is returned.                    */
-	/* Algorithm      :  Value of state variable (on_e or off_e) is returned.    */
+	/** Purpose        :  To find out whether given Sensor Unit is switched on or
+	 *                   off.
+	 * Interface      :
+	 * Preconditions  :  SU_Number should be 1,2,3 or 4.
+	 * Postconditions :  Value of state variable is returned.
+	 * Algorithm      :  Value of state variable (on_e or off_e) is returned.
+	 */
 	//		{
 	//		   return SU_state[SU_number - 1];      
 	//		}       
 
 
-	public void updateSensorUnitState(int idx)
-	/*		void Update_SU_State(sensor_index_t SU_index) COMPACT_DATA REENTRANT_FUNC */
-	/* Purpose        : Sensor unit state is updated.                            */
-	/* Interface      : inputs      - SU_state                                   */
-	/*                              - SU_index number                            */
-	/*                  outputs     - SU_state                                   */
-	/*                  subroutines - none                                       */
-	/* Preconditions  : none                                                     */
-	/* Postconditions : SU_state variable is modified.                           */
-	/* Algorithm      : - Disable interrups                                      */
-	/*                  - Change SU_state variable value related to the given    */
-	/*                    SU_index number. Selection of the new state depends on */
-	/*                    the present one.                                       */
-	/*                  - Enable interrups                                       */
-	{
+	/** Purpose        : Sensor unit state is updated.
+	 * Interface      : inputs      - SU_state
+	 *                              - SU_index number
+	 *                  outputs     - SU_state
+	 *                  subroutines - none
+	 * Preconditions  : none
+	 * Postconditions : SU_state variable is modified.
+	 * Algorithm      : - Disable interrups
+	 *                  - Change SU_state variable value related to the given
+	 *                    SU_index number. Selection of the new state depends on
+	 *                    the present one.
+	 *                  - Enable interrups
+	 */
+	public void updateSensorUnitState(int idx) /* COMPACT_DATA REENTRANT_FUNC */ {
+		
 		SensorUnitState suState [] = system.getAcquisitionTask().sensorUnitState;
 		
 		taskControl.disableInterruptMaster();
@@ -2593,47 +2509,57 @@ public class TelecommandExecutionTask {
 
 	/** delegator */
 	public int getErrorStatus() {
+		
 		return telemetry_data.getErrorStatus();
 	}
 
 	public Dpu.Time getInternalTime() {
+		
 		return system.getInternalTime();
 	}
 
 	public void setInternalTime(int raw) {
+		
 		system.getInternalTime().set(raw);
 	}
 	
 	/** get telecommand state */
 	public TC_State getTC_State() {
+		
 		return TC_state;
 	}
 
 	/** set telecommand state */
 	public void setTC_State(TC_State state) {
+		
 		TC_state = state;
 	}
 
 	public int getMaxEvents() {
+		
 		return max_events;
 	}
 
 	private int telemetryPointerNext() {
+		
 		return telemetry_object.getByte(telemetry_index);
 	}
 
 	/** returns true if telemetry_pointer is at the end */
 	public boolean telemetryIndexAtEnd() {
+		
 		return telemetry_index >= telemetry_end_index;
 	}
 
 	/** returns true if telemetry_pointer is exactly at the end */
 	public boolean telemetryIndexAtEndExactly() {
+		
 		return telemetry_index == telemetry_end_index;
 	}
 
 	/** returns true if telemetry_pointer is exactly at given index */
 	public boolean telemetryIndexEquals(int index) {
+		
 		return telemetry_index == index;
 	}
 

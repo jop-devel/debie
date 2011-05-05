@@ -577,7 +577,7 @@ public class TelecommandTaskTest extends HarnessTest {
 
 		checkNoErrors();
 
-		checkEquals("internal time = 0x44332211", tctmTask.getInternalTime().getTag(), 0x44332211);
+		checkEquals("internal time = 0x44332211", tctmTask.getInternalTime().toInt(), 0x44332211);
 	}
 	
 	private void testSetDebieTimeSeqErrorAt2() {
@@ -593,7 +593,7 @@ public class TelecommandTaskTest extends HarnessTest {
 
 	   checkTcError();		
 	   
-	   checkEquals("internal time = 0x44000000", tctmTask.getInternalTime().getTag(), 0x44000000);
+	   checkEquals("internal time = 0x44000000", tctmTask.getInternalTime().toInt(), 0x44000000);
 	   
 	   clearErrors();
 	}
@@ -615,7 +615,7 @@ public class TelecommandTaskTest extends HarnessTest {
 
 		checkTcError();		
 		   
-		checkEquals("internal time = 0x44330000", tctmTask.getInternalTime().getTag(), 0x44330000);
+		checkEquals("internal time = 0x44330000", tctmTask.getInternalTime().toInt(), 0x44330000);
 		   
 		clearErrors();
 	}	
@@ -641,7 +641,7 @@ public class TelecommandTaskTest extends HarnessTest {
 
 		checkTcError();		
 		   
-		checkEquals("internal time = 0x44332200", tctmTask.getInternalTime().getTag(), 0x44332200);
+		checkEquals("internal time = 0x44332200", tctmTask.getInternalTime().toInt(), 0x44332200);
 		   
 		clearErrors();
 	}	

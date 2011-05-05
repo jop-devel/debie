@@ -23,6 +23,7 @@ package debie.particles;
 
 import debie.particles.SensorUnit.SensorUnitState;
 import debie.support.DebieSystem;
+import debie.support.Dpu;
 import debie.target.SensorUnitDev;
 import debie.telecommand.TelemetryData;
 
@@ -65,7 +66,7 @@ public class EventRecord {
 	int       quality_number;    /* byte  0  XXX: was unsigned char */
 	int       classification;    /* byte  1  XXX: was unsigned char    */
 	byte      SU_number;         /* byte  2  XXX: was unsigned char    */
-	int       hit_time;          /* byte  3 -  6 XXX: was tm_dpu_time_t */
+	Dpu.Time  hit_time;          /* byte  3 -  6 XXX: was tm_dpu_time_t */
 	byte      SU_temperature_1;  /* byte  7  XXX: was unsigned char        */
 	byte      SU_temperature_2;  /* byte  8  XXX: was unsigned char        */
 	char      plasma_1_plus;     /* byte  9 - 10 XXX: was tm_ushort_t*/
@@ -98,10 +99,8 @@ public class EventRecord {
 		case 1: return classification & 0xff;
 		case 2: return SU_number & 0xff;
 		// case 3: padding in original code
-		case 4: return hit_time & 0xff;
-		case 5: return (hit_time >> 8) & 0xff;
-		case 6: return (hit_time >> 16) & 0xff;
-		case 7: return (hit_time >> 24) & 0xff;
+		case 4: case 5: case 6: case 7:
+			return hit_time.getByte(index-4);
 		case 8: return SU_temperature_1 & 0xff;
 		case 9: return SU_temperature_2 & 0xff;
 		case 10: return plasma_1_plus & 0xff;
@@ -133,9 +132,11 @@ public class EventRecord {
 	public void setQualityNumber(int val) {
 		quality_number = val;
 	}
-	public int getHitTime() {
+	
+	public Dpu.Time getHitTime() {
 		return hit_time;
 	}
+	
 	public int getClassification() {
 		return classification;
 	}
@@ -163,7 +164,7 @@ public class EventRecord {
         new_checksum ^= classification;
         new_checksum ^= SU_number;
         // XXX: order does not matter, because ^ is commutative
-        tmp=hit_time;
+        tmp = hit_time.toInt();
         for(int i = 0; i < 4; ++i) {
         	new_checksum ^= tmp & 0xFF; 
         	tmp >>>= 8;

@@ -489,7 +489,7 @@ public class AcquisitionTask {
 				}
 
 				/* Measurement time is stored into Event Record. */
-				event.hit_time = system.getInternalTime().getTag();
+				event.hit_time.set(system.getInternalTime());
 
 				/* Unit temperatures are stored into Event Record. */
 

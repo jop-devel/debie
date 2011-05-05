@@ -141,31 +141,47 @@ public class Dpu {
 	/* Maximum value for DEBIE time. */
 
 	/** representation of time in DEBIE */
-	public static class Time {
+	public static class Time implements TelemetryObject {
 		private int internal_repr;
 
 		public Time(int raw) {
+			
 			internal_repr = raw;
 		}
 
 		public Time() {
+			
 			this(0);
 		}
 
 		public void incr() {
+			
 			internal_repr++;
 		}
 
-		public int getTag() {
-			return internal_repr;
-		}
 		// FIXME: synchronized?
 		public synchronized void updateWithMask(int mask, int val) {
+			
 			internal_repr = (internal_repr & ~mask) | (val & mask);
 		}
 
 		public void set(int raw) {
+			
 			internal_repr = raw;
+		}
+
+		public void set(Time source) {
+			
+			internal_repr = source.internal_repr;
+		}
+
+		public int getByte(int index) {
+			return (internal_repr >> (index<<3)) & 0xff;
+		}
+
+		public int toInt() {
+			
+			return internal_repr;
 		}
 	}
 
