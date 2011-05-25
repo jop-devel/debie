@@ -2088,7 +2088,7 @@ public class TelecommandExecutionTask {
 		/* First event is selected and compared against */
 		/* the following events in the science_data.    */
 
-		for (i=1; i < max_events; i++)
+		for (i=1; i < max_events; i++) // @WCA loop <= debie.target.HwIf.MAX_EVENTS - 1
 		{
 			time = GetElapsedTime(i);
 
