@@ -73,4 +73,6 @@ public interface TcTmDev {
 	void stopTcTimer();
 	/* TC timer run control macros    */
 
+	/** Restart: stop, init, clear overflow flag, and start */
+	void restartTcTimer();
 }

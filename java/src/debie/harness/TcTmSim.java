@@ -112,23 +112,27 @@ public class TcTmSim implements TcTmDev {
 
 	@Override
 	public void initTcTimerLsb() {
-		// TODO Auto-generated method stub		
+		// NOP
 	}
 
 	@Override
 	public void initTcTimerMsb() {
-		// TODO Auto-generated method stub
+		// NOP
 	}
 
 	@Override
 	public void startTcTimer() {
-		// TODO Auto-generated method stub
-		
+		// NOP		
 	}
 
 	@Override
 	public void stopTcTimer() {
-		// TODO Auto-generated method stub
+		// NOP
+	}
+	
+	@Override
+	public void restartTcTimer() {
+		// NOP
 	}
 
 }

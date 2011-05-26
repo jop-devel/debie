@@ -1656,11 +1656,7 @@ public class TelecommandExecutionTask {
 			/* Abort ISR. */
 		}
 
-		tctmDev.stopTcTimer();
-		tctmDev.initTcTimerMsb();
-		tctmDev.initTcTimerLsb();
-		tctmDev.clearTimerOverflowFlag();
-		tctmDev.startTcTimer();
+		tctmDev.restartTcTimer();
 
 		TC_address   = tctmDev.readTcMsb();
 		TC_code      = tctmDev.readTcLsb();
