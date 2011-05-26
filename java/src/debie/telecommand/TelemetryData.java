@@ -414,8 +414,7 @@ public class TelemetryData implements TelemetryObject {
 		case 0: return this.sensor_unit_1;
 		case 1: return this.sensor_unit_2;
 		case 2: return this.sensor_unit_3;
-		case 3: return this.sensor_unit_4;
-		default: throw new RuntimeException("getSuConfig: invalid index");
+		default: return this.sensor_unit_4;
 		}
 	}
 
