@@ -1635,9 +1635,6 @@ public class TelecommandExecutionTask {
 		int /* uint16_t */   TC_word;
 		/* Telecommand and it's parts */
 
-		int /* unsigned char */ par8, par4, par2, par1;
-		/* Parity calculation results */
-
 		int /* unsigned char */ tmp_error_status;
 		/* Temporary result of TC validity check */
 
@@ -1688,18 +1685,45 @@ public class TelecommandExecutionTask {
 			/* cannot be called from the C51 ISR.                    */
 		}
 
+		tmp_error_status = decode_TC(TC_address, TC_code, TC_word);
+
+		TC_address >>= 1;
+
+		if (tmp_error_status != 0)
+		{
+			/* TC is invalid. */
+
+			telemetry_data.error_status |= tmp_error_status;
+			tctmDev.writeTmMsb(telemetry_data.error_status);
+			tctmDev.writeTmLsb(telemetry_data.mode_status);
+			/* Send response to this TC to TM */
+
+			return;
+			/* Abort ISR because TC is invalid. */
+		}
+
+
+		handleTC(TC_address, TC_code, tmp_error_status);
+
+	}
+	private int decode_TC(int TC_address, int TC_code, int TC_word) {
+
+		int tmp_error_status, parity;
+		int /* unsigned char */ par8, par4, par2, par1;
+
+		tmp_error_status = 0;
+
+		/* Parity calculation results */
 
 		par8 = TC_address ^ TC_code;
 		par4 = (par8 & 0x0F) ^ (par8 >> 4);
 		par2 = (par4 & 0x03) ^ (par4 >> 2);
-		par1 = (par2 & 0x01) ^ (par2 >> 1);
+		parity = (par2 & 0x01) ^ (par2 >> 1);
 		/* Calculate parity */
 
 		TC_address >>= 1;
-
-		tmp_error_status = 0;
-
-		if (par1 != 0)
+		
+		if (parity != 0)
 		{
 			/* Parity error. */
 
@@ -1781,21 +1805,11 @@ public class TelecommandExecutionTask {
 			telemetry_data.TC_time_tag.set(system.getInternalTime());
 			/* Update TC registers in HK TM data area */
 		}
-
-		if (tmp_error_status != 0)
-		{
-			/* TC is invalid. */
-
-			telemetry_data.error_status |= tmp_error_status;
-			tctmDev.writeTmMsb(telemetry_data.error_status);
-			tctmDev.writeTmLsb(telemetry_data.mode_status);
-			/* Send response to this TC to TM */
-
-			return;
-			/* Abort ISR because TC is invalid. */
-		}
-
-
+		return tmp_error_status;
+	}
+	
+	private void handleTC(int TC_address, int TC_code, int tmpErrorStatus) {
+	
 		if (TC_address == TcAddress.SEND_STATUS_REGISTER)
 		{
 			/* Send Status Register TC accepted */
@@ -1904,7 +1918,7 @@ public class TelecommandExecutionTask {
 				tctmDev.writeTmLsb (telemetry_data.mode_status);
 				/* First two bytes of Read Data Memory sequence. */
 				
-				read_memory_checksum = (char)(tmp_error_status ^ telemetry_data.mode_status);
+				read_memory_checksum = (char)(tmpErrorStatus ^ telemetry_data.mode_status);
 				
 				TC_state = TC_State.memory_dump_e;
 				
@@ -1920,7 +1934,6 @@ public class TelecommandExecutionTask {
 			tctmDev.writeTmLsb (telemetry_data.mode_status);
 			/* Send response to this TC to TM. */
 		}
-
 	}
 
 	/** Purpose        : Returns the hit time of a given event.
