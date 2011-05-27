@@ -191,12 +191,6 @@ public class AcquisitionTask {
 	   int /* channel_t */ CH_base;
 	   /* First ADC channel number for the relevant Sensor Unit.                 */
 
-	   int /* uint_least8_t */ i;
-	   /* Used in a for -loop, which reads the peak sensor outputs.              */
-
-	   int /* unsigned char */ lsb, msb;
-	   /*These variables are used to combine two bytes into one word.            */
-
 	   int /* uint_least8_t */ conversion_try_count;
 	   /*This variable stores the number of failed conversion starts.            */
 
@@ -314,7 +308,23 @@ public class AcquisitionTask {
 	      /* Delay of 100 microseconds (+ function call overhead). */
 
 
-	      for (i = 0; i < SensorUnitDev.NUM_CH; i++) {
+	      trigger |= runADC_Conversion(delay_limit, CH_base, tc, adcDev);
+
+	      system.getAcqMailbox().sendTaskMail((char)trigger, (byte)0);
+	      /*The number of the Sensor unit that has caused the hit trigger     */
+	      /*interrupt is sent to a mailbox for the acquisition task.          */
+
+	   }  /* end if (hit budget left) */
+
+	}
+	private int runADC_Conversion(int delay_limit, int CH_base, TaskControl tc, AdConverter adcDev) {
+		int i;
+	    int /* unsigned char */ lsb, msb;
+		int errorMask;
+		int conversion_try_count;
+		
+		errorMask = 0;
+		for (i = 0; i < SensorUnitDev.NUM_CH; i++) {
 		     // @WCA loop = debie.target.SensorUnitDev.NUM_CH
 	    	 // wp: This should be easy for the DFA, but no bound found
 	    	  
@@ -354,7 +364,7 @@ public class AcquisitionTask {
 
 	         else
 	         {
-	            trigger |= HIT_ADC_ERROR;
+	        	 errorMask |= HIT_ADC_ERROR;
 	            /*Conversion has failed and an indication of this is stored in*/
 	            /*to 'trigger' variable by setting the Most Significant Bit   */
 	            /*(MSB) high. The AcquisitionTask will adjust its operation   */
@@ -364,13 +374,7 @@ public class AcquisitionTask {
 	         }     
 
 	      }
-
-	      system.getAcqMailbox().sendTaskMail((char)trigger, (byte)0);
-	      /*The number of the Sensor unit that has caused the hit trigger     */
-	      /*interrupt is sent to a mailbox for the acquisition task.          */
-
-	   }  /* end if (hit budget left) */
-
+		return errorMask;
 	}
 
 	/** This is a struct which stores the Delay Counter time data. */

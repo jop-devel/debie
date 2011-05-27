@@ -8,6 +8,7 @@ package debie.harness;
 
 import java.io.PrintStream;
 
+import com.jopdesign.sys.Config;
 import com.jopdesign.sys.Const;
 import com.jopdesign.sys.Native;
 
@@ -129,7 +130,7 @@ public class Harness {
 	}
 	
 	/* Instrumentation */
-	public final static boolean INSTRUMENTATION  = false;	
+	public final static boolean INSTRUMENTATION  = Config.MEASURE;	
 	public final static boolean CACHE_SIMULATION = false;	
 	public final static int CACHE_FLUSH = -51;
 	public final static int CACHE_COST  = -52;
