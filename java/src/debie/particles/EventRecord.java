@@ -91,6 +91,7 @@ public class EventRecord {
 	public EventRecord(DebieSystem system) {
 		this.tmData = system.getTelemetryData();
 		this.acqTask = system.getAcquisitionTask();
+		this.hit_time = new Dpu.Time();
 	}
 	
 	public int getByte(int index) {

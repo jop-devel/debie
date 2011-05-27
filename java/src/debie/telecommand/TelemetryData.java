@@ -66,6 +66,7 @@ public class TelemetryData implements TelemetryObject {
 		
 		this.taskControl = system.getTaskControl();
 		this.TC_time_tag = new Dpu.Time();
+		this.time = new Dpu.Time();
 	}
 	
 	public int getSensorUnitTemperature(int sensorUnit, int tempIx) {
