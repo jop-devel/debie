@@ -65,6 +65,7 @@ public class TelemetryData implements TelemetryObject {
 	public TelemetryData(DebieSystem system) {
 		
 		this.taskControl = system.getTaskControl();
+		this.TC_time_tag = new Dpu.Time();
 	}
 	
 	public int getSensorUnitTemperature(int sensorUnit, int tempIx) {
