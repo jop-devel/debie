@@ -1704,7 +1704,7 @@ public class TelecommandExecutionTask {
 	}
 	private int decode_TC(int TC_address, int TC_code, int TC_word) {
 
-		int tmp_error_status, parity;
+		int tmp_error_status;
 		int /* unsigned char */ par8, par4, par2, par1;
 
 		tmp_error_status = 0;
@@ -1714,12 +1714,12 @@ public class TelecommandExecutionTask {
 		par8 = TC_address ^ TC_code;
 		par4 = (par8 & 0x0F) ^ (par8 >> 4);
 		par2 = (par4 & 0x03) ^ (par4 >> 2);
-		parity = (par2 & 0x01) ^ (par2 >> 1);
+		par1 = (par2 & 0x01) ^ (par2 >> 1);
 		/* Calculate parity */
 
 		TC_address >>= 1;
 		
-		if (parity != 0)
+		if (par1 != 0)
 		{
 			/* Parity error. */
 

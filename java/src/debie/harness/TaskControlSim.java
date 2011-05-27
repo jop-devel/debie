@@ -2,7 +2,6 @@ package debie.harness;
 
 import debie.support.DebieSystem;
 import debie.support.KernelObjects;
-import debie.support.Mailbox;
 import debie.support.TaskControl;
 
 public class TaskControlSim implements TaskControl {

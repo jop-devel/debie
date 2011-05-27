@@ -27,7 +27,6 @@ import static debie.target.HwIf.MAX_EVENTS;
 import debie.particles.EventRecord;
 import debie.support.DebieSystem;
 import debie.support.TelemetryObject;
-import debie.target.HwIf;
 
 public class ScienceDataFile implements TelemetryObject {
 
@@ -75,10 +74,11 @@ public class ScienceDataFile implements TelemetryObject {
 		
 	/* Serialization */
 	private static final int SIZE_IN_BYTES = 4+NUM_SU*NUM_CLASSES + MAX_EVENTS*26;
-	private static final int INDEX_BITS = 7;
-	private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (NUM_SU * NUM_CLASSES);
+	public static final int INDEX_BITS = 7;
 	public static int sizeInBytes() { return SIZE_IN_BYTES; }
 	public static int indexBits()   { return INDEX_BITS; }
+
+	private static final int BYTE_INDEX_EVENT_RECORDS = 4 + (NUM_SU * NUM_CLASSES);
 
 	/** for byte-wise telemetry transmission, we need to know at which byte index
 	 *  a certain event record starts. */
