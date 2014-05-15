@@ -1,0 +1,83 @@
+﻿
+DISTRIBUTION AND USE OF THE debie1 BENCHMARK PROGRAM
+
+
+The on-board software for the DEBIE-1 instrument, a satellite-mounted
+detector of micro-meteoroids and space debris, was developed by Space
+Systems Finland Ltd under contract (Contract reference DEB-FIN-CO-001,
+issue 1, dated 6.4.1998, and signed 29.4.1998 by Seppo Korpela on behalf
+of Space Systems Finland Ltd and on 30.4.1998 by Juhani Lehmusvirta on
+behalf of Patria Aviation Oy, with both Detailed and General Statements
+of Work attached) to Patria Aviation Oy with the European Space Agency
+(ESA) as the end customer. The DEBIE-1 instrument, with this software,
+was flown on ESA's first PROBA satellite.
+
+With the permission of Space Systems Finland Ltd, a copy of the DEBIE-1
+software was reduced and converted by Tidorum Ltd into a portable
+program for use as a benchmark for testing, evaluating, and comparing
+tools used to develop and verify embedded real-time programs. This
+benchmark program is called "debie1". It is a derived product of the
+DEBIE-1 on-board software.
+
+Patria Aviation Oy, Space Systems Finland Ltd, and Tidorum Ltd hereby
+allow the copying, distribution, publication, and use of the debie1
+benchmark software, without compensation of any form, under the
+following conditions:
+
+ A. No part of the debie1 software, whether in its original form, a
+ modified form, or translated into another language, shall be used to
+ operate a space-based instrument for the detection of micro-meteoroids
+ or space debris. Violation of this condition makes the violator liable
+ for financial compensation to Patria Aviation Oy and Space Systems
+ Finland Ltd.
+
+ B. Any publication of the debie1 software or of any data or results
+ (including but not limited to results of tests or analyses) obtained by
+ using the software, whether the software was used in original,
+ modified, or translated form, shall include the information that the
+ software is based on the DEBIE-1 on-board software developed by Space
+ Systems Finland Ltd for Patria Aviation Oy.
+
+ C. Any extract, modification, or translation of the debie1 software
+ shall include in the code or in accompanying files text that
+
+   (1) credits Patria Aviation Oy and Space Systems Finland Ltd
+       as the developers of the DEBIE-1 instrument and its on-board
+       software, respectively, and
+
+   (2) explains that the software has been extracted, modified, or
+       translated and is not the original or complete form of the
+       software.
+
+ D. The debie1 software is released "as is" with no claim or guarantee
+ that the software is apt or useful for any specific purpose. Neither
+ Patria Aviation Oy nor Space Systems Finland Ltd nor Tidorum Ltd
+ accepts any responsibility or liability for direct or indirect damages
+ that may result from any use of the software, whether such use is
+ allowed or forbidden under these conditions. All use of the software is
+ at the user's own risk and cost. Neither Patria Aviation Oy nor Space
+ Systems Finland Ltd nor Tidorum Ltd are obliged to supply any form of
+ technical support to the users nor to provide the users with updates or
+ corrections to the software, nor are they obliged to maintain any
+ download site or archive for the software nor to answer or fulfil any
+ requests to supply the sofware.
+
+ E. Any redistribution of the software or a part of it, whether in
+ original, modified, or translated form, shall impose these same
+ conditions (or stricter conditions) on the recipients.
+
+The permissions hereby granted apply only to the debie1 benchmark
+software and do not imply any transfer, reduction, or limitation of the
+ownership, copyright, or other rights held by Patria Aviation Oy and
+Space Systems Finland Ltd in the original DEBIE-1 on-board software and
+in other past or future versions of that software. Note that the DEBIE-1
+instrument also goes by the names DEBIE-I and DEBIE. The instrument's
+on-board software also goes by the name DEBIE DPU software.
+
+Signatures:
+
+Harri Lähti, Patria Aviation Oy, on 5.5.2014
+
+Tuomas TalviOja, Space Systems Finland Oy, on 8.5.2014
+
+Niklas Holsti, Tidorum Ltd, on 8.5.2014
